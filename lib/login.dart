@@ -74,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
         // This switch statement correctly routes users based on their role
         switch (userType) {
           case 'Provincial Engineer':
-            destination = ProvincialEngDashboard(userData: userData);
+            destination = ProvincialEngineerDashboard(userData: userData);
             break;
           case 'Chief Engineer':
             destination = ChiefEngDashboard(userData: userData);
