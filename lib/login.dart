@@ -7,7 +7,8 @@ import 'screens/ChiefEng/dashboard.dart';
 import 'screens/DistrictEng/dashboard.dart';
 import 'screens/Principal/dashboard.dart';
 import 'screens/TO/dashboard.dart';
-import 'screens/role_selection.dart';
+// THIS IS THE IMPORTANT IMPORT THAT WILL NOW BE USED
+import 'screens/role_selection.dart'; 
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -58,14 +59,10 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // --- FIXED ---
-      // Changed collection name back to 'users' to match your registration page
       final usersCollection =
           FirebaseFirestore.instance.collection('users');
       final querySnapshot = await usersCollection
           .where('nic', isEqualTo: _nicController.text.trim())
-          // --- CORRECT ---
-          // This correctly checks the 'password' field
           .where('password', isEqualTo: _passwordController.text.trim())
           .limit(1)
           .get();
@@ -88,13 +85,12 @@ class _LoginPageState extends State<LoginPage> {
           case 'Principal':
             destination = PrincipalDashboard(userData: userData);
             break;
-          case 'Technical Officer': // This correctly routes to the TO dashboard
+          case 'Technical Officer':
             destination = TODashboard(userData: userData);
             break;
           default:
             _showMessage('Login Error',
                 'Could not determine user role. Please contact support.');
-            // Stop loading and return
             setState(() {
               _isLoading = false;
             });
@@ -190,14 +186,15 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                 const SizedBox(height: 20),
-                // --- NEW: Sign Up Option ---
+                // --- This section will now correctly link to your external file ---
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Don't have an account?"),
                     TextButton(
                       onPressed: () {
-                        // Navigate to Role Selection page
+                        // This navigation now works because the local
+                        // placeholder class is gone.
                         Navigator.of(context).push(MaterialPageRoute(
                           builder: (context) => const RoleSelectionPage(),
                         ));
@@ -268,7 +265,8 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 // --- Placeholder classes for missing imports ---
-// You will need to create these files properly in 'screens/...'
+// I am leaving these here so your _login function does not break.
+// DO NOT add the RoleSelectionPage placeholder back.
 
 class ProvincialEngDashboard extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -330,14 +328,7 @@ class TODashboard extends StatelessWidget {
   }
 }
 
-class RoleSelectionPage extends StatelessWidget {
-  const RoleSelectionPage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sign Up - Select Role')),
-      body: const Center(child: Text('Role Selection / Sign Up Page')),
-    );
-  }
-}
-
+/*
+I HAVE REMOVED THE RoleSelectionPage CLASS THAT WAS HERE.
+THIS IS THE FIX.
+*/
