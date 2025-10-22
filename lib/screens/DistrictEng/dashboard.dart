@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// 1. New Import: Make sure to import the file containing the TO Management page
+import 'manage_to_page.dart'; // <--- Check that this path is correct in your project
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -61,6 +63,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blueAccent,
+        unselectedItemColor: Colors.grey, // Added for better visibility
         onTap: _onItemTapped,
       ),
     );
@@ -177,13 +180,29 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     );
   }
 
+  // 2. Updated _buildManageButton with Navigation Logic
   Widget _buildManageButton(String label) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: ElevatedButton(
           onPressed: () {
-            // TODO: Implement navigation for each manage button
+            // Check if the 'Manage TOs' button is pressed
+            if (label == 'Manage TOs') {
+              // Navigation logic to the Manage Technical Officers page
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ManageTechnicalOfficersPage(),
+                ),
+              );
+            } else {
+              // Action for other buttons
+              // TODO: Implement navigation for 'Manage Schools' and 'Manage Principals'
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Tapped: $label')),
+              );
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.teal.shade300,
@@ -291,4 +310,3 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     );
   }
 }
-
