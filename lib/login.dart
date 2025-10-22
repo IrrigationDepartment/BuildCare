@@ -8,7 +8,7 @@ import 'screens/DistrictEng/dashboard.dart';
 import 'screens/Principal/dashboard.dart';
 import 'screens/TO/dashboard.dart';
 // THIS IS THE IMPORTANT IMPORT THAT WILL NOW BE USED
-import 'screens/role_selection.dart'; 
+import 'screens/role_selection.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -59,8 +59,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final usersCollection =
-          FirebaseFirestore.instance.collection('users');
+      final usersCollection = FirebaseFirestore.instance.collection('users');
       final querySnapshot = await usersCollection
           .where('nic', isEqualTo: _nicController.text.trim())
           .where('password', isEqualTo: _passwordController.text.trim())
@@ -167,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
                 _buildPasswordField(),
                 const SizedBox(height: 12),
-                
+
                 const SizedBox(height: 20),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
