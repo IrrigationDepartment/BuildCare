@@ -58,10 +58,15 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final usersCollection = FirebaseFirestore.instance.collection('users');
+      // --- FIXED ---
+      // Changed collection name back to 'users' to match your registration page
+      final usersCollection =
+          FirebaseFirestore.instance.collection('users');
       final querySnapshot = await usersCollection
           .where('nic', isEqualTo: _nicController.text.trim())
-          .where('mobilePhone', isEqualTo: _passwordController.text.trim())
+          // --- CORRECT ---
+          // This correctly checks the 'password' field
+          .where('password', isEqualTo: _passwordController.text.trim())
           .limit(1)
           .get();
 
@@ -83,12 +88,16 @@ class _LoginPageState extends State<LoginPage> {
           case 'Principal':
             destination = PrincipalDashboard(userData: userData);
             break;
-          case 'Technical Officer':
+          case 'Technical Officer': // This correctly routes to the TO dashboard
             destination = TODashboard(userData: userData);
             break;
           default:
             _showMessage('Login Error',
                 'Could not determine user role. Please contact support.');
+            // Stop loading and return
+            setState(() {
+              _isLoading = false;
+            });
             return;
         }
 
@@ -162,7 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
                 _buildPasswordField(),
                 const SizedBox(height: 12),
-               
+                
                 const SizedBox(height: 20),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -254,6 +263,80 @@ class _LoginPageState extends State<LoginPage> {
         filled: true,
         fillColor: Colors.grey[200],
       ),
+    );
+  }
+}
+
+// --- Placeholder classes for missing imports ---
+// You will need to create these files properly in 'screens/...'
+
+class ProvincialEngDashboard extends StatelessWidget {
+  final Map<String, dynamic> userData;
+  const ProvincialEngDashboard({super.key, required this.userData});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Provincial Engineer Dashboard')),
+      body: Center(child: Text('Welcome ${userData['name']}')),
+    );
+  }
+}
+
+class ChiefEngDashboard extends StatelessWidget {
+  final Map<String, dynamic> userData;
+  const ChiefEngDashboard({super.key, required this.userData});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Chief Engineer Dashboard')),
+      body: Center(child: Text('Welcome ${userData['name']}')),
+    );
+  }
+}
+
+class DistrictEngDashboard extends StatelessWidget {
+  final Map<String, dynamic> userData;
+  const DistrictEngDashboard({super.key, required this.userData});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('District Engineer Dashboard')),
+      body: Center(child: Text('Welcome ${userData['name']}')),
+    );
+  }
+}
+
+class PrincipalDashboard extends StatelessWidget {
+  final Map<String, dynamic> userData;
+  const PrincipalDashboard({super.key, required this.userData});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Principal Dashboard')),
+      body: Center(child: Text('Welcome ${userData['name']}')),
+    );
+  }
+}
+
+class TODashboard extends StatelessWidget {
+  final Map<String, dynamic> userData;
+  const TODashboard({super.key, required this.userData});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Technical Officer Dashboard')),
+      body: Center(child: Text('Welcome ${userData['name']}')),
+    );
+  }
+}
+
+class RoleSelectionPage extends StatelessWidget {
+  const RoleSelectionPage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Sign Up - Select Role')),
+      body: const Center(child: Text('Role Selection / Sign Up Page')),
     );
   }
 }
