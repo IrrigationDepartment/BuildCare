@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
-
+// --- Dashboard Screen (Main Dashboard) ---
 class ProvincialEngineerDashboard extends StatelessWidget {
-  const ProvincialEngineerDashboard({super.key, required Map<String, dynamic> userData});
+  // Constructor kept for compatibility, even if userData is not explicitly used now
+  final Map<String, dynamic>? userData;
+
+  const ProvincialEngineerDashboard({super.key, this.userData});
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +34,7 @@ class ProvincialEngineerDashboard extends StatelessWidget {
                 mainAxisSpacing: 10.0,
                 childAspectRatio: 1.5,
                 children: const <Widget>[
+                  // All four User Management Cards are defined here, ready for click action
                   UserManagementCard(
                     title: 'Chief eng',
                     subtitle: 'Manage',
@@ -88,12 +92,12 @@ class ProvincialEngineerDashboard extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
 
-
-// DashboardHeader
+// --- DashboardHeader ---
 class DashboardHeader extends StatelessWidget {
   const DashboardHeader({super.key});
-  // ... (Code as previously given) ...
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -146,7 +150,7 @@ class DashboardHeader extends StatelessWidget {
   }
 }
 
-// UserManagementCard
+// --- UserManagementCard (Includes Tap Navigation) ---
 class UserManagementCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -163,57 +167,69 @@ class UserManagementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                const Icon(Icons.person, size: 20, color: Colors.black87),
-                const SizedBox(width: 5),
-                Text(
-                  'Manage $title',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                const Icon(Icons.add_circle_outline, color: Colors.blue),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Add a ${title.split(' ').first}:', style: const TextStyle(fontSize: 12)),
-                const SizedBox(height: 5),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Active Users', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                    Text(activeUsers, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Pending Users', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                    Text(pendingUsers, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                  ],
-                ),
-              ],
-            ),
-          ],
+    // GestureDetector wraps the Card to make it clickable
+    return GestureDetector(
+      onTap: () {
+        // Navigates to the ManageUsersScreen, passing the user type (title)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ManageUsersScreen(userType: title),
+          ),
+        );
+      },
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.person, size: 20, color: Colors.black87),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Manage $title',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.add_circle_outline, color: Colors.blue),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Add a ${title.split(' ').first}:', style: const TextStyle(fontSize: 12)),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Active Users', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(activeUsers, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Pending Users', style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(pendingUsers, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// LatestUpdateItem
+// --- LatestUpdateItem ---
 class LatestUpdateItem extends StatelessWidget {
   final String title;
   final String locationStatus;
@@ -274,7 +290,7 @@ class LatestUpdateItem extends StatelessWidget {
   }
 }
 
-// CustomBottomNavBar
+// --- CustomBottomNavBar ---
 class CustomBottomNavBar extends StatelessWidget {
   const CustomBottomNavBar({super.key});
 
@@ -300,6 +316,30 @@ class CustomBottomNavBar extends StatelessWidget {
           Icon(Icons.person, color: Colors.blue, size: 30),
           Icon(Icons.settings_outlined, color: Colors.black54, size: 30),
         ],
+      ),
+    );
+  }
+}
+
+// --- New Blank Page for User Management (Target screen for all management cards) ---
+class ManageUsersScreen extends StatelessWidget {
+  final String userType;
+
+  const ManageUsersScreen({super.key, required this.userType});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Manage $userType'),
+        backgroundColor: const Color(0xFFE8F2FF),
+        iconTheme: const IconThemeData(color: Colors.black87), // Back button color
+      ),
+      body: Center(
+        child: Text(
+          'This is the management page for $userType.', // English placeholder text
+          style: const TextStyle(fontSize: 20, color: Colors.black54),
+        ),
       ),
     );
   }
