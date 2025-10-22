@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-// 1. New Import: Make sure to import the file containing the TO Management page
+// 1. Existing Import for Technical Officer Management
 import 'manage_to_page.dart'; // <--- Check that this path is correct in your project
+
+// 2. New Import: Import the file containing the Manage Principals page
+import 'manage_principals_page.dart'; // <--- IMPORTANT: Ensure this file exists!
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -180,25 +183,32 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     );
   }
 
-  // 2. Updated _buildManageButton with Navigation Logic
+  // 3. Updated _buildManageButton with Navigation Logic for Manage Principals
   Widget _buildManageButton(String label) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: ElevatedButton(
           onPressed: () {
-            // Check if the 'Manage TOs' button is pressed
             if (label == 'Manage TOs') {
-              // Navigation logic to the Manage Technical Officers page
+              // Navigation to the Manage Technical Officers page
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const ManageTechnicalOfficersPage(),
                 ),
               );
+            } else if (label == 'Manage Principals') {
+              // *** NAVIGATION TO MANAGE PRINCIPALS PAGE ***
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ManagePrincipalsPage(), // Correct class name from previous step
+                ),
+              );
             } else {
-              // Action for other buttons
-              // TODO: Implement navigation for 'Manage Schools' and 'Manage Principals'
+              // Action for 'Manage Schools' and other buttons
+              // TODO: Implement navigation for 'Manage Schools'
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Tapped: $label')),
               );
