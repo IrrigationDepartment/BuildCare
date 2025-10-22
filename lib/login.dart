@@ -67,25 +67,34 @@ class _LoginPageState extends State<LoginPage> {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        final userData = querySnapshot.docs.first.data();
+        // --- FIX: Get the document itself to access both data and ID ---
+        final userDoc = querySnapshot.docs.first;
+        final userData = userDoc.data();
+        final userId = userDoc.id; // Get the document ID
         final userType = userData['userType'] as String?;
+        // --- End of Fix ---
 
         Widget destination;
         // This switch statement correctly routes users based on their role
         switch (userType) {
           case 'Provincial Engineer':
+            // TODO: Update this dashboard to accept userId if it needs a profile page
             destination = ProvincialEngDashboard(userData: userData);
             break;
           case 'Chief Engineer':
+            // TODO: Update this dashboard to accept userId if it needs a profile page
             destination = ChiefEngDashboard(userData: userData);
             break;
           case 'District Engineer':
+            // TODO: Update this dashboard to accept userId if it needs a profile page
             destination = DistrictEngDashboard(userData: userData);
             break;
           case 'Principal':
-            destination = PrincipalDashboard(userData: userData);
+            // ✅ Pass both userData AND userId to the dashboard
+            destination = PrincipalDashboard(userData: userData, userId: userId);
             break;
           case 'Technical Officer':
+            // TODO: Update this dashboard to accept userId if it needs a profile page
             destination = TODashboard(userData: userData);
             break;
           default:
@@ -98,9 +107,11 @@ class _LoginPageState extends State<LoginPage> {
         }
 
         // Navigate to the correct dashboard, replacing the login screen
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => destination),
-        );
+        if (mounted) {
+            Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => destination),
+          );
+        }
       } else {
         _showMessage(
             'Login Failed', 'Invalid NIC or Password. Please try again.');
@@ -261,8 +272,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
-//
-// I HAVE REMOVED ALL THE PLACEHOLDER DASHBOARD CLASSES FROM THE END OF THIS FILE.
-// Your app will now use the real dashboard classes from the imported files.
-//
