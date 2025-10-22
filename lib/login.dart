@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Import all the dashboard and new utility screens
+// Corrected imports to match your folder structure
 import 'screens/ProvincialEng/dashboard.dart';
 import 'screens/ChiefEng/dashboard.dart';
 import 'screens/DistrictEng/dashboard.dart';
 import 'screens/Principal/dashboard.dart';
 import 'screens/TO/dashboard.dart';
-// THIS IS THE IMPORTANT IMPORT THAT WILL NOW BE USED
-import 'screens/role_selection.dart'; 
+import 'screens/role_selection.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -72,6 +71,7 @@ class _LoginPageState extends State<LoginPage> {
         final userType = userData['userType'] as String?;
 
         Widget destination;
+        // This switch statement correctly routes users based on their role
         switch (userType) {
           case 'Provincial Engineer':
             destination = ProvincialEngDashboard(userData: userData);
@@ -97,6 +97,7 @@ class _LoginPageState extends State<LoginPage> {
             return;
         }
 
+        // Navigate to the correct dashboard, replacing the login screen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => destination),
         );
@@ -186,15 +187,12 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                 const SizedBox(height: 20),
-                // --- This section will now correctly link to your external file ---
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Don't have an account?"),
                     TextButton(
                       onPressed: () {
-                        // This navigation now works because the local
-                        // placeholder class is gone.
                         Navigator.of(context).push(MaterialPageRoute(
                           builder: (context) => const RoleSelectionPage(),
                         ));
@@ -264,71 +262,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// --- Placeholder classes for missing imports ---
-// I am leaving these here so your _login function does not break.
-// DO NOT add the RoleSelectionPage placeholder back.
-
-class ProvincialEngDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const ProvincialEngDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Provincial Engineer Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-class ChiefEngDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const ChiefEngDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Chief Engineer Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-class DistrictEngDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const DistrictEngDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('District Engineer Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-class PrincipalDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const PrincipalDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Principal Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-class TODashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const TODashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Technical Officer Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-/*
-I HAVE REMOVED THE RoleSelectionPage CLASS THAT WAS HERE.
-THIS IS THE FIX.
-*/
+//
+// I HAVE REMOVED ALL THE PLACEHOLDER DASHBOARD CLASSES FROM THE END OF THIS FILE.
+// Your app will now use the real dashboard classes from the imported files.
+//
