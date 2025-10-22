@@ -3,13 +3,18 @@ import 'package:flutter/material.dart';
 class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
+  // Define the consistent colors from the ManagePrincipalsPage
+  static const Color _cardColor = Color(0xFFE3F2FD); // A very light, gentle blue for the stat cards
+  static const Color _primaryBlue = Color(0xFF1E88E5); // A standard blue for icons/text
+  static const Color _backgroundColor = Color(0xFFF0F2F5); // The light grey background
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // The background color matches the dashboard's light grey
-      backgroundColor: const Color(0xFFF0F2F5),
+      // Use the consistent background color
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
-        // Transparent app bar to blend with the background, only showing the back button
+        // Transparent app bar to blend with the background
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -24,7 +29,8 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          // Use consistent padding
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -37,11 +43,11 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           ),
         ),
       ),
-      // Use the same Bottom Navigation Bar as the dashboard for consistency
+      // Consistent Bottom Navigation Bar styling
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined), // Changed to outlined home icon
             label: 'Home',
           ),
           BottomNavigationBarItem(
@@ -53,10 +59,14 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             label: 'Settings',
           ),
         ],
-        // The current index is 1 because the second icon (person) is highlighted in the image
+        // The current index is 1 (person icon)
         currentIndex: 1, 
-        selectedItemColor: Colors.blueAccent,
-        // onTap: (index) { /* TODO: Implement navigation for other tabs */ },
+        selectedItemColor: _primaryBlue, // The highlighted icon is blue
+        unselectedItemColor: Colors.grey, // Non-selected icons are grey
+        showSelectedLabels: false, // Hide labels for a cleaner look
+        showUnselectedLabels: false,
+        backgroundColor: Colors.white, // White background for the bar
+        type: BottomNavigationBarType.fixed, // To show all icons clearly
       ),
     );
   }
@@ -68,16 +78,20 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildStatCard('Total TOs', '25', Icons.group, Colors.blue),
-            _buildStatCard('Pending', '5', Icons.access_time, Colors.orange),
+            // Total TOs - Group Icon
+            _buildStatCard('Total TOs', '25', Icons.group_outlined),
+            // Pending - Person with Clock Icon (Changed from access_time)
+            _buildStatCard('Pending', '5', Icons.pending_actions_outlined),
           ],
         ),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildStatCard('Active TOs', '20', Icons.group_add, Colors.green),
-            _buildStatCard('Schools', '150', Icons.school, Colors.teal),
+            // Active TOs - Group with 'Add' Icon (Changed from group_add)
+            _buildStatCard('Active TOs', '20', Icons.how_to_reg_outlined),
+            // Schools - School/Building Icon (Changed from school)
+            _buildStatCard('Schools', '150', Icons.apartment_outlined),
           ],
         ),
       ],
@@ -85,17 +99,19 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   }
 
   // Helper widget for a single stat card in the grid
-  Widget _buildStatCard(String title, String count, IconData icon, Color color) {
+  // Adopted the signature, styling, and layout from the Principals page
+  Widget _buildStatCard(String title, String count, IconData icon) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
+        height: 120, // Give it a fixed height for consistent look
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _cardColor, // Use the light blue card color
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.05), // Subtle shadow
               spreadRadius: 1,
               blurRadius: 3,
             ),
@@ -103,22 +119,26 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            Text(
+              title,
+              style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w500),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   count,
-                  style: TextStyle(
-                      fontSize: 32, fontWeight: FontWeight.bold, color: color),
+                  style: const TextStyle(
+                      fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
-                Icon(icon, size: 40, color: color.withOpacity(0.6)),
+                Icon(icon, size: 36, color: _primaryBlue), // Use primary blue icon color
               ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
           ],
         ),
@@ -135,7 +155,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.05),
             spreadRadius: 1,
             blurRadius: 3,
           ),
@@ -146,6 +166,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           hintText: 'Search TOs.......',
           border: InputBorder.none,
           icon: Icon(Icons.search, color: Colors.grey),
+          contentPadding: EdgeInsets.symmetric(vertical: 12), // Consistent padding
         ),
       ),
     );
@@ -159,15 +180,15 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             context, 'View School Master Plan', Icons.description_outlined),
         const SizedBox(height: 16),
         _buildOptionTile(
-            context, 'View Damage Details', Icons.dangerous_outlined),
+            context, 'View Damage Details', Icons.remove_red_eye_outlined), // Changed icon to match 'View' action
         const SizedBox(height: 16),
         _buildOptionTile(
-            context, 'View Contract Details', Icons.edit_document),
+            context, 'View Contract Details', Icons.edit_note_outlined), // Changed icon to match 'Contract' or 'Edit' action
       ],
     );
   }
 
-  // Helper widget for a single option tile (Master Plan, Damage Details, Contract Details)
+  // Helper widget for a single option tile
   Widget _buildOptionTile(
       BuildContext context, String title, IconData icon) {
     return InkWell(
@@ -179,13 +200,14 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
       },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        // Used consistent vertical padding
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white, // White background for the tiles
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.05),
               spreadRadius: 1,
               blurRadius: 3,
             ),
@@ -196,9 +218,12 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87),
             ),
-            Icon(icon, size: 28, color: Colors.blueAccent),
+            Icon(icon, size: 28, color: _primaryBlue), // Use primary blue icon color
           ],
         ),
       ),
