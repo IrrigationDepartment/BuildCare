@@ -1,3 +1,4 @@
+import 'package:buildcare/screens/ChiefEng/dashboard.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'login.dart'; // Import the login screen
@@ -25,7 +26,9 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const SplashScreen(),
+         home: const SplashScreen(),
+      
+
       debugShowCheckedModeBanner: false,
     );
   }
@@ -137,4 +140,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-

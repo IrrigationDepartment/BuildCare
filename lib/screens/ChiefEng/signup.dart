@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ProvincialEngRegistrationPage extends StatefulWidget {
-  const ProvincialEngRegistrationPage({super.key});
+class ChiefEngRegistrationPage extends StatefulWidget {
+  const ChiefEngRegistrationPage({super.key});
 
   @override
-  State<ProvincialEngRegistrationPage> createState() =>
-      _ProvincialEngRegistrationPageState();
+  State<ChiefEngRegistrationPage> createState() =>
+      _ChiefEngRegistrationPageState();
 }
 
-class _ProvincialEngRegistrationPageState
-    extends State<ProvincialEngRegistrationPage> {
+class _ChiefEngRegistrationPageState
+    extends State<ChiefEngRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
 
   // Controllers for all the new fields
@@ -62,7 +62,7 @@ class _ProvincialEngRegistrationPageState
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
           'password': _passwordController.text.trim(), // Storing the password
-          'userType': 'Provincial Engineer',
+          'userType': 'Chief Engineer',
           'createdAt': Timestamp.now(),
         });
 
@@ -91,7 +91,7 @@ class _ProvincialEngRegistrationPageState
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Register Provincial Engineer'),
+        title: const Text('Register Chief Engineer'),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -104,7 +104,7 @@ class _ProvincialEngRegistrationPageState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // --- FORM FIELDS ---
-              _buildReadOnlyDropdown('User Type', 'Provincial Engineer'),
+              _buildReadOnlyDropdown('User Type', 'Chief Engineer'),
               const SizedBox(height: 16),
               _buildTextFormField(
                   controller: _nameController,
@@ -300,4 +300,3 @@ class _ProvincialEngRegistrationPageState
     );
   }
 }
-

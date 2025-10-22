@@ -1,3 +1,4 @@
+import 'package:buildcare/screens/ChiefEng/signup.dart';
 import 'package:flutter/material.dart';
 
 // Import all the new registration pages
@@ -20,6 +21,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     'Principal',
     'TO',
     'District Engineer',
+    'Chief Engineer',
     'Provincial Engineer'
   ];
 
@@ -73,6 +75,9 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                         break;
                       case 'District Engineer':
                         destination = const DistrictEngRegistrationPage();
+                        break;
+                      case 'Chief Engineer':
+                        destination = const ChiefEngRegistrationPage();
                         break;
                       case 'Provincial Engineer':
                         destination = const ProvincialEngRegistrationPage();
