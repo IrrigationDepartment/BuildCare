@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-//  Existing Import for Technical Officer Management
+// Existing Import for Technical Officer Management
 import 'manage_to_page.dart'; 
 
-//  Import the file containing the Manage Principals page
+// Import the file containing the Manage Principals page
 import 'manage_principals_page.dart';
+
+// 🔑 NEW IMPORT: Import the file containing the Manage Schools page
+import 'manage_schools_page.dart';
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -183,14 +186,22 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     );
   }
 
-  //  Updated _buildManageButton with Navigation Logic for Manage Principals
+  // 🔑 UPDATED: _buildManageButton now handles 'Manage Schools' navigation
   Widget _buildManageButton(String label) {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: ElevatedButton(
           onPressed: () {
-            if (label == 'Manage TOs') {
+            if (label == 'Manage Schools') {
+              // 👈 **Navigation for Manage Schools**
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ManageSchoolsPage(),
+                ),
+              );
+            } else if (label == 'Manage TOs') {
               // Navigation to the Manage Technical Officers page
               Navigator.push(
                 context,
@@ -207,8 +218,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                 ),
               );
             } else {
-              // Action for 'Manage Schools' and other buttons
-              // TODO: Implement navigation for 'Manage Schools'
+              // Default action
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Tapped: $label')),
               );
