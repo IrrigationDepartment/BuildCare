@@ -4,9 +4,9 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
   // Define the consistent colors from the ManagePrincipalsPage
-  static const Color _cardColor = Color(0xFFE3F2FD); // A very light, gentle blue for the stat cards
-  static const Color _primaryBlue = Color(0xFF1E88E5); // A standard blue for icons/text
-  static const Color _backgroundColor = Color(0xFFF0F2F5); // The light grey background
+  static const Color _cardColor = Color(0xFFE3F2FD); 
+  static const Color _primaryBlue = Color(0xFF1E88E5); 
+  static const Color _backgroundColor = Color(0xFFF0F2F5); 
 
   @override
   Widget build(BuildContext context) {
