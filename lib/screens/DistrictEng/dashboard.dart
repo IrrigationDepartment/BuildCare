@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-// 1. Existing Import for Technical Officer Management
-import 'manage_to_page.dart'; // <--- Check that this path is correct in your project
+//  Existing Import for Technical Officer Management
+import 'manage_to_page.dart'; 
 
-// 2. New Import: Import the file containing the Manage Principals page
-import 'manage_principals_page.dart'; // <--- IMPORTANT: Ensure this file exists!
+//  Import the file containing the Manage Principals page
+import 'manage_principals_page.dart';
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -183,7 +183,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     );
   }
 
-  // 3. Updated _buildManageButton with Navigation Logic for Manage Principals
+  //  Updated _buildManageButton with Navigation Logic for Manage Principals
   Widget _buildManageButton(String label) {
     return Expanded(
       child: Padding(
@@ -199,11 +199,11 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                 ),
               );
             } else if (label == 'Manage Principals') {
-              // *** NAVIGATION TO MANAGE PRINCIPALS PAGE ***
+              // Navigation to the Manage Principals page
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ManagePrincipalsPage(), // Correct class name from previous step
+                  builder: (context) => const ManagePrincipalsPage(),
                 ),
               );
             } else {
