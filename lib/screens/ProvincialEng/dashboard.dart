@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+// ManageUsersPage import එක තිබ්බ විදිහටම තියෙනවා.
+import 'manage_users.dart'; 
 
 // --- Dashboard Screen (Main Dashboard) ---
 class ProvincialEngineerDashboard extends StatelessWidget {
-  // Constructor kept for compatibility, even if userData is not explicitly used now
   final Map<String, dynamic>? userData;
 
   const ProvincialEngineerDashboard({super.key, this.userData});
@@ -23,7 +24,7 @@ class ProvincialEngineerDashboard extends StatelessWidget {
             // 1. Header Section
             const DashboardHeader(),
 
-            // 2. User Management Grids
+            // 2. User Management Grids (This section remains unchanged)
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: GridView.count(
@@ -33,8 +34,8 @@ class ProvincialEngineerDashboard extends StatelessWidget {
                 crossAxisSpacing: 10.0,
                 mainAxisSpacing: 10.0,
                 childAspectRatio: 1.5,
-                children: const <Widget>[
-                  // All four User Management Cards are defined here, ready for click action
+                // List එකේ Widgets වල Actions තියෙන නිසා const ඉවත් කරලා තියෙනවා
+                children: <Widget>[ 
                   UserManagementCard(
                     title: 'Chief eng',
                     subtitle: 'Manage',
@@ -63,24 +64,34 @@ class ProvincialEngineerDashboard extends StatelessWidget {
               ),
             ),
 
-            // 3. Latest Updates Section
+            // 3. User Approvals/Latest Users Section
             const Padding(
               padding: EdgeInsets.only(left: 16.0, top: 10.0, bottom: 8.0),
               child: Text(
-                'Latest Updates',
+                'Pending User Approvals', // Title එක වෙනස් කලා
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            const LatestUpdateItem(
-              title: 'Thurstan Collage - Damaged Roof',
-              locationStatus: 'Colombo - Status, Pending Review',
+            
+            // UserCard Widgets
+            // UserCard වලටත් const දාන්න බෑ, මොකද ඇතුළෙ onPressed තියෙනවා
+            UserCard(
+              userName: 'Nimal Bandara',
+              userRole: 'District Engineer - Colombo',
+              isApproved: false, // තවම Approve නැති නිසා
             ),
-            const LatestUpdateItem(
-              title: 'Christ Church Baddegama - Damaged Roof',
-              locationStatus: 'Galle - Status, Pending Review',
+            UserCard(
+              userName: 'Kamani Perera',
+              userRole: 'Technical Officer - Galle',
+              isApproved: false, // තවම Approve නැති නිසා
+            ),
+            UserCard(
+              userName: 'Jayantha Sirisena',
+              userRole: 'Principal - Kandy',
+              isApproved: true, // Approve කරපු කෙනෙක් විදිහට
             ),
             const SizedBox(height: 20),
           ],
@@ -93,8 +104,8 @@ class ProvincialEngineerDashboard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-
-// --- DashboardHeader ---
+// --- DashboardHeader (No changes) ---
+// -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   const DashboardHeader({super.key});
 
@@ -150,7 +161,9 @@ class DashboardHeader extends StatelessWidget {
   }
 }
 
-// --- UserManagementCard (Includes Tap Navigation) ---
+// -----------------------------------------------------------------------------
+// --- UserManagementCard (No changes) ---
+// -----------------------------------------------------------------------------
 class UserManagementCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -167,14 +180,15 @@ class UserManagementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // GestureDetector wraps the Card to make it clickable
     return GestureDetector(
       onTap: () {
-        // Navigates to the ManageUsersScreen, passing the user type (title)
+        String pageTitle = 'Manage $title';
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ManageUsersScreen(userType: title),
+            builder: (context) => ManageUsersPage(
+              roleTitle: pageTitle,
+            ),
           ),
         );
       },
@@ -203,20 +217,27 @@ class UserManagementCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Add a ${title.split(' ').first}:', style: const TextStyle(fontSize: 12)),
+                  Text('Add a ${title.split(' ').first}:',
+                      style: const TextStyle(fontSize: 12)),
                   const SizedBox(height: 5),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Active Users', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(activeUsers, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                      const Text('Active Users',
+                          style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(activeUsers,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.blue)),
                     ],
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Pending Users', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(pendingUsers, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                      const Text('Pending Users',
+                          style: TextStyle(fontSize: 12, color: Colors.black54)),
+                      Text(pendingUsers,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.blue)),
                     ],
                   ),
                 ],
@@ -229,68 +250,144 @@ class UserManagementCard extends StatelessWidget {
   }
 }
 
-// --- LatestUpdateItem ---
-class LatestUpdateItem extends StatelessWidget {
-  final String title;
-  final String locationStatus;
+// -----------------------------------------------------------------------------
+// --- NEW: UserCard (Replaces LatestUpdateItem) ---
+// -----------------------------------------------------------------------------
+class UserCard extends StatelessWidget {
+  final String userName;
+  final String userRole;
+  final bool isApproved;
 
-  const LatestUpdateItem({
+  const UserCard({
     super.key,
-    required this.title,
-    required this.locationStatus,
+    required this.userName,
+    required this.userRole,
+    required this.isApproved,
   });
+
+  // Common navigation function for buttons
+  void _navigateToBlankPage(BuildContext context, String action) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BlankActionPage(
+          action: action,
+          target: userName,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          const Icon(
-            Icons.house_outlined,
-            size: 40,
-            color: Colors.black87,
+      child: Card(
+        elevation: 1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.account_circle, size: 40, color: Colors.blueGrey),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          userName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          userRole,
+                          style: const TextStyle(fontSize: 14, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    isApproved ? Icons.check_circle : Icons.pending,
+                    color: isApproved ? Colors.green : Colors.orange,
+                    size: 20,
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // 1. View Button
+                  _ActionButton(
+                    text: 'View',
+                    color: Colors.blue,
+                    onPressed: () => _navigateToBlankPage(context, 'View Details'),
+                  ),
+                  // 2. Edit Button
+                  _ActionButton(
+                    text: 'Edit',
+                    color: Colors.deepOrange,
+                    onPressed: () => _navigateToBlankPage(context, 'Edit User'),
+                  ),
+                  // 3. Approve Button (Show only if not approved)
+                  if (!isApproved)
+                    _ActionButton(
+                      text: 'Approve',
+                      color: Colors.green,
+                      onPressed: () => _navigateToBlankPage(context, 'Approve User'),
+                    ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  locationStatus,
-                  style: const TextStyle(fontSize: 14, color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          TextButton(
-            onPressed: () {
-              // Add navigation/action logic here
-            },
-            style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFFE8F2FF),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text(
-              'View Details',
-              style: TextStyle(color: Colors.blue, fontSize: 14),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// --- CustomBottomNavBar ---
+// Helper Widget for Buttons
+class _ActionButton extends StatelessWidget {
+  final String text;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _ActionButton({
+    required this.text,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            elevation: 1,
+          ),
+          child: Text(text),
+        ),
+      ),
+    );
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// --- CustomBottomNavBar (No changes) ---
+// -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   const CustomBottomNavBar({super.key});
 
@@ -321,24 +418,32 @@ class CustomBottomNavBar extends StatelessWidget {
   }
 }
 
-// --- New Blank Page for User Management (Target screen for all management cards) ---
-class ManageUsersScreen extends StatelessWidget {
-  final String userType;
+// -----------------------------------------------------------------------------
+// --- NEW: Blank Action Page (for button clicks) ---
+// -----------------------------------------------------------------------------
+// මේ page එක හැදුවේ 'Edit', 'Approve', 'View' buttons click කලාම navigate වෙන්න
+class BlankActionPage extends StatelessWidget {
+  final String action;
+  final String target;
 
-  const ManageUsersScreen({super.key, required this.userType});
+  const BlankActionPage({super.key, required this.action, required this.target});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage $userType'),
+        title: Text(action),
         backgroundColor: const Color(0xFFE8F2FF),
-        iconTheme: const IconThemeData(color: Colors.black87), // Back button color
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: Center(
-        child: Text(
-          'This is the management page for $userType.', // English placeholder text
-          style: const TextStyle(fontSize: 20, color: Colors.black54),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'This is the blank page for the "$action" action on user: $target.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 20, color: Colors.black54),
+          ),
         ),
       ),
     );
