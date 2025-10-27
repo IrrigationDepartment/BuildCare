@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'add_school_details_page.dart'; // ✅ Correct import for your project name
 
 class PrincipalDashboard extends StatelessWidget {
-  final Map<String, dynamic>? userData; // Make userData nullable
+  final Map<String, dynamic>? userData;
 
   const PrincipalDashboard({super.key, required this.userData});
 
@@ -9,9 +10,8 @@ class PrincipalDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- FIX: Check if userData is valid before building the UI ---
+    // --- Handle null userData safely ---
     if (userData == null || userData!['name'] == null) {
-      // If data is missing, show an error/loading screen instead of crashing.
       return Scaffold(
         appBar: AppBar(title: const Text("Error")),
         body: const Center(
@@ -30,46 +30,64 @@ class PrincipalDashboard extends StatelessWidget {
       );
     }
 
-    // If data is valid, build the dashboard.
     final String principalName = userData!['name'];
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: null, // No AppBar in the design
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                _buildWelcomeHeader(principalName),
-                const SizedBox(height: 30),
-                _buildActionButton(
-                  icon: Icons.add,
-                  text: 'Add Your School Details',
-                  onTap: () {},
-                ),
-                const SizedBox(height: 15),
-                _buildActionButton(
-                  icon: Icons.build_outlined,
-                  text: 'Add Building Issues',
-                  onTap: () {},
-                ),
-                const SizedBox(height: 15),
-                _buildActionButton(
-                  icon: Icons.map_outlined,
-                  text: 'Manage Master Plans',
-                  onTap: () {},
-                ),
-                const SizedBox(height: 30),
-                _buildReportedIssuesSection(),
-              ],
-            ),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              _buildWelcomeHeader(principalName),
+              const SizedBox(height: 30),
+
+              // ✅ Button 1: Navigate to Add School Details Form
+              _buildActionButton(
+                icon: Icons.add,
+                text: 'Add Your School Details',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddSchoolDetailsPage(),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 15),
+
+              // ✅ Button 2: Placeholder for Building Issues
+              _buildActionButton(
+                icon: Icons.build_outlined,
+                text: 'Add Building Issues',
+                onTap: () {
+                  // TODO: Add navigation for building issues page
+                },
+              ),
+
+              const SizedBox(height: 15),
+
+              // ✅ Button 3: Placeholder for Master Plans
+              _buildActionButton(
+                icon: Icons.map_outlined,
+                text: 'Manage Master Plans',
+                onTap: () {
+                  // TODO: Add navigation for master plans page
+                },
+              ),
+
+              const SizedBox(height: 30),
+              _buildReportedIssuesSection(),
+            ],
           ),
         ),
       ),
+
+      // ✅ Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         selectedItemColor: _primaryColor,
@@ -77,16 +95,18 @@ class PrincipalDashboard extends StatelessWidget {
         showSelectedLabels: false,
         showUnselectedLabels: false,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home, size: 30), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline, size: 30), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined, size: 30), label: 'Settings'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home, size: 30), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline, size: 30), label: 'Profile'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined, size: 30), label: 'Settings'),
         ],
       ),
     );
   }
 
-  // --- All the helper widgets from before remain the same ---
-
+  // --- WELCOME HEADER CARD ---
   Widget _buildWelcomeHeader(String name) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -123,10 +143,7 @@ class PrincipalDashboard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 name,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
               ),
             ],
           ),
@@ -135,10 +152,12 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(
-      {required IconData icon,
-      required String text,
-      required VoidCallback onTap}) {
+  // --- ACTION BUTTON CARD ---
+  Widget _buildActionButton({
+    required IconData icon,
+    required String text,
+    required VoidCallback onTap,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -157,7 +176,8 @@ class PrincipalDashboard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             child: Row(
               children: [
                 CircleAvatar(
@@ -182,6 +202,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
+  // --- REPORTED ISSUES SECTION ---
   Widget _buildReportedIssuesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,31 +220,38 @@ class PrincipalDashboard extends StatelessWidget {
         ),
         const SizedBox(height: 15),
         _buildIssueCard(
-          title: 'Thurstan Collage - Damaged Roof',
-          status: 'Colombo - Status, Pending Review',
+          title: 'Thurstan College - Damaged Roof',
+          status: 'Colombo • Pending Review',
           date: '2025-09-09',
         ),
         _buildIssueCard(
-          title: 'Thurstan Collage - Damaged Roof',
-          status: 'Colombo - Status, Pending Review',
-          date: '2025-09-09',
+          title: 'Thurstan College - Broken Windows',
+          status: 'Colombo • Pending Review',
+          date: '2025-09-15',
         ),
       ],
     );
   }
 
-  Widget _buildIssueCard(
-      {required String title, required String status, required String date}) {
+  // --- ISSUE CARD ---
+  Widget _buildIssueCard({
+    required String title,
+    required String status,
+    required String date,
+  }) {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 15),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
       shadowColor: Colors.grey.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.home_work_outlined, size: 40, color: Colors.grey[700]),
+            Icon(Icons.home_work_outlined,
+                size: 40, color: Colors.grey[700]),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
@@ -232,19 +260,15 @@ class PrincipalDashboard extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 5),
-                  Text(
-                    status,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
-                  Text(
-                    date,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
+                  Text(status,
+                      style: TextStyle(
+                          fontSize: 13, color: Colors.grey[600])),
+                  Text(date,
+                      style: TextStyle(
+                          fontSize: 13, color: Colors.grey[600])),
                 ],
               ),
             ),
@@ -258,7 +282,8 @@ class PrincipalDashboard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              child: const Text('View Details', style: TextStyle(fontSize: 12)),
+              child: const Text('View Details',
+                  style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
