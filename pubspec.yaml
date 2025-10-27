@@ -33,7 +33,7 @@ dependencies:
   firebase_core: ^4.2.0 # Use the latest version
   firebase_auth: ^6.1.1 # Use the latest version
   cloud_firestore: ^6.0.3 # Use the latest version
-
+  crypto: ^3.0.3 # Add this line
 
 dev_dependencies:
   flutter_test:
