@@ -165,7 +165,7 @@ class ManagePrincipalsPage extends StatelessWidget {
       ),
       child: const TextField(
         decoration: InputDecoration(
-          hintText: 'Search Principals.......', // Updated hint text
+          hintText: 'Search Principals.......', 
           border: InputBorder.none,
           icon: Icon(Icons.search, color: Colors.grey),
           contentPadding: EdgeInsets.symmetric(vertical: 12),
