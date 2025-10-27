@@ -1,8 +1,11 @@
+// dashboard.dart
 import 'package:flutter/material.dart';
-// ManageUsersPage import එක තිබ්බ විදිහටම තියෙනවා.
+// manage_users.dart ගොනුවෙන් ManageUsersPage එක import කර ඇත
 import 'manage_users.dart'; 
 
+// -----------------------------------------------------------------------------
 // --- Dashboard Screen (Main Dashboard) ---
+// -----------------------------------------------------------------------------
 class ProvincialEngineerDashboard extends StatelessWidget {
   final Map<String, dynamic>? userData;
 
@@ -24,7 +27,7 @@ class ProvincialEngineerDashboard extends StatelessWidget {
             // 1. Header Section
             const DashboardHeader(),
 
-            // 2. User Management Grids (This section remains unchanged)
+            // 2. User Management Grids (Clicking these navigates to ManageUsersPage)
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: GridView.count(
@@ -34,22 +37,21 @@ class ProvincialEngineerDashboard extends StatelessWidget {
                 crossAxisSpacing: 10.0,
                 mainAxisSpacing: 10.0,
                 childAspectRatio: 1.5,
-                // List එකේ Widgets වල Actions තියෙන නිසා const ඉවත් කරලා තියෙනවා
                 children: <Widget>[ 
                   UserManagementCard(
-                    title: 'Chief eng',
+                    title: 'Chief Engineer',
                     subtitle: 'Manage',
                     activeUsers: '04',
                     pendingUsers: '04',
                   ),
                   UserManagementCard(
-                    title: 'District eng',
+                    title: 'District Engineer',
                     subtitle: 'Manage',
                     activeUsers: '10',
                     pendingUsers: '04',
                   ),
                   UserManagementCard(
-                    title: 'TO',
+                    title: 'Technical Officer',
                     subtitle: 'Manage',
                     activeUsers: '10',
                     pendingUsers: '04',
@@ -65,10 +67,10 @@ class ProvincialEngineerDashboard extends StatelessWidget {
             ),
 
             // 3. User Approvals/Latest Users Section
-            const Padding(
+           /* const Padding(
               padding: EdgeInsets.only(left: 16.0, top: 10.0, bottom: 8.0),
               child: Text(
-                'Pending User Approvals', // Title එක වෙනස් කලා
+                'Pending User Approvals', 
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -77,22 +79,21 @@ class ProvincialEngineerDashboard extends StatelessWidget {
             ),
             
             // UserCard Widgets
-            // UserCard වලටත් const දාන්න බෑ, මොකද ඇතුළෙ onPressed තියෙනවා
             UserCard(
               userName: 'Nimal Bandara',
               userRole: 'District Engineer - Colombo',
-              isApproved: false, // තවම Approve නැති නිසා
+              isApproved: false, 
             ),
             UserCard(
               userName: 'Kamani Perera',
               userRole: 'Technical Officer - Galle',
-              isApproved: false, // තවම Approve නැති නිසා
+              isApproved: false, 
             ),
             UserCard(
               userName: 'Jayantha Sirisena',
               userRole: 'Principal - Kandy',
-              isApproved: true, // Approve කරපු කෙනෙක් විදිහට
-            ),
+              isApproved: true, 
+            ),*/
             const SizedBox(height: 20),
           ],
         ),
@@ -104,7 +105,7 @@ class ProvincialEngineerDashboard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader (No changes) ---
+// --- DashboardHeader (The Blue Header) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   const DashboardHeader({super.key});
@@ -162,7 +163,7 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserManagementCard (No changes) ---
+// --- UserManagementCard (The Grid Cards on Dashboard) ---
 // -----------------------------------------------------------------------------
 class UserManagementCard extends StatelessWidget {
   final String title;
@@ -183,6 +184,7 @@ class UserManagementCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         String pageTitle = 'Manage $title';
+        // Navigates to the ManageUsersPage (imported from manage_users.dart)
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -206,7 +208,7 @@ class UserManagementCard extends StatelessWidget {
                   const Icon(Icons.person, size: 20, color: Colors.black87),
                   const SizedBox(width: 5),
                   Text(
-                    'Manage $title',
+                    'Manage ${title.split(' ').first}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
@@ -251,7 +253,7 @@ class UserManagementCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- NEW: UserCard (Replaces LatestUpdateItem) ---
+// --- UserCard (Dashboard Approval List Item) ---
 // -----------------------------------------------------------------------------
 class UserCard extends StatelessWidget {
   final String userName;
@@ -350,7 +352,7 @@ class UserCard extends StatelessWidget {
   }
 }
 
-// Helper Widget for Buttons
+// Helper Widget for Buttons (Used in Dashboard UserCard)
 class _ActionButton extends StatelessWidget {
   final String text;
   final Color color;
@@ -386,7 +388,7 @@ class _ActionButton extends StatelessWidget {
 
 
 // -----------------------------------------------------------------------------
-// --- CustomBottomNavBar (No changes) ---
+// --- CustomBottomNavBar (Used in Dashboard) ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   const CustomBottomNavBar({super.key});
@@ -419,9 +421,8 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- NEW: Blank Action Page (for button clicks) ---
+// --- Blank Action Page (for button clicks on Dashboard UserCard) ---
 // -----------------------------------------------------------------------------
-// මේ page එක හැදුවේ 'Edit', 'Approve', 'View' buttons click කලාම navigate වෙන්න
 class BlankActionPage extends StatelessWidget {
   final String action;
   final String target;
