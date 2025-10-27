@@ -5,7 +5,7 @@ import 'manage_to_page.dart';
 // Import the file containing the Manage Principals page
 import 'manage_principals_page.dart';
 
-// 🔑 NEW IMPORT: Import the file containing the Manage Schools page
+//  Import the file containing the Manage Schools page
 import 'manage_schools_page.dart';
 
 class DistrictEngDashboard extends StatefulWidget {
@@ -186,7 +186,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     );
   }
 
-  // 🔑 UPDATED: _buildManageButton now handles 'Manage Schools' navigation
   Widget _buildManageButton(String label) {
     return Expanded(
       child: Padding(
@@ -194,7 +193,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
         child: ElevatedButton(
           onPressed: () {
             if (label == 'Manage Schools') {
-              // 👈 **Navigation for Manage Schools**
+              // Navigation for Manage Schools
               Navigator.push(
                 context,
                 MaterialPageRoute(
