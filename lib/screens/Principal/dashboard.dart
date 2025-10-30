@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'add_school_details_page.dart'; // ✅ Correct import for your project name
+import 'add_school_details_page.dart';
+import 'add_building_issues_page.dart'; // ✅ New import for the building issues page
 
 class PrincipalDashboard extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -60,12 +61,17 @@ class PrincipalDashboard extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              // ✅ Button 2: Placeholder for Building Issues
+              // ✅ Button 2: Navigate to Add Building Issues Page (UPDATED)
               _buildActionButton(
                 icon: Icons.build_outlined,
                 text: 'Add Building Issues',
                 onTap: () {
-                  // TODO: Add navigation for building issues page
+                  Navigator.push( // 🚩 Navigation added
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddBuildingIssuesPage(),
+                    ),
+                  );
                 },
               ),
 
