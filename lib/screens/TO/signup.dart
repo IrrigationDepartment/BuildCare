@@ -411,7 +411,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   /// Helper for the Office selection dropdown
   Widget _buildOfficeDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedOffice,
+      initialValue: _selectedOffice,
       hint: Text('select your office',
           style: TextStyle(color: Colors.grey[500])),
       decoration: InputDecoration(
@@ -451,7 +451,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   /// Helper for the User Type selection dropdown
   Widget _buildUserTypeDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedUserType,
+      initialValue: _selectedUserType,
       hint: Text('Select Your Roll',
           style: TextStyle(color: Colors.grey[500])),
       decoration: InputDecoration(

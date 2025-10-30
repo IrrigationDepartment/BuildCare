@@ -79,8 +79,8 @@ class _LoginPageState extends State<LoginPage> {
             destination = PrincipalDashboard(userData: userData);
             break;
           case 'Technical Officer':
-            // THIS WILL NOW USE YOUR REAL DASHBOARD FILE
-            destination = TODashboard(userData: userData);
+            // Navigate to the TO home/dashboard screen (no userData required)
+            destination = HomeScreen();
             break;
           default:
             _showMessage('Login Error',
