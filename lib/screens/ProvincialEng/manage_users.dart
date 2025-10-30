@@ -18,7 +18,7 @@ class ManageUsersPage extends StatefulWidget {
 
 class _ManageUsersPageState extends State<ManageUsersPage> {
   // --- Dummy Data for Pending Approvals Section (Top List) ---
-  // මෙම ලැයිස්තුව දැන් භාවිතයෙන් තොරයි (Comment කර ඇති නිසා), නමුත් දත්ත එලෙසම තබා ඇත.
+  
   final List<Map<String, String>> pendingUsers = [
     {
       "name": "Pasidu Rajapaksha",
@@ -44,7 +44,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
   ];
 
   // --- Dummy Data for Lower Approvals Section (UserCard List) ---
-  // මෙම ලැයිස්තුව General Pending Approvals සඳහා භාවිතා වේ.
+ 
   final List<Map<String, dynamic>> lowerApprovalUsers = [
     {
       "name": "Nimal Bandara",
@@ -175,7 +175,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                             userName: user['name'],
                             userRole: user['role'],
                             isApproved: user['isApproved'],
-                          )).toList(),
+                          )),
                       
                       const SizedBox(height: 20),
                       /* ------------------------------------------------------------------
