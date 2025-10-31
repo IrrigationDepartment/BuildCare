@@ -9,11 +9,12 @@ class ChiefEngRegistrationPage extends StatefulWidget {
       _ChiefEngRegistrationPageState();
 }
 
-class _ChiefEngRegistrationPageState
-    extends State<ChiefEngRegistrationPage> {
+class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for all the new fields
+  // Controllers for all the fields
+  final _userTypeController =
+      TextEditingController(text: 'Chief Engineer'); // Pre-filled
   final _nameController = TextEditingController();
   final _nicController = TextEditingController();
   final _emailController = TextEditingController();
@@ -34,6 +35,7 @@ class _ChiefEngRegistrationPageState
   @override
   void dispose() {
     // Dispose all controllers to free up resources
+    _userTypeController.dispose();
     _nameController.dispose();
     _nicController.dispose();
     _emailController.dispose();
@@ -46,257 +48,366 @@ class _ChiefEngRegistrationPageState
     super.dispose();
   }
 
+  // --- Firebase Registration Logic ---
   Future<void> _registerUser() async {
+    FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
       try {
         await FirebaseFirestore.instance.collection('users').add({
           'name': _nameController.text.trim(),
-          'nic': _nicController.text.trim(),
+          'nic': _nicController.text.trim().toUpperCase(),
           'email': _emailController.text.trim(),
           'office': _selectedOffice,
           'officePhone': _officePhoneController.text.trim(),
           'mobilePhone': _mobileController.text.trim(),
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
-          'password': _passwordController.text.trim(), // Storing the password
+          'password': _passwordController.text.trim(),
           'userType': 'Chief Engineer',
           'createdAt': Timestamp.now(),
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Registration successful! Please login.')),
-        );
-        Navigator.of(context)
-            .popUntil((route) => route.isFirst); // Go back to login
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: $e')),
-        );
-      } finally {
         if (mounted) {
-          setState(() {
-            _isLoading = false;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                backgroundColor: Colors.green,
+                content: Text('Registration successful!')),
+          );
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
           });
         }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              backgroundColor: Colors.red,
+              content: Text('Registration failed: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
 
+  // --- Main Build Method ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Register Chief Engineer'),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // --- FORM FIELDS ---
-              _buildReadOnlyDropdown('User Type', 'Chief Engineer'),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                  controller: _nameController,
-                  labelText: 'Engineer\'s Name',
-                  icon: Icons.person_outline),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                  controller: _nicController, labelText: 'NIC Number'),
-              const SizedBox(height: 16),
-              _buildDropdownFormField(),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                  controller: _emailController,
-                  labelText: 'Email',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                  controller: _officePhoneController,
-                  labelText: 'Office Phone Number',
-                  keyboardType: TextInputType.phone),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                  controller: _mobileController,
-                  labelText: 'Mobile Number',
-                  icon: Icons.phone_iphone,
-                  keyboardType: TextInputType.phone),
-              const SizedBox(height: 24),
-              const Text("Security Questions",
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                  controller: _petNameController,
-                  labelText: 'First Pet Name'),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                  controller: _nicknameController,
-                  labelText: 'Childhood nickname'),
-              const SizedBox(height: 24),
-              _buildPasswordFormField(),
-              const SizedBox(height: 16),
-              _buildConfirmPasswordFormField(),
-              const SizedBox(height: 30),
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text('Signup (ChiefEng.)',
+                    style: TextStyle(
+                        color: Color.fromARGB(255, 0, 0, 0),
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 30),
+                Container(
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 248, 248, 248),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // --- Form Fields ---
+                        _buildLabeledTextField(
+                            label: 'User Type',
+                            isReadOnly: true,
+                            controller: _userTypeController,
+                            validator: (value) => null),
+                        _buildLabeledTextField(
+                            label: 'Chief Engineer Name',
+                            hint: 'Enter Your Name',
+                            controller: _nameController,
+                            icon: Icons.person_outline),
+                        _buildLabeledTextField(
+                            label: 'NIC Number',
+                            hint: 'e.g., 123456789V or 199012345678',
+                            controller: _nicController,
+                            icon: Icons.credit_card,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'NIC cannot be empty';
+                              final nicRegex =
+                                  RegExp(r'^(\d{9}[vVxX]|\d{12})$');
+                              if (!nicRegex.hasMatch(value))
+                                return 'Invalid Sri Lankan NIC format';
+                              return null;
+                            }),
+                        _buildLabeledDropdown(
+                            label: 'Select Your Office',
+                            hint: 'Select an Office',
+                            value: _selectedOffice,
+                            items: _offices,
+                            onChanged: (newValue) =>
+                                setState(() => _selectedOffice = newValue)),
+                        _buildLabeledTextField(
+                            label: 'Email',
+                            hint: 'Enter Your Email Adress',
+                            controller: _emailController,
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Email cannot be empty';
+                              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                                  .hasMatch(value))
+                                return 'Please enter a valid email';
+                              return null;
+                            }),
+                        _buildLabeledTextField(
+                            label: 'Office Phone Number',
+                            hint: 'Enter 10-digit number',
+                            controller: _officePhoneController,
+                            icon: Icons.phone_in_talk_outlined,
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Office number cannot be empty';
+                              final phoneRegex = RegExp(r'^\d{10}$');
+                              if (!phoneRegex.hasMatch(value))
+                                return 'Office number must be 10 digits';
+                              return null;
+                            }),
+                        _buildLabeledTextField(
+                            label: 'Mobile Number',
+                            hint: 'Enter 10-digit number',
+                            controller: _mobileController,
+                            icon: Icons.phone_iphone,
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Mobile number cannot be empty';
+                              final phoneRegex = RegExp(r'^\d{10}$');
+                              if (!phoneRegex.hasMatch(value))
+                                return 'Mobile number must be 10 digits';
+                              return null;
+                            }),
+                        _buildLabeledTextField(
+                            label: 'First Pet Name',
+                            hint: 'Enter Your First Pet Name',
+                            controller: _petNameController),
+                        _buildLabeledTextField(
+                            label: 'Childhood nickname',
+                            hint: 'Enter Your Childhood nickname',
+                            controller: _nicknameController),
+                        
+                        // Password Field with Guide
+                        _buildLabeledTextField(
+                            label: 'Enter Your Password',
+                            hint: 'Enter Your Password',
+                            controller: _passwordController,
+                            isPassword: true,
+                            isPasswordVisible: _isPasswordVisible,
+                            infoMessage:
+                                'Password must be at least 6 characters long.',
+                            onVisibilityToggle: () => setState(() =>
+                                _isPasswordVisible = !_isPasswordVisible),
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Password cannot be empty';
+                              if (value.length < 6)
+                                return 'Password must be at least 6 characters';
+                              return null;
+                            }),
 
-              // --- SIGN UP BUTTON ---
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _registerUser,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: const Text('Sign Up',
-                          style: TextStyle(fontSize: 18, color: Colors.white)),
+                        _buildLabeledTextField(
+                            label: 'Re-Enter Your Password',
+                            hint: 'Re-Enter Your Password',
+                            controller: _confirmPasswordController,
+                            isPassword: true,
+                            isPasswordVisible: _isConfirmPasswordVisible,
+                            onVisibilityToggle: () => setState(() =>
+                                _isConfirmPasswordVisible =
+                                    !_isConfirmPasswordVisible),
+                            validator: (value) {
+                              if (value != _passwordController.text)
+                                return 'Passwords do not match';
+                              return null;
+                            }),
+                        const SizedBox(height: 30),
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                    onPressed: _registerUser,
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF53BDFF),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30))),
+                                    child: const Text('Sign Up',
+                                        style: TextStyle(
+                                            fontSize: 18,
+                                            color: Color.fromARGB(
+                                                255, 255, 255, 255),
+                                            fontWeight: FontWeight.bold))))
+                      ],
                     ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Already Registered?"),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Sign in'),
                   ),
-                ],
-              )
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- Helper method to show info dialog ---
+  void _showInfoDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          actions: <Widget>[
+            TextButton(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(context).pop())
+          ],
+        );
+      },
+    );
+  }
+
+  // --- Helper Widgets for Form Fields ---
+  Widget _buildLabeledTextField({
+    required String label,
+    required TextEditingController controller,
+    String hint = '',
+    IconData? icon,
+    bool isPassword = false,
+    bool isPasswordVisible = false,
+    bool isReadOnly = false,
+    VoidCallback? onVisibilityToggle,
+    TextInputType? keyboardType,
+    String? infoMessage,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+              if (infoMessage != null)
+                IconButton(
+                  icon: Icon(Icons.info_outline,
+                      color: Colors.grey.shade500, size: 20),
+                  onPressed: () =>
+                      _showInfoDialog(context, 'Password Guide', infoMessage),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                )
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          TextFormField(
+              controller: controller,
+              readOnly: isReadOnly,
+              obscureText: isPassword && !isPasswordVisible,
+              keyboardType: keyboardType,
+              style: const TextStyle(color: Color.fromARGB(221, 58, 58, 58)),
+              decoration: _inputDecoration(
+                  hint,
+                  icon,
+                  isPassword
+                      ? IconButton(
+                          icon: Icon(
+                              isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: const Color(0xFF53BDFF)),
+                          onPressed: onVisibilityToggle)
+                      : null),
+              validator: validator ??
+                  (value) => value!.isEmpty ? '$label cannot be empty' : null)
+        ],
       ),
     );
   }
 
-  // --- HELPER WIDGETS FOR FORM FIELDS ---
-
-  Widget _buildTextFormField({
-    required TextEditingController controller,
-    required String labelText,
-    IconData? icon,
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: labelText,
-        suffixIcon: icon != null ? Icon(icon, color: Colors.grey) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey[100],
-      ),
-      validator: (value) =>
-          value!.isEmpty ? 'This field cannot be empty' : null,
-    );
+  Widget _buildLabeledDropdown(
+      {required String label,
+      required String hint,
+      required String? value,
+      required List<String> items,
+      required ValueChanged<String?> onChanged}) {
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 20.0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: const TextStyle(
+                  color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+              value: value,
+              items: items
+                  .map((String office) => DropdownMenuItem<String>(
+                      value: office, child: Text(office)))
+                  .toList(),
+              onChanged: onChanged,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: _inputDecoration(hint, null, null),
+              validator: (value) =>
+                  value == null ? 'Please select an option' : null)
+        ]));
   }
 
-  Widget _buildPasswordFormField() {
-    return TextFormField(
-      controller: _passwordController,
-      obscureText: !_isPasswordVisible,
-      decoration: InputDecoration(
-        labelText: 'Enter Your Password',
-        suffixIcon: IconButton(
-          icon: Icon(
-            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-          ),
-          onPressed: () =>
-              setState(() => _isPasswordVisible = !_isPasswordVisible),
-        ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+  InputDecoration _inputDecoration(
+      String hintText, IconData? icon, Widget? suffixIcon) {
+    return InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey.shade500),
         filled: true,
-        fillColor: Colors.grey[100],
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter a password';
-        }
-        if (value.length < 6) {
-          return 'Password must be at least 6 characters long';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildConfirmPasswordFormField() {
-    return TextFormField(
-      controller: _confirmPasswordController,
-      obscureText: !_isConfirmPasswordVisible,
-      decoration: InputDecoration(
-        labelText: 'Re-Enter Your Password',
-        suffixIcon: IconButton(
-          icon: Icon(
-            _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
-          ),
-          onPressed: () => setState(
-              () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
-        ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey[100],
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please confirm your password';
-        }
-        if (value != _passwordController.text) {
-          return 'Passwords do not match';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildDropdownFormField() {
-    return DropdownButtonFormField<String>(
-      value: _selectedOffice,
-      hint: const Text('Select Your Office'),
-      decoration: InputDecoration(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey[100],
-      ),
-      onChanged: (String? newValue) {
-        setState(() {
-          _selectedOffice = newValue;
-        });
-      },
-      items: _offices.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
-        );
-      }).toList(),
-      validator: (value) => value == null ? 'Please select an office' : null,
-    );
-  }
-
-  Widget _buildReadOnlyDropdown(String label, String value) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey[200], // Make it look disabled
-      ),
-      child: Text(value, style: const TextStyle(fontSize: 16)),
-    );
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide:
+                const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: Colors.red, width: 1.0)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: Colors.red, width: 2.0)),
+        suffixIcon: icon != null
+            ? Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: Icon(icon, color: const Color(0xFF53BDFF)))
+            : suffixIcon);
   }
 }
