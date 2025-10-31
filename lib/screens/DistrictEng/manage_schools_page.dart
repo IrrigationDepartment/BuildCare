@@ -1,9 +1,5 @@
-// File: manage_schools_page.dart (Updated)
-
 import 'package:flutter/material.dart';
-// Assuming ManageSchoolsPage is in the same directory as this file
-// If SchoolDetailsDialog is in a separate file, import it here:
-// import 'SchoolDetailsDialog.dart'; 
+
 
 // --- School Data Model (Included here for simplicity) ---
 class School {

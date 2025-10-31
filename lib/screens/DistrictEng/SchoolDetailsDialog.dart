@@ -1,8 +1,5 @@
-// File: SchoolDetailsDialog.dart
-
 import 'package:flutter/material.dart';
-// Assuming the School model is accessible, either imported or defined locally
-// import 'school_model.dart'; 
+
 
 class SchoolDetailsDialog extends StatelessWidget {
   final  school;
@@ -21,7 +18,6 @@ class SchoolDetailsDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Header Section: Title and Close Button (matching screenshot) ---
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 15, 10, 10),
               child: Row(
