@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'add_school_details_page.dart';
-import 'add_building_issues_page.dart'; // ✅ New import for the building issues page
+import 'add_building_issues_page.dart';
+import 'add_school_master_plan_page.dart'; // 1. Import the new Master Plan Page
 
 class PrincipalDashboard extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -45,7 +46,7 @@ class PrincipalDashboard extends StatelessWidget {
               _buildWelcomeHeader(principalName),
               const SizedBox(height: 30),
 
-              // ✅ Button 1: Navigate to Add School Details Form
+              // Button 1: Navigate to Add School Details Form
               _buildActionButton(
                 icon: Icons.add,
                 text: 'Add Your School Details',
@@ -61,12 +62,12 @@ class PrincipalDashboard extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              // ✅ Button 2: Navigate to Add Building Issues Page (UPDATED)
+              // Button 2: Navigate to Add Building Issues Page
               _buildActionButton(
                 icon: Icons.build_outlined,
                 text: 'Add Building Issues',
                 onTap: () {
-                  Navigator.push( // 🚩 Navigation added
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const AddBuildingIssuesPage(),
@@ -77,12 +78,17 @@ class PrincipalDashboard extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              // ✅ Button 3: Placeholder for Master Plans
+              // 2. Updated Button: Manage Master Plans with Navigation
               _buildActionButton(
                 icon: Icons.map_outlined,
                 text: 'Manage Master Plans',
                 onTap: () {
-                  // TODO: Add navigation for master plans page
+                  Navigator.push( // Navigation code added here
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddSchoolMasterPlanPage(), // Navigating to the new page
+                    ),
+                  );
                 },
               ),
 
@@ -93,7 +99,7 @@ class PrincipalDashboard extends StatelessWidget {
         ),
       ),
 
-      // ✅ Bottom Navigation Bar
+      // Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         selectedItemColor: _primaryColor,
