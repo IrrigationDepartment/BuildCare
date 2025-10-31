@@ -77,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
             destination = ProvincialEngDashboard(userData: userData);
             break;
           case 'Chief Engineer':
-            destination = ChiefEngineerPage(userData: userData,);
+            destination = ChiefEngineerDashboard(userData: userData,);
             
             break;
           case 'District Engineer':
