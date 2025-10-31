@@ -1,3 +1,4 @@
+import 'package:buildcare/screens/ChiefEng/view_school_details.dart';
 import 'package:flutter/material.dart';
 
 class ChiefEngineerDashboard extends StatefulWidget {
@@ -429,7 +430,9 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context)=>ManageSchoolView()));
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF64B5F6),
               shape: RoundedRectangleBorder(
