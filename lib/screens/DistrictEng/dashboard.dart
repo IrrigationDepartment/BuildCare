@@ -5,8 +5,11 @@ import 'manage_to_page.dart';
 // Import the file containing the Manage Principals page
 import 'manage_principals_page.dart';
 
-//  Import the file containing the Manage Schools page
+// Import the file containing the Manage Schools page
 import 'manage_schools_page.dart';
+
+// Import for the Pending Approvals Page
+import 'pending_approvals_page.dart';
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -298,7 +301,14 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
             child: Text('• Manel Withana requested to register as a TO.'),
           ),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PendingApprovalsPage(),
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.lightBlue.shade300,
               foregroundColor: Colors.white,
