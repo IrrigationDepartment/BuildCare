@@ -25,12 +25,35 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // NEW: FocusNode to detect when the password field is active
+  final _passwordFocusNode = FocusNode();
+
   String? _selectedOffice;
   final List<String> _offices = ['Galle', 'Matara', 'Hambantota'];
 
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+
+  // NEW: State variables for password validation UI
+  bool _isPasswordFocused = false;
+  bool _has8Chars = false;
+  bool _hasLowercase = false;
+  bool _hasUppercase = false;
+  bool _hasNumber = false;
+  bool _hasSpecialChar = false;
+
+  // NEW: initState to set up listeners
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_validatePassword);
+    _passwordFocusNode.addListener(() {
+      setState(() {
+        _isPasswordFocused = _passwordFocusNode.hasFocus;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -45,7 +68,23 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     _nicknameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+
+    // NEW: Dispose listener and FocusNode
+    _passwordController.removeListener(_validatePassword);
+    _passwordFocusNode.dispose();
     super.dispose();
+  }
+
+  // NEW: Function to validate password in real-time
+  void _validatePassword() {
+    final password = _passwordController.text;
+    setState(() {
+      _has8Chars = password.length >= 8;
+      _hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+      _hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+      _hasNumber = RegExp(r'[0-9]').hasMatch(password);
+      _hasSpecialChar = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password);
+    });
   }
 
   // --- Firebase Registration Logic ---
@@ -63,7 +102,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           'mobilePhone': _mobileController.text.trim(),
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
-          'password': _passwordController.text.trim(),
+          'password': _passwordController.text.trim(), // Consider hashing this!
           'userType': 'Chief Engineer',
           'createdAt': Timestamp.now(),
         });
@@ -203,25 +242,39 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                             label: 'Childhood nickname',
                             hint: 'Enter Your Childhood nickname',
                             controller: _nicknameController),
-                        
-                        // Password Field with Guide
+
+                        // Password Field
                         _buildLabeledTextField(
                             label: 'Enter Your Password',
                             hint: 'Enter Your Password',
                             controller: _passwordController,
                             isPassword: true,
                             isPasswordVisible: _isPasswordVisible,
-                            infoMessage:
-                                'Password must be at least 6 characters long.',
-                            onVisibilityToggle: () => setState(() =>
-                                _isPasswordVisible = !_isPasswordVisible),
+                            focusNode: _passwordFocusNode, // NEW: Assign FocusNode
+                            onVisibilityToggle: () => setState(
+                                () => _isPasswordVisible = !_isPasswordVisible),
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return 'Password cannot be empty';
-                              if (value.length < 6)
-                                return 'Password must be at least 6 characters';
+                              }
+                              // NEW: Updated validation logic
+                              if (!_has8Chars ||
+                                  !_hasLowercase ||
+                                  !_hasUppercase ||
+                                  !_hasNumber ||
+                                  !_hasSpecialChar) {
+                                return 'Please meet all password requirements';
+                              }
                               return null;
                             }),
+
+                        // NEW: Show validation UI only when password field is focused
+                        if (_isPasswordFocused)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                top: 8.0, bottom: 8.0, left: 4.0),
+                            child: _buildPasswordValidationUI(),
+                          ),
 
                         _buildLabeledTextField(
                             label: 'Re-Enter Your Password',
@@ -233,8 +286,12 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                                 _isConfirmPasswordVisible =
                                     !_isConfirmPasswordVisible),
                             validator: (value) {
-                              if (value != _passwordController.text)
+                              if (value == null || value.isEmpty) {
+                                return 'Please confirm your password';
+                              }
+                              if (value != _passwordController.text) {
                                 return 'Passwords do not match';
+                              }
                               return null;
                             }),
                         const SizedBox(height: 30),
@@ -271,6 +328,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   }
 
   // --- Helper method to show info dialog ---
+  // (Note: This is not used by the password checklist, but was in your original code)
   void _showInfoDialog(BuildContext context, String title, String content) {
     showDialog(
       context: context,
@@ -290,6 +348,45 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
+  // NEW: Widget to display the entire password validation checklist
+  Widget _buildPasswordValidationUI() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildValidationRow('At least 8 characters', _has8Chars),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a lowercase letter', _hasLowercase),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains an uppercase letter', _hasUppercase),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a number', _hasNumber),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a special character', _hasSpecialChar),
+      ],
+    );
+  }
+
+  // NEW: Widget for a single row in the validation checklist
+  Widget _buildValidationRow(String text, bool isValid) {
+    return Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.remove_circle_outline,
+          color: isValid ? Colors.green : Colors.grey.shade600,
+          size: 18,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            color: isValid ? Colors.green : Colors.grey.shade600,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+
   // --- Helper Widgets for Form Fields ---
   Widget _buildLabeledTextField({
     required String label,
@@ -303,6 +400,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     TextInputType? keyboardType,
     String? infoMessage,
     String? Function(String?)? validator,
+    FocusNode? focusNode, // NEW: Added FocusNode parameter
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -329,6 +427,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           const SizedBox(height: 8),
           TextFormField(
               controller: controller,
+              focusNode: focusNode, // NEW: Use the FocusNode here
               readOnly: isReadOnly,
               obscureText: isPassword && !isPasswordVisible,
               keyboardType: keyboardType,
