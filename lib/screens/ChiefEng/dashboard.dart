@@ -1,4 +1,7 @@
+import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
+import 'package:buildcare/screens/ChiefEng/view_distric_eng_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_details.dart';
+import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
 import 'package:flutter/material.dart';
 
 class ChiefEngineerDashboard extends StatefulWidget {
@@ -27,7 +30,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:Colors.white,
+      backgroundColor: Colors.white,
       // appBar: AppBar(
       //   backgroundColor: const Color(0xFF2D2D2D),
       //   elevation: 0,
@@ -206,9 +209,12 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildOverviewCard('Total Schools', '150', const Color(0xFFB3E5FC)),
-                      _buildOverviewCard('Active TOs', '25', const Color(0xFFB3E5FC)),
-                      _buildOverviewCard('Active DE', '3', const Color(0xFFB3E5FC)),
+                      _buildOverviewCard(
+                          'Total Schools', '150', const Color(0xFFB3E5FC)),
+                      _buildOverviewCard(
+                          'Active TOs', '25', const Color(0xFFB3E5FC)),
+                      _buildOverviewCard(
+                          'Active DE', '3', const Color(0xFFB3E5FC)),
                     ],
                   ),
                 ],
@@ -329,18 +335,39 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
             _buildActionButton(
               'View District Engineer Details',
               Icons.engineering,
-              () {},
+              () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => ActiveDistrictEngineerScreen()));
+              },
             ),
             const SizedBox(height: 12),
             _buildActionButton(
               'View School Master Plan',
               Icons.description,
-              () {},
+              () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => SchoolMasterPlanScreen()));
+              },
+            ),
+
+            _buildActionButton(
+              'View Damage Details',
+              Icons.description,
+              () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => IssueReportScreen()));
+              },
             ),
             const SizedBox(height: 12),
             _buildActionButton(
               'View Contract Details',
-              Icons.lock,
+              Icons.description,
               () {},
             ),
 
@@ -431,7 +458,8 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context)=>ManageSchoolView()));
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => ManageSchoolView()));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF64B5F6),
@@ -472,11 +500,11 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: const Color(0xFF64B5F6),
-              size: 30,
-            ),
+            // Icon(
+            //   icon,
+            //   color: const Color(0xFF64B5F6),
+            //   size: 30,
+            // ),
             const SizedBox(width: 15),
             Expanded(
               child: Text(
@@ -487,6 +515,12 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
                   color: Colors.black,
                 ),
               ),
+            ),
+            const SizedBox(width: 15),
+            Icon(
+              icon,
+              color: const Color(0xFF64B5F6),
+              size: 30,
             ),
           ],
         ),
@@ -636,14 +670,20 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
           ),
           const SizedBox(height: 20),
           _buildSettingsSection('Account Settings'),
-          _buildSettingsItem(icon: Icons.person, title: 'Edit Profile', onTap: () {}),
-          _buildSettingsItem(icon: Icons.lock, title: 'Change Password', onTap: () {}),
-          _buildSettingsItem(icon: Icons.security, title: 'Privacy & Security', onTap: () {}),
+          _buildSettingsItem(
+              icon: Icons.person, title: 'Edit Profile', onTap: () {}),
+          _buildSettingsItem(
+              icon: Icons.lock, title: 'Change Password', onTap: () {}),
+          _buildSettingsItem(
+              icon: Icons.security, title: 'Privacy & Security', onTap: () {}),
           const SizedBox(height: 20),
           _buildSettingsSection('App Settings'),
-          _buildSettingsItem(icon: Icons.notifications, title: 'Notifications', onTap: () {}),
-          _buildSettingsItem(icon: Icons.language, title: 'Language', onTap: () {}),
-          _buildSettingsItem(icon: Icons.dark_mode, title: 'Theme', onTap: () {}),
+          _buildSettingsItem(
+              icon: Icons.notifications, title: 'Notifications', onTap: () {}),
+          _buildSettingsItem(
+              icon: Icons.language, title: 'Language', onTap: () {}),
+          _buildSettingsItem(
+              icon: Icons.dark_mode, title: 'Theme', onTap: () {}),
           const SizedBox(height: 30),
           SizedBox(
             width: double.infinity,
