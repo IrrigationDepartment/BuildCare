@@ -78,10 +78,10 @@ class _LoginPageState extends State<LoginPage> {
           case 'Principal':
             destination = PrincipalDashboard(userData: userData);
             break;
-          case 'Technical Officer':
-            // Navigate to the TO home/dashboard screen (no userData required)
-            destination = HomeScreen();
-            break;
+         case 'Technical Officer':
+        // Pass the user's data to the HomeScreen
+        destination = HomeScreen(userData: userData); // <--- THIS IS THE FIX
+        break;
           default:
             _showMessage('Login Error',
                 'Could not determine user role. Please contact support.');
