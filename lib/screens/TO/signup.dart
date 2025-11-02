@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class TORegistrationPage extends StatefulWidget {
   const TORegistrationPage({super.key});
 
@@ -12,7 +11,9 @@ class TORegistrationPage extends StatefulWidget {
 class _TORegistrationPageState extends State<TORegistrationPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for all the new fields
+  // Controllers for all the fields
+  final _userTypeController =
+      TextEditingController(text: 'Technical Officer'); // MODIFIED
   final _nameController = TextEditingController();
   final _nicController = TextEditingController();
   final _emailController = TextEditingController();
@@ -23,16 +24,9 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // State for User Type Dropdown
-  String? _selectedUserType = 'Technical Officer'; // Pre-selected as in image
-  final List<String> _userTypes = [
-    //'Principal',
-    'Technical Officer',
-    //'District Eng.',
-    //'Chief Eng.'
-  ];
+  // NEW: FocusNode to detect when the password field is active
+  final _passwordFocusNode = FocusNode();
 
-  // State for Office Dropdown
   String? _selectedOffice;
   final List<String> _offices = ['Galle', 'Matara', 'Hambantota'];
 
@@ -40,9 +34,30 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
+  // NEW: State variables for password validation UI
+  bool _isPasswordFocused = false;
+  bool _has8Chars = false;
+  bool _hasLowercase = false;
+  bool _hasUppercase = false;
+  bool _hasNumber = false;
+  bool _hasSpecialChar = false;
+
+  // NEW: initState to set up listeners
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_validatePassword);
+    _passwordFocusNode.addListener(() {
+      setState(() {
+        _isPasswordFocused = _passwordFocusNode.hasFocus;
+      });
+    });
+  }
+
   @override
   void dispose() {
     // Dispose all controllers to free up resources
+    _userTypeController.dispose();
     _nameController.dispose();
     _nicController.dispose();
     _emailController.dispose();
@@ -52,438 +67,445 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     _nicknameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+
+    // NEW: Dispose listener and FocusNode
+    _passwordController.removeListener(_validatePassword);
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
+  // NEW: Function to validate password in real-time
+  void _validatePassword() {
+    final password = _passwordController.text;
+    setState(() {
+      _has8Chars = password.length >= 8;
+      _hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+      _hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+      _hasNumber = RegExp(r'[0-9]').hasMatch(password);
+      _hasSpecialChar = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password);
+    });
+  }
+
+  // --- Firebase Registration Logic ---
   Future<void> _registerUser() async {
+    FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
       try {
         await FirebaseFirestore.instance.collection('users').add({
           'name': _nameController.text.trim(),
-          'nic': _nicController.text.trim(),
+          'nic': _nicController.text.trim().toUpperCase(),
           'email': _emailController.text.trim(),
           'office': _selectedOffice,
           'officePhone': _officePhoneController.text.trim(),
           'mobilePhone': _mobileController.text.trim(),
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
-          'password': _passwordController.text.trim(), // Storing the password
-          'userType': _selectedUserType, // Use the selected user type
+          'password': _passwordController.text.trim(), // Consider hashing this!
+          'userType': 'Technical Officer', // MODIFIED
           'createdAt': Timestamp.now(),
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Registration successful! Please login.')),
-        );
-        Navigator.of(context)
-            .popUntil((route) => route.isFirst); // Go back to login
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: $e')),
-        );
-      } finally {
         if (mounted) {
-          setState(() {
-            _isLoading = false;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                backgroundColor: Colors.green,
+                content: Text('Registration successful!')),
+          );
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
           });
         }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              backgroundColor: Colors.red,
+              content: Text('Registration failed: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
 
+  // --- Main Build Method ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Dark background like in the image
-      backgroundColor: const Color(0xFF212121),
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       body: SafeArea(
         child: SingleChildScrollView(
-          // Padding for the whole screen
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // "Signup (TO)" Title
-              const Text(
-                'Signup (TO)',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text('Signup (TO)', // MODIFIED
+                    style: TextStyle(
+                        color: Color.fromARGB(255, 0, 0, 0),
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 30),
+                Container(
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 248, 248, 248),
+                      borderRadius: BorderRadius.circular(20)),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // --- Form Fields ---
+                        _buildLabeledTextField(
+                            label: 'User Type',
+                            isReadOnly: true,
+                            controller: _userTypeController,
+                            validator: (value) => null),
+                        _buildLabeledTextField(
+                            label: 'Technical Officer Name', // MODIFIED
+                            hint: 'Enter Your Name',
+                            controller: _nameController,
+                            icon: Icons.person_outline),
+                        _buildLabeledTextField(
+                            label: 'NIC Number',
+                            hint: 'e.g., 123456789V or 199012345678',
+                            controller: _nicController,
+                            icon: Icons.credit_card,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'NIC cannot be empty';
+                              final nicRegex =
+                                  RegExp(r'^(\d{9}[vVxX]|\d{12})$');
+                              if (!nicRegex.hasMatch(value))
+                                return 'Invalid Sri Lankan NIC format';
+                              return null;
+                            }),
+                        _buildLabeledDropdown(
+                            label: 'Select Your Office',
+                            hint: 'Select an Office',
+                            value: _selectedOffice,
+                            items: _offices,
+                            onChanged: (newValue) =>
+                                setState(() => _selectedOffice = newValue)),
+                        _buildLabeledTextField(
+                            label: 'Email',
+                            hint: 'Enter Your Email Adress',
+                            controller: _emailController,
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Email cannot be empty';
+                              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                                  .hasMatch(value))
+                                return 'Please enter a valid email';
+                              return null;
+                            }),
+                        _buildLabeledTextField(
+                            label: 'Office Phone Number',
+                            hint: 'Enter 10-digit number',
+                            controller: _officePhoneController,
+                            icon: Icons.phone_in_talk_outlined,
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Office number cannot be empty';
+                              final phoneRegex = RegExp(r'^\d{10}$');
+                              if (!phoneRegex.hasMatch(value))
+                                return 'Office number must be 10 digits';
+                              return null;
+                            }),
+                        _buildLabeledTextField(
+                            label: 'Mobile Number',
+                            hint: 'Enter 10-digit number',
+                            controller: _mobileController,
+                            icon: Icons.phone_iphone,
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty)
+                                return 'Mobile number cannot be empty';
+                              final phoneRegex = RegExp(r'^\d{10}$');
+                              if (!phoneRegex.hasMatch(value))
+                                return 'Mobile number must be 10 digits';
+                              return null;
+                            }),
+                        _buildLabeledTextField(
+                            label: 'First Pet Name',
+                            hint: 'Enter Your First Pet Name',
+                            controller: _petNameController),
+                        _buildLabeledTextField(
+                            label: 'Childhood nickname',
+                            hint: 'Enter Your Childhood nickname',
+                            controller: _nicknameController),
 
-              // The white form card
-              Container(
-                padding: const EdgeInsets.all(24.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // --- FORM FIELDS ---
-                      _buildLabel('User Type'),
-                      _buildUserTypeDropdown(),
-                      const SizedBox(height: 16),
+                        // Password Field
+                        _buildLabeledTextField(
+                            label: 'Enter Your Password',
+                            hint: 'Enter Your Password',
+                            controller: _passwordController,
+                            isPassword: true,
+                            isPasswordVisible: _isPasswordVisible,
+                            focusNode: _passwordFocusNode, // NEW: Assign FocusNode
+                            onVisibilityToggle: () => setState(
+                                () => _isPasswordVisible = !_isPasswordVisible),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Password cannot be empty';
+                              }
+                              // NEW: Updated validation logic
+                              if (!_has8Chars ||
+                                  !_hasLowercase ||
+                                  !_hasUppercase ||
+                                  !_hasNumber ||
+                                  !_hasSpecialChar) {
+                                return 'Please meet all password requirements';
+                              }
+                              return null;
+                            }),
 
-                      _buildLabel('Technical Officer Name'),
-                      _buildTextFormField(
-                        controller: _nameController,
-                        hintText: 'Enter Your Name',
-                        icon: Icons.person_outline,
-                      ),
-                      const SizedBox(height: 16),
+                        // NEW: Show validation UI only when password field is focused
+                        if (_isPasswordFocused)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                top: 8.0, bottom: 8.0, left: 4.0),
+                            child: _buildPasswordValidationUI(),
+                          ),
 
-                      _buildLabel('NIC Number'),
-                      _buildTextFormField(
-                        controller: _nicController,
-                        hintText: 'Enter Your NIC',
-                        icon: Icons.badge_outlined, // Icon from image
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('Select Your Office'),
-                      _buildOfficeDropdown(),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('Email'),
-                      _buildTextFormField(
-                        controller: _emailController,
-                        hintText: 'Enter Your Email Adress', // Typo matches image
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('Office Phone Number'),
-                      _buildTextFormField(
-                        controller: _officePhoneController,
-                        hintText: 'Enter Your Office Phone Number',
-                        icon: Icons.local_phone_outlined, // Icon from image
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('Mobile Number'),
-                      _buildTextFormField(
-                        controller: _mobileController,
-                        hintText: 'Enter Your Mobile Number',
-                        icon: Icons.phone_android_outlined, // Icon from image
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('First Pet Name'),
-                      _buildTextFormField(
-                        controller: _petNameController,
-                        hintText: 'Enter Your First Pet Name',
-                        // No icon
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('Childhood nickname'),
-                      _buildTextFormField(
-                        controller: _nicknameController,
-                        hintText: 'Enter Your Childhood nickname',
-                        // No icon
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('Enter Your Password'),
-                      _buildPasswordFormField(),
-                      const SizedBox(height: 16),
-
-                      _buildLabel('Enter Password Again'),
-                      _buildConfirmPasswordFormField(),
-                      const SizedBox(height: 30),
-
-                      // --- SIGN UP BUTTON ---
-                      _isLoading
-                          ? const Center(child: CircularProgressIndicator())
-                          : ElevatedButton(
-                              onPressed: _registerUser,
-                              style: ElevatedButton.styleFrom(
-                                // Bright blue from image
-                                backgroundColor: const Color(0xFF37B5FA),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
-                              child: const Text(
-                                'Sign Up',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // --- Footer: Moved outside the card ---
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Already Registered?",
-                    style: TextStyle(color: Colors.grey), // Text on dark bg
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
-                      'Sign in',
-                      style: TextStyle(
-                        color: Color(0xFF37B5FA), // Match button blue
-                        fontWeight: FontWeight.bold,
-                      ),
+                        _buildLabeledTextField(
+                            label: 'Re-Enter Your Password',
+                            hint: 'Re-Enter Your Password',
+                            controller: _confirmPasswordController,
+                            isPassword: true,
+                            isPasswordVisible: _isConfirmPasswordVisible,
+                            onVisibilityToggle: () => setState(() =>
+                                _isConfirmPasswordVisible =
+                                    !_isConfirmPasswordVisible),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please confirm your password';
+                              }
+                              if (value != _passwordController.text) {
+                                return 'Passwords do not match';
+                              }
+                              return null;
+                            }),
+                        const SizedBox(height: 30),
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                    onPressed: _registerUser,
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF53BDFF),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(30))),
+                                    child: const Text('Sign Up',
+                                        style: TextStyle(
+                                            fontSize: 18,
+                                            color: Color.fromARGB(
+                                                255, 255, 255, 255),
+                                            fontWeight: FontWeight.bold))))
+                      ],
                     ),
                   ),
-                ],
-              )
-            ],
+                )
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // --- HELPER WIDGETS FOR FORM FIELDS ---
+  // --- Helper method to show info dialog ---
+  // (Note: This is not used by the password checklist, but was in your original code)
+  void _showInfoDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          actions: <Widget>[
+            TextButton(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(context).pop())
+          ],
+        );
+      },
+    );
+  }
 
-  /// Helper widget to create the label above the text field
-  Widget _buildLabel(String text) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-        child: Text(
+  // NEW: Widget to display the entire password validation checklist
+  Widget _buildPasswordValidationUI() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildValidationRow('At least 8 characters', _has8Chars),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a lowercase letter', _hasLowercase),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains an uppercase letter', _hasUppercase),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a number', _hasNumber),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a special character', _hasSpecialChar),
+      ],
+    );
+  }
+
+  // NEW: Widget for a single row in the validation checklist
+  Widget _buildValidationRow(String text, bool isValid) {
+    return Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.remove_circle_outline,
+          color: isValid ? Colors.green : Colors.grey.shade600,
+          size: 18,
+        ),
+        const SizedBox(width: 8),
+        Text(
           text,
           style: TextStyle(
-            color: Colors.grey[800],
-            fontWeight: FontWeight.w600,
+            color: isValid ? Colors.green : Colors.grey.shade600,
             fontSize: 14,
           ),
         ),
-      ),
+      ],
     );
   }
 
-  /// Helper for standard text fields
-  Widget _buildTextFormField({
+  // --- Helper Widgets for Form Fields ---
+  Widget _buildLabeledTextField({
+    required String label,
     required TextEditingController controller,
-    required String hintText,
+    String hint = '',
     IconData? icon,
+    bool isPassword = false,
+    bool isPasswordVisible = false,
+    bool isReadOnly = false,
+    VoidCallback? onVisibilityToggle,
     TextInputType? keyboardType,
+    String? infoMessage,
+    String? Function(String?)? validator,
+    FocusNode? focusNode, // NEW: Added FocusNode parameter
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+              if (infoMessage != null)
+                IconButton(
+                  icon: Icon(Icons.info_outline,
+                      color: Colors.grey.shade500, size: 20),
+                  onPressed: () =>
+                      _showInfoDialog(context, 'Password Guide', infoMessage),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                )
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+              controller: controller,
+              focusNode: focusNode, // NEW: Use the FocusNode here
+              readOnly: isReadOnly,
+              obscureText: isPassword && !isPasswordVisible,
+              keyboardType: keyboardType,
+              style: const TextStyle(color: Color.fromARGB(221, 58, 58, 58)),
+              decoration: _inputDecoration(
+                  hint,
+                  icon,
+                  isPassword
+                      ? IconButton(
+                          icon: Icon(
+                              isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: const Color(0xFF53BDFF)),
+                          onPressed: onVisibilityToggle)
+                      : null),
+              validator: validator ??
+                  (value) => value!.isEmpty ? '$label cannot be empty' : null)
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabeledDropdown(
+      {required String label,
+      required String hint,
+      required String? value,
+      required List<String> items,
+      required ValueChanged<String?> onChanged}) {
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 20.0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: const TextStyle(
+                  color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+              value: value,
+              items: items
+                  .map((String office) => DropdownMenuItem<String>(
+                      value: office, child: Text(office)))
+                  .toList(),
+              onChanged: onChanged,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: _inputDecoration(hint, null, null),
+              validator: (value) =>
+                  value == null ? 'Please select an option' : null)
+        ]));
+  }
+
+  InputDecoration _inputDecoration(
+      String hintText, IconData? icon, Widget? suffixIcon) {
+    return InputDecoration(
         hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey[500]),
-        suffixIcon: icon != null ? Icon(icon, color: Colors.grey[600]) : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none, // No border by default
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: Colors.blueAccent, width: 2), // Blue on focus
-        ),
+        hintStyle: TextStyle(color: Colors.grey.shade500),
         filled: true,
-        fillColor: const Color(0xFFF5F5F5), // Light grey fill
+        fillColor: Colors.white,
         contentPadding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      ),
-      validator: (value) =>
-          value!.isEmpty ? 'This field cannot be empty' : null,
-    );
-  }
-
-  /// Helper for the Password field
-  Widget _buildPasswordFormField() {
-    return TextFormField(
-      controller: _passwordController,
-      obscureText: !_isPasswordVisible,
-      decoration: InputDecoration(
-        hintText: 'Enter Your Password',
-        hintStyle: TextStyle(color: Colors.grey[500]),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-            color: Colors.grey[600],
-          ),
-          onPressed: () =>
-              setState(() => _isPasswordVisible = !_isPasswordVisible),
-        ),
+            const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-        ),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter a password';
-        }
-        if (value.length < 6) {
-          return 'Password must be at least 6 characters long';
-        }
-        return null;
-      },
-    );
-  }
-
-  /// Helper for the Confirm Password field
-  Widget _buildConfirmPasswordFormField() {
-    return TextFormField(
-      controller: _confirmPasswordController,
-      obscureText: !_isConfirmPasswordVisible,
-      decoration: InputDecoration(
-        hintText: 'Re-Enter Your Password',
-        hintStyle: TextStyle(color: Colors.grey[500]),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
-            color: Colors.grey[600],
-          ),
-          onPressed: () => setState(
-              () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-        ),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please confirm your password';
-        }
-        if (value != _passwordController.text) {
-          return 'Passwords do not match';
-        }
-        return null;
-      },
-    );
-  }
-
-  /// Helper for the Office selection dropdown
-  Widget _buildOfficeDropdown() {
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedOffice,
-      hint: Text('select your office',
-          style: TextStyle(color: Colors.grey[500])),
-      decoration: InputDecoration(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        // This focused border will match the blue highlight in the image
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-        ),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-      ),
-      onChanged: (String? newValue) {
-        setState(() {
-          _selectedOffice = newValue;
-        });
-      },
-      items: _offices.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
-        );
-      }).toList(),
-      validator: (value) => value == null ? 'Please select an office' : null,
-    );
-  }
-
-  /// Helper for the User Type selection dropdown
-  Widget _buildUserTypeDropdown() {
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedUserType,
-      hint: Text('Select Your Roll',
-          style: TextStyle(color: Colors.grey[500])),
-      decoration: InputDecoration(
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-        ),
-        filled: true,
-        fillColor: const Color(0xFFF5F5F5),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-      ),
-      onChanged: (String? newValue) {
-        setState(() {
-          _selectedUserType = newValue;
-        });
-      },
-      items: _userTypes.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
-        );
-      }).toList(),
-      validator: (value) => value == null ? 'Please select a role' : null,
-    );
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide:
+                const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: Colors.red, width: 1.0)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: Colors.red, width: 2.0)),
+        suffixIcon: icon != null
+            ? Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: Icon(icon, color: const Color(0xFF53BDFF)))
+            : suffixIcon);
   }
 }
