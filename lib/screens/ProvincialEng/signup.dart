@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '/login.dart'; // For navigating back to the login page
 
 class ProvincialEngRegistrationPage extends StatefulWidget {
   const ProvincialEngRegistrationPage({super.key});
@@ -31,6 +32,11 @@ class _ProvincialEngRegistrationPageState
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
+  // --- NEW: Define the primary color ---
+  static const Color _primaryColor = Color(0xFF53BDFF);
+  // Define the fill color from login.dart
+  static final Color _fillColor = Colors.grey[200]!;
+
   @override
   void dispose() {
     // Dispose all controllers to free up resources
@@ -47,6 +53,7 @@ class _ProvincialEngRegistrationPageState
   }
 
   Future<void> _registerUser() async {
+    // This will now trigger all the new validation rules
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -109,57 +116,121 @@ class _ProvincialEngRegistrationPageState
             children: [
               // --- FORM FIELDS ---
               _buildReadOnlyDropdown('User Type', 'Provincial Engineer'),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               _buildTextFormField(
-                  controller: _nameController,
-                  labelText: 'Engineer\'s Name',
-                  icon: Icons.person_outline),
-              const SizedBox(height: 16),
+                controller: _nameController,
+                labelText: 'Engineer\'s Name',
+                icon: Icons.person_outline,
+                validator: (value) =>
+                    value!.isEmpty ? 'This field cannot be empty' : null,
+              ),
+              const SizedBox(height: 20),
               _buildTextFormField(
-                  controller: _nicController, labelText: 'NIC Number'),
-              const SizedBox(height: 16),
+                controller: _nicController,
+                labelText: 'NIC Number',
+                icon: Icons.badge_outlined,
+                // --- NEW: Added NIC validation ---
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field cannot be empty';
+                  }
+                  final nicRegex = RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
+                  if (!nicRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid SL NIC (e.g., 123456789V or 200012345678)';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
               _buildDropdownFormField(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               _buildTextFormField(
-                  controller: _emailController,
-                  labelText: 'Email',
-                  icon: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress),
-              const SizedBox(height: 16),
+                controller: _emailController,
+                labelText: 'Email',
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                // --- NEW: Added Email validation ---
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field cannot be empty';
+                  }
+                  final emailRegex = RegExp(
+                      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                  if (!emailRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
               _buildTextFormField(
-                  controller: _officePhoneController,
-                  labelText: 'Office Phone Number',
-                  keyboardType: TextInputType.phone),
-              const SizedBox(height: 16),
+                controller: _officePhoneController,
+                labelText: 'Office Phone Number',
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+                // --- NEW: Added 10-digit validation for office phone ---
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field cannot be empty';
+                  }
+                  final phoneRegex = RegExp(r'^\d{10}$');
+                  if (!phoneRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid 10-digit phone number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
               _buildTextFormField(
-                  controller: _mobileController,
-                  labelText: 'Mobile Number',
-                  icon: Icons.phone_iphone,
-                  keyboardType: TextInputType.phone),
+                controller: _mobileController,
+                labelText: 'Mobile Number',
+                icon: Icons.phone_iphone,
+                keyboardType: TextInputType.phone,
+                // --- NEW: Added +94 mobile validation ---
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field cannot be empty';
+                  }
+                  final phoneRegex = RegExp(r'^\+94\d{9}$');
+                  if (!phoneRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid number (e.g., +94712345678)';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 24),
               const Text("Security Questions",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               _buildTextFormField(
-                  controller: _petNameController,
-                  labelText: 'First Pet Name'),
-              const SizedBox(height: 16),
+                controller: _petNameController,
+                labelText: 'First Pet Name',
+                icon: Icons.pets_outlined,
+                validator: (value) =>
+                    value!.isEmpty ? 'This field cannot be empty' : null,
+              ),
+              const SizedBox(height: 20),
               _buildTextFormField(
-                  controller: _nicknameController,
-                  labelText: 'Childhood nickname'),
+                controller: _nicknameController,
+                labelText: 'Childhood nickname',
+                icon: Icons.child_care_outlined,
+                validator: (value) =>
+                    value!.isEmpty ? 'This field cannot be empty' : null,
+              ),
               const SizedBox(height: 24),
               _buildPasswordFormField(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               _buildConfirmPasswordFormField(),
               const SizedBox(height: 30),
 
-              // --- SIGN UP BUTTON ---
+              // --- SIGN UP BUTTON (STYLED) ---
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                       onPressed: _registerUser,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
+                        // --- UPDATED: Color and curve ---
+                        backgroundColor: _primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
@@ -174,11 +245,15 @@ class _ProvincialEngRegistrationPageState
                 children: [
                   const Text("Already Registered?"),
                   TextButton(
-                    // --- MODIFIED ---
-                    // This now pops all screens until it gets back to the first one (login page).
-                    onPressed: () =>
-                        Navigator.of(context).popUntil((route) => route.isFirst),
-                    child: const Text('Sign in'),
+                    onPressed: () => Navigator.of(context)
+                        .popUntil((route) => route.isFirst),
+                    child: const Text(
+                      'Sign in',
+                      // --- UPDATED: Style to match login page ---
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueAccent),
+                    ),
                   ),
                 ],
               )
@@ -189,12 +264,13 @@ class _ProvincialEngRegistrationPageState
     );
   }
 
-  // --- HELPER WIDGETS FOR FORM FIELDS ---
+  // --- HELPER WIDGETS (STYLED LIKE LOGIN.DART) ---
 
   Widget _buildTextFormField({
     required TextEditingController controller,
     required String labelText,
-    IconData? icon,
+    required IconData icon,
+    required FormFieldValidator<String> validator,
     TextInputType? keyboardType,
   }) {
     return TextFormField(
@@ -202,13 +278,17 @@ class _ProvincialEngRegistrationPageState
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: labelText,
-        suffixIcon: icon != null ? Icon(icon, color: Colors.grey) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        // --- UPDATED: Style ---
+        prefixIcon: Icon(icon, color: Colors.grey[700]),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: _fillColor,
       ),
-      validator: (value) =>
-          value!.isEmpty ? 'This field cannot be empty' : null,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }
 
@@ -218,6 +298,8 @@ class _ProvincialEngRegistrationPageState
       obscureText: !_isPasswordVisible,
       decoration: InputDecoration(
         labelText: 'Enter Your Password',
+        // --- UPDATED: Style ---
+        prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           icon: Icon(
             _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -225,19 +307,30 @@ class _ProvincialEngRegistrationPageState
           onPressed: () =>
               setState(() => _isPasswordVisible = !_isPasswordVisible),
         ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: _fillColor,
       ),
+      // --- NEW: Updated validation rules ---
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Please enter a password';
         }
-        if (value.length < 6) {
-          return 'Password must be at least 6 characters long';
+        if (value.length <= 6) {
+          return 'Password must be more than 6 characters';
+        }
+        if (!value.contains(RegExp(r'[A-Z]'))) {
+          return 'Must contain at least one capital letter';
+        }
+        if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+          return 'Must contain at least one special character';
         }
         return null;
       },
+      autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }
 
@@ -247,6 +340,8 @@ class _ProvincialEngRegistrationPageState
       obscureText: !_isConfirmPasswordVisible,
       decoration: InputDecoration(
         labelText: 'Re-Enter Your Password',
+        // --- UPDATED: Style ---
+        prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           icon: Icon(
             _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -254,9 +349,12 @@ class _ProvincialEngRegistrationPageState
           onPressed: () => setState(
               () => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
         ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: _fillColor,
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
@@ -267,6 +365,7 @@ class _ProvincialEngRegistrationPageState
         }
         return null;
       },
+      autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }
 
@@ -275,9 +374,14 @@ class _ProvincialEngRegistrationPageState
       initialValue: _selectedOffice,
       hint: const Text('Select Your Office'),
       decoration: InputDecoration(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        // --- UPDATED: Style ---
+        prefixIcon: Icon(Icons.business_outlined, color: Colors.grey[700]),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: _fillColor,
       ),
       onChanged: (String? newValue) {
         setState(() {
@@ -298,12 +402,20 @@ class _ProvincialEngRegistrationPageState
     return InputDecorator(
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        // --- UPDATED: Style ---
+        prefixIcon: Icon(Icons.work_outline, color: Colors.grey[700]),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: BorderSide.none,
+        ),
         filled: true,
-        fillColor: Colors.grey[200], // Make it look disabled
+        fillColor: Colors.grey[300], // Make it look disabled
       ),
-      child: Text(value, style: const TextStyle(fontSize: 16)),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 3.0, bottom: 3.0),
+        child: Text(value,
+            style: const TextStyle(fontSize: 16, color: Colors.black54)),
+      ),
     );
   }
 }
-
