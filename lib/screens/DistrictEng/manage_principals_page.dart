@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+// Import for the Pending Approvals Page
+import 'pending_approvals_page.dart';
+
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
 
@@ -33,7 +36,7 @@ class ManagePrincipalsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatsGrid(),
+              _buildStatsGrid(context), // Pass context to the grid
               const SizedBox(height: 24),
               _buildSearchBar(),
               const SizedBox(height: 24),
@@ -74,7 +77,7 @@ class ManagePrincipalsPage extends StatelessWidget {
   //---
 
   // Helper widget to build the stats grid (Total Principals, Pending, Active, Schools)
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(BuildContext context) {
     return Column(
       children: [
         Row(
@@ -82,8 +85,23 @@ class ManagePrincipalsPage extends StatelessWidget {
           children: [
             // Total Principals - Group Icon
             _buildStatCard('Total Principals', '25', Icons.group, _cardColor, _primaryBlue),
-            // Pending - Person with Clock Icon
-            _buildStatCard('Pending', '5', Icons.person_add_outlined, _cardColor, _primaryBlue),
+
+            // PENDING CARD - NOW CLICKABLE
+            _buildStatCard(
+              'Pending', 
+              '5', 
+              Icons.person_add_outlined, 
+              _cardColor, 
+              _primaryBlue,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PendingApprovalsPage(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -99,48 +117,57 @@ class ManagePrincipalsPage extends StatelessWidget {
       ],
     );
   }
-
-  //---
   
   // Helper widget for a single stat card in the grid
-  Widget _buildStatCard(String title, String count, IconData icon, Color cardColor, Color iconColor) {
+  // Modified to accept an optional onTap function
+  Widget _buildStatCard(
+      String title, 
+      String count, 
+      IconData icon, 
+      Color cardColor, 
+      Color iconColor, 
+      {VoidCallback? onTap} // Added optional onTap
+      ) {
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(16),
-        height: 120, // Give it a fixed height for consistent look
-        decoration: BoxDecoration(
-          color: cardColor, // Use the light blue color
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05), // Very subtle shadow
-              spreadRadius: 1,
-              blurRadius: 3,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  count,
-                  style: const TextStyle(
-                      fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
-                ),
-                Icon(icon, size: 36, color: iconColor),
-              ],
-            ),
-          ],
+      child: InkWell(
+        onTap: onTap, // Apply the onTap function here
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.all(16),
+          height: 120, // Give it a fixed height for consistent look
+          decoration: BoxDecoration(
+            color: cardColor, // Use the light blue color
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05), // Very subtle shadow
+                spreadRadius: 1,
+                blurRadius: 3,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    count,
+                    style: const TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                  Icon(icon, size: 36, color: iconColor),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -174,7 +201,7 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
   
-  //---
+ 
 
   // Helper widget to build the three main management option tiles
   Widget _buildManagementOptions(BuildContext context) {
@@ -193,7 +220,7 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
 
-  //---
+  
 
   // Helper widget for a single option tile
   Widget _buildOptionTile(
