@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// 🌟 New Import for the Pending Approvals Page 🌟
+// Import for the Pending Approvals Page 
 import 'pending_approvals_page.dart';
 
 class ManageTechnicalOfficersPage extends StatelessWidget {
@@ -84,7 +84,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             // Total TOs - Group Icon
             _buildStatCard('Total TOs', '25', Icons.group_outlined),
 
-            // 🌟 PENDING CARD - NOW CLICKABLE 🌟
+            // PENDING CARD - NOW CLICKABLE
             _buildStatCard(
               'Pending',
               '5',
