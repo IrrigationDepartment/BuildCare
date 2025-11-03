@@ -25,7 +25,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // NEW: FocusNode to detect when the password field is active
+ 
   final _passwordFocusNode = FocusNode();
 
   String? _selectedOffice;
@@ -35,7 +35,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
-  // NEW: State variables for password validation UI
+ 
   bool _isPasswordFocused = false;
   bool _has8Chars = false;
   bool _hasLowercase = false;
@@ -43,7 +43,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
 
-  // NEW: initState to set up listeners
+ 
   @override
   void initState() {
     super.initState();
@@ -57,7 +57,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
 
   @override
   void dispose() {
-    // Dispose all controllers to free up resources
+    
     _userTypeController.dispose();
     _nameController.dispose();
     _nicController.dispose();
@@ -69,13 +69,13 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
 
-    // NEW: Dispose listener and FocusNode
+    
     _passwordController.removeListener(_validatePassword);
     _passwordFocusNode.dispose();
     super.dispose();
   }
 
-  // NEW: Function to validate password in real-time
+  
   void _validatePassword() {
     final password = _passwordController.text;
     setState(() {
@@ -87,7 +87,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     });
   }
 
-  // --- Firebase Registration Logic ---
+  
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
@@ -131,7 +131,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     }
   }
 
-  // --- Main Build Method ---
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -257,7 +257,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                               if (value == null || value.isEmpty) {
                                 return 'Password cannot be empty';
                               }
-                              // NEW: Updated validation logic
+                            
                               if (!_has8Chars ||
                                   !_hasLowercase ||
                                   !_hasUppercase ||
@@ -268,7 +268,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                               return null;
                             }),
 
-                        // NEW: Show validation UI only when password field is focused
+                       
                         if (_isPasswordFocused)
                           Padding(
                             padding: const EdgeInsets.only(
@@ -327,8 +327,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
-  // --- Helper method to show info dialog ---
-  // (Note: This is not used by the password checklist, but was in your original code)
   void _showInfoDialog(BuildContext context, String title, String content) {
     showDialog(
       context: context,
@@ -348,7 +346,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
-  // NEW: Widget to display the entire password validation checklist
+ 
   Widget _buildPasswordValidationUI() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,7 +364,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
-  // NEW: Widget for a single row in the validation checklist
+  
   Widget _buildValidationRow(String text, bool isValid) {
     return Row(
       children: [
@@ -387,7 +385,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
-  // --- Helper Widgets for Form Fields ---
+  
   Widget _buildLabeledTextField({
     required String label,
     required TextEditingController controller,
@@ -400,7 +398,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     TextInputType? keyboardType,
     String? infoMessage,
     String? Function(String?)? validator,
-    FocusNode? focusNode, // NEW: Added FocusNode parameter
+    FocusNode? focusNode, 
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -427,7 +425,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           const SizedBox(height: 8),
           TextFormField(
               controller: controller,
-              focusNode: focusNode, // NEW: Use the FocusNode here
+              focusNode: focusNode, 
               readOnly: isReadOnly,
               obscureText: isPassword && !isPasswordVisible,
               keyboardType: keyboardType,

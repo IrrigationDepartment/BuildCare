@@ -1,3 +1,4 @@
+import 'package:buildcare/screens/ChiefEng/contract_details_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_distric_eng_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_details.dart';
@@ -30,52 +31,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      // appBar: AppBar(
-      //   backgroundColor: const Color(0xFF2D2D2D),
-      //   elevation: 0,
-      //   title: Row(
-      //     children: [
-      //       TextButton(
-      //         onPressed: () {
-      //           setState(() => _selectedIndex = 0);
-      //         },
-      //         child: Text(
-      //           'Dashboard',
-      //           style: TextStyle(
-      //             color: _selectedIndex == 0 ? Colors.white : Colors.grey,
-      //             fontSize: 16,
-      //             fontWeight: _selectedIndex == 0 ? FontWeight.bold : FontWeight.normal,
-      //           ),
-      //         ),
-      //       ),
-      //       TextButton(
-      //         onPressed: () {
-      //           // Second Chief Engineer page
-      //         },
-      //         child: const Text(
-      //           'Second Chief',
-      //           style: TextStyle(
-      //             color: Colors.grey,
-      //             fontSize: 16,
-      //           ),
-      //         ),
-      //       ),
-      //       TextButton(
-      //         onPressed: () {
-      //           // Engineer page
-      //         },
-      //         child: const Text(
-      //           'Engineer',
-      //           style: TextStyle(
-      //             color: Colors.grey,
-      //             fontSize: 16,
-      //           ),
-      //         ),
-      //       ),
-      //     ],
-      //   ),
-      // ),
+      backgroundColor: Colors.white,   
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -116,9 +72,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
     );
   }
 
-  // =============================================
-  // DASHBOARD PAGE
-  // =============================================
+  
   Widget _buildDashboardPage() {
     return SingleChildScrollView(
       child: Padding(
@@ -368,7 +322,12 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
             _buildActionButton(
               'View Contract Details',
               Icons.description,
-              () {},
+              () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => ContractDetailsScreen()));
+              },
             ),
 
             const SizedBox(height: 20),
@@ -500,11 +459,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
         ),
         child: Row(
           children: [
-            // Icon(
-            //   icon,
-            //   color: const Color(0xFF64B5F6),
-            //   size: 30,
-            // ),
+           
             const SizedBox(width: 15),
             Expanded(
               child: Text(
@@ -528,9 +483,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
     );
   }
 
-  // =============================================
-  // PROFILE PAGE
-  // =============================================
+  
   Widget _buildProfilePage() {
     return Container(
       color: Colors.white,
@@ -651,9 +604,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
     );
   }
 
-  // =============================================
-  // SETTINGS PAGE
-  // =============================================
+  
   Widget _buildSettingsPage() {
     return Container(
       color: Colors.white,

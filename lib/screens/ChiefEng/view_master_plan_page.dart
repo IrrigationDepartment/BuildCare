@@ -16,6 +16,8 @@ class ViewMasterPlanScreen extends StatelessWidget {
             Navigator.pop(context);
           },
         ),
+
+
         title: const Text(
           'School Master Plan',
           style: TextStyle(
@@ -28,13 +30,15 @@ class ViewMasterPlanScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Header with title and close button
+          
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                bottom: BorderSide(color: Colors.grey[200]!),
+                bottom: BorderSide(
+                  color: Colors.grey[200]!,
+                ),
               ),
             ),
             child: Row(
@@ -58,8 +62,8 @@ class ViewMasterPlanScreen extends StatelessWidget {
               ],
             ),
           ),
+
           
-          // Master plan image container
           Expanded(
             child: Container(
               margin: const EdgeInsets.all(20),
@@ -70,8 +74,16 @@ class ViewMasterPlanScreen extends StatelessWidget {
                   BoxShadow(
                     color: Colors.grey.withOpacity(0.2),
                     spreadRadius: 2,
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    blurRadius: 28,
+                    // offset: const Offset(0, 2),
+                  ),
+                  BoxShadow(
+                    offset: const Offset(
+                      0,
+
+                      2,
+                    ),
+
                   ),
                 ],
               ),
