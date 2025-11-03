@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 // manage_users.dart ගොනුවෙන් ManageUsersPage එක import කර ඇත
 import 'manage_users.dart'; 
+// settings.dart ගොනුවෙන් SettingsPage එක සහ SettingsBottomNavBar එක import කර ඇත
+import 'settings.dart'; 
 
 // -----------------------------------------------------------------------------
 // --- Dashboard Screen (Main Dashboard) ---
@@ -65,41 +67,15 @@ class ProvincialEngineerDashboard extends StatelessWidget {
                 ],
               ),
             ),
-
-            // 3. User Approvals/Latest Users Section
-           /* const Padding(
-              padding: EdgeInsets.only(left: 16.0, top: 10.0, bottom: 8.0),
-              child: Text(
-                'Pending User Approvals', 
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
             
-            // UserCard Widgets
-            UserCard(
-              userName: 'Nimal Bandara',
-              userRole: 'District Engineer - Colombo',
-              isApproved: false, 
-            ),
-            UserCard(
-              userName: 'Kamani Perera',
-              userRole: 'Technical Officer - Galle',
-              isApproved: false, 
-            ),
-            UserCard(
-              userName: 'Jayantha Sirisena',
-              userRole: 'Principal - Kandy',
-              isApproved: true, 
-            ),*/
+            // 3. User Approvals/Latest Users Section (If used)
             const SizedBox(height: 20),
           ],
         ),
       ),
       // 4. Bottom Navigation Bar
-      bottomNavigationBar: const CustomBottomNavBar(),
+      // Dashboard එකේදී Home (0) active වේ.
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
 }
@@ -391,7 +367,9 @@ class _ActionButton extends StatelessWidget {
 // --- CustomBottomNavBar (Used in Dashboard) ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
-  const CustomBottomNavBar({super.key});
+  // currentIndex = 0: Home (Dashboard)
+  final int currentIndex;
+  const CustomBottomNavBar({super.key, required this.currentIndex});
 
   @override
   Widget build(BuildContext context) {
@@ -408,12 +386,46 @@ class CustomBottomNavBar extends StatelessWidget {
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
-          Icon(Icons.home_outlined, color: Colors.blue, size: 30),
-          Icon(Icons.person, color: Colors.blue, size: 30),
-          Icon(Icons.settings_outlined, color: Colors.black54, size: 30),
+          // Home icon (Active on Dashboard)
+          IconButton(
+            icon: Icon(
+              Icons.home_outlined, 
+              color: currentIndex == 0 ? Colors.blue : Colors.black54, 
+              size: 30
+            ),
+            onPressed: () {
+              // Dashboard එකේ ඉන්න නිසා මොකුත් කරන්න ඕනේ නැත.
+            },
+          ),
+          // Profile icon
+          IconButton(
+            icon: Icon(
+              Icons.person, 
+              color: currentIndex == 1 ? Colors.blue : Colors.black54, 
+              size: 30
+            ),
+            onPressed: () {
+              // Profile Page navigation logic මෙතනට එන්න ඕන
+            },
+          ),
+          // Settings icon (SettingsPage එකට Navigate කරන්න)
+          IconButton(
+            icon: Icon(
+              Icons.settings_outlined, 
+              color: currentIndex == 2 ? Colors.blue : Colors.black54, 
+              size: 30
+            ),
+            onPressed: () {
+              // SettingsPage එක open කරන්න
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()), 
+              );
+            },
+          ),
         ],
       ),
     );
