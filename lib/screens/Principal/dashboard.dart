@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
-import 'add_school_master_plan_page.dart'; // 1. Import the new Master Plan Page
+import 'add_school_master_plan_page.dart';
+import 'profile.dart'; // Import the Profile Page
+import 'settings_page.dart'; // Import the Settings Page
 
 class PrincipalDashboard extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -9,6 +11,37 @@ class PrincipalDashboard extends StatelessWidget {
   const PrincipalDashboard({super.key, required this.userData});
 
   static const Color _primaryColor = Color(0xFF53BDFF);
+
+  // --- Helper function for navigation to keep the onTap clean ---
+  void _onItemTapped(BuildContext context, int index) {
+    if (index == 0) {
+      // Home - Do nothing, already on Dashboard
+    } else if (index == 1) {
+      // Profile - Navigate to ProfilePage
+      if (userData != null) {
+        // NOTE: The actual userId would come from your authentication process
+        // For demonstration, we use a placeholder or assume a key exists.
+        final String principalId = userData!['uid'] ?? 'principal_doc_id_123';
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfilePage(
+              userData: userData!,
+              userId: principalId,
+            ),
+          ),
+        );
+      }
+    } else if (index == 2) {
+      // Settings - Navigate to the Settings Page
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsPage(),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,15 +111,15 @@ class PrincipalDashboard extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              // 2. Updated Button: Manage Master Plans with Navigation
+              // Button 3: Manage Master Plans with Navigation
               _buildActionButton(
                 icon: Icons.map_outlined,
                 text: 'Manage Master Plans',
                 onTap: () {
-                  Navigator.push( // Navigation code added here
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddSchoolMasterPlanPage(), // Navigating to the new page
+                      builder: (context) => const AddSchoolMasterPlanPage(),
                     ),
                   );
                 },
@@ -114,11 +147,13 @@ class PrincipalDashboard extends StatelessWidget {
           BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined, size: 30), label: 'Settings'),
         ],
+        // Navigation logic applied here
+        onTap: (index) => _onItemTapped(context, index),
       ),
     );
   }
 
-  // --- WELCOME HEADER CARD ---
+  // --- WELCOME HEADER CARD --- (No change)
   Widget _buildWelcomeHeader(String name) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -164,7 +199,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- ACTION BUTTON CARD ---
+  // --- ACTION BUTTON CARD --- (No change)
   Widget _buildActionButton({
     required IconData icon,
     required String text,
@@ -188,8 +223,7 @@ class PrincipalDashboard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             child: Row(
               children: [
                 CircleAvatar(
@@ -214,7 +248,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- REPORTED ISSUES SECTION ---
+  // --- REPORTED ISSUES SECTION --- (No change)
   Widget _buildReportedIssuesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +279,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- ISSUE CARD ---
+  // --- ISSUE CARD --- (Error fixed: removed duplicate 'required')
   Widget _buildIssueCard({
     required String title,
     required String status,
