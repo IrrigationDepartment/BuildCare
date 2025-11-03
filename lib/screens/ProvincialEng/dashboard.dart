@@ -1,8 +1,8 @@
 // dashboard.dart
 import 'package:flutter/material.dart';
-// manage_users.dart ගොනුවෙන් ManageUsersPage එක import කර ඇත
+// Import ManageUsersPage from manage_users.dart
 import 'manage_users.dart'; 
-// settings.dart ගොනුවෙන් SettingsPage එක සහ SettingsBottomNavBar එක import කර ඇත
+// Import SettingsPage from settings.dart
 import 'settings.dart'; 
 
 // -----------------------------------------------------------------------------
@@ -74,7 +74,7 @@ class ProvincialEngineerDashboard extends StatelessWidget {
         ),
       ),
       // 4. Bottom Navigation Bar
-      // Dashboard එකේදී Home (0) active වේ.
+      // Home (0) is active on the Dashboard
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
@@ -397,7 +397,7 @@ class CustomBottomNavBar extends StatelessWidget {
               size: 30
             ),
             onPressed: () {
-              // Dashboard එකේ ඉන්න නිසා මොකුත් කරන්න ඕනේ නැත.
+              // No action needed as we are already on the Dashboard
             },
           ),
           // Profile icon
@@ -408,10 +408,10 @@ class CustomBottomNavBar extends StatelessWidget {
               size: 30
             ),
             onPressed: () {
-              // Profile Page navigation logic මෙතනට එන්න ඕන
+              // Profile Page navigation logic goes here
             },
           ),
-          // Settings icon (SettingsPage එකට Navigate කරන්න)
+          // Settings icon (Navigate to SettingsPage)
           IconButton(
             icon: Icon(
               Icons.settings_outlined, 
@@ -419,7 +419,7 @@ class CustomBottomNavBar extends StatelessWidget {
               size: 30
             ),
             onPressed: () {
-              // SettingsPage එක open කරන්න
+              // Open SettingsPage
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SettingsPage()), 

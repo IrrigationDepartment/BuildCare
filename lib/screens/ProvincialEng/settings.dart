@@ -10,7 +10,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. App Bar
+      // 1. App Bar 
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
@@ -18,7 +18,7 @@ class SettingsPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () {
-            // ආපහු Dashboard එකට යන්න
+            // Navigate back to the Dashboard
             Navigator.pop(context);
           },
         ),
@@ -32,7 +32,7 @@ class SettingsPage extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () {
-              // Save button එක click කලාම වෙන්න ඕන දේ
+              // Action when the Save button is clicked
             },
             child: const Text(
               'Save',
@@ -43,7 +43,7 @@ class SettingsPage extends StatelessWidget {
       ),
 
       // 2. Body
-      backgroundColor: const Color(0xFFF5F5F5), // අළු පාට background
+      backgroundColor: const Color(0xFFF5F5F5), // Light grey background
       body: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
@@ -52,7 +52,7 @@ class SettingsPage extends StatelessWidget {
           _SettingsItem(
             title: 'Change Password',
             onTap: () {
-              // "Change Password" click කලාම වෙන්න ඕන දේ
+              // Action for "Change Password" click
             },
           ),
           const SizedBox(height: 20),
@@ -62,19 +62,19 @@ class SettingsPage extends StatelessWidget {
           _SettingsItem(
             title: 'Developer Team',
             onTap: () {
-              // "Developer Team" click කලාම වෙන්න ඕන දේ
+              // Action for "Developer Team" click
             },
           ),
           _SettingsItem(
             title: 'Report a Problem',
             onTap: () {
-              // "Report a Problem" click කලාම වෙන්න ඕන දේ
+              // Action for "Report a Problem" click
             },
           ),
           _SettingsItem(
             title: 'Privacy Policy',
             onTap: () {
-              // "Privacy Policy" click කලාම වෙන්න ඕන දේ
+              // Action for "Privacy Policy" click
             },
           ),
           const SizedBox(height: 40),
@@ -85,10 +85,10 @@ class SettingsPage extends StatelessWidget {
             height: 50,
             child: ElevatedButton(
               onPressed: () {
-                // "Log out" click කලාම වෙන්න ඕන දේ
+                // Action when "Log out" is clicked
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE53935), // රතු පාට
+                backgroundColor: const Color(0xFFE53935), // Red color
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -104,8 +104,8 @@ class SettingsPage extends StatelessWidget {
       ),
 
       // 3. Bottom Navigation Bar
-      // Settings page එකේදී Settings icon එක active (blue) කරලා
-      // currentIndex: 2 මගින් Settings active බව පෙන්වයි.
+      // Settings icon is active (blue) for the Settings page
+      // currentIndex: 2 indicates Settings is the active tab.
       bottomNavigationBar: const SettingsBottomNavBar(currentIndex: 2),
     );
   }
@@ -115,7 +115,7 @@ class SettingsPage extends StatelessWidget {
 // --- Helper Widgets for Settings Page ---
 // -----------------------------------------------------------------------------
 
-// "Account", "Support" වගේ headers හදන්න
+// Widget for section headers like "Account" or "Support"
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader({required this.title});
@@ -136,7 +136,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// "Change Password" වගේ list items හදන්න
+// Widget for list items like "Change Password"
 class _SettingsItem extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
@@ -161,7 +161,7 @@ class _SettingsItem extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- SettingsBottomNavBar (Settings Page එකට අදාල) ---
+// --- SettingsBottomNavBar (Specific to the Settings Page) ---
 // -----------------------------------------------------------------------------
 class SettingsBottomNavBar extends StatelessWidget {
   // currentIndex = 2: Settings
@@ -186,15 +186,15 @@ class SettingsBottomNavBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
-          // Home icon (Click කලාම ආපහු Dashboard එකට යන්න)
+          // Home icon (Tapping navigates back to Dashboard)
           IconButton(
             icon: Icon(
               Icons.home_outlined, 
-              color: currentIndex == 0 ? Colors.blue : Colors.black54, // Settings page එකේදී black54
+              color: currentIndex == 0 ? Colors.blue : Colors.black54, 
               size: 30
             ),
             onPressed: () {
-              Navigator.pop(context); // ආපහු Dashboard එකට යනවා
+              Navigator.pop(context); // Navigates back to the Dashboard
             },
           ),
           // Profile icon
@@ -205,18 +205,18 @@ class SettingsBottomNavBar extends StatelessWidget {
               size: 30
             ),
             onPressed: () {
-              // Profile Page navigation logic මෙතනට එන්න ඕන
+              // Profile Page navigation logic goes here
             },
           ),
-          // Settings icon (මේ page එකේදි Active)
+          // Settings icon (Active on this page)
           IconButton(
             icon: Icon(
               Icons.settings, 
-              color: currentIndex == 2 ? Colors.blue : Colors.black54, // Settings page එකේදී Blue
+              color: currentIndex == 2 ? Colors.blue : Colors.black54, // Active (Blue) on Settings page
               size: 30
             ),
             onPressed: () {
-              // දැනටමත් Settings page එකේ සිටින නිසා කිසිවක් සිදු නොවේ (Navigation avoid කරයි)
+              // No action is taken as we are already on the Settings page
             },
           ),
         ],
