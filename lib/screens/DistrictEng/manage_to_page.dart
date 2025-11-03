@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 // Import for the Pending Approvals Page 
 import 'pending_approvals_page.dart';
 
+// Import the School Master Plan Page
+import 'school_master_plan_page.dart'; 
+
 class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
@@ -41,7 +44,8 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               const SizedBox(height: 24),
               _buildSearchBar(),
               const SizedBox(height: 24),
-              _buildManagementOptions(context),
+              // Pass context to _buildManagementOptions to allow navigation
+              _buildManagementOptions(context), 
             ],
           ),
         ),
@@ -196,8 +200,20 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   Widget _buildManagementOptions(BuildContext context) {
     return Column(
       children: [
+        // Added onTap to navigate to SchoolMasterPlanPage
         _buildOptionTile(
-            context, 'View School Master Plan', Icons.description_outlined),
+            context, 
+            'View School Master Plan', 
+            Icons.description_outlined,
+            onTap: () {
+               Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SchoolMasterPlanPage(),
+                ),
+              );
+            },
+        ),
         const SizedBox(height: 16),
         _buildOptionTile(
             context, 'View Damage Details', Icons.remove_red_eye_outlined), // Changed icon to match 'View' action
@@ -209,13 +225,14 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   }
 
   // Helper widget for a single option tile
+  //  Now accepts an optional onTap function
   Widget _buildOptionTile(
-      BuildContext context, String title, IconData icon) {
+      BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
-      onTap: () {
-        // TODO: Implement navigation or action for each option
+      onTap: onTap ?? () {
+        // Default action if no onTap is provided (like showing a snackbar)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tapped: $title')),
+          SnackBar(content: Text('Tapped: $title - Navigation not set')),
         );
       },
       child: Container(
