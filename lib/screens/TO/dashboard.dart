@@ -5,14 +5,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Import the new Manage Schools Screen
 import 'manage_schools_screen.dart'; // <-- Correct import
 // Import the Add School Screen (can be used by other parts, good to keep)
-import 'add_school_screen.dart'; 
+import 'add_school_screen.dart';
+
+// --- 1. IMPORT THE NEW ISSUE REPORT SCREEN ---
+import 'issue_report_list_screen.dart';
+
+// --- 2. THIS IS THE FIX ---
+// This line was missing, causing the error on line 307
+import 'issue_report_details_screen.dart'; 
 
 class HomeScreen extends StatefulWidget {
-  // 2. --- RECEIVE USER DATA ---
+  // 3. --- RECEIVE USER DATA ---
   // This receives the data from the login page
   final Map<String, dynamic> userData;
 
-  // 3. --- UPDATE THE CONSTRUCTOR ---
+  // 4. --- UPDATE THE CONSTRUCTOR ---
   const HomeScreen({super.key, required this.userData});
 
   @override
@@ -108,9 +115,6 @@ class _DashboardScreenState extends State<HomeScreen> {
             child: Icon(Icons.person, size: 30, color: Colors.white),
           ),
           const SizedBox(width: 16),
-
-          // --- THIS IS THE FIX ---
-          // Wrap the Column in an Expanded widget
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +127,6 @@ class _DashboardScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                     color: kTextColor,
                   ),
-                  // Add these two lines to handle very long names
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
@@ -138,7 +141,6 @@ class _DashboardScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          // --- END OF FIX ---
         ],
       ),
     );
@@ -174,8 +176,15 @@ class _DashboardScreenState extends State<HomeScreen> {
           icon: Icons.assessment, // Changed from settings_applications
           title: 'Issues Report',
           onTap: () {
-            // TODO: Navigate to Issues Report page
-            print('Issues Report tapped');
+            // --- 2. ADD NAVIGATION FOR ISSUES REPORT ---
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => IssueReportListScreen(
+                  userNic: widget.userData['nic'] ?? 'UNKNOWN_NIC',
+                ),
+              ),
+            );
           },
         ),
         _buildMenuCard(
@@ -251,27 +260,23 @@ class _DashboardScreenState extends State<HomeScreen> {
 
   // --- 4. Recent Activity List (with Firebase) ---
   Widget _buildRecentActivityList() {
-    // IMPORTANT: I am assuming your collection is named 'issues'.
-    // Please change 'issues' to your actual collection name in Firestore.
+    // This stream is already set up for 'issues' which is perfect
     final Stream<QuerySnapshot> issuesStream = FirebaseFirestore.instance
-        .collection('issues') // <-- CHANGE THIS if needed
+        .collection('issues')
         .where('status', isEqualTo: 'Pending Review')
-        .orderBy('timestamp', descending: true) // Show newest first
-        .limit(5) // Get the 5 most recent
+        .orderBy('timestamp', descending: true)
+        .limit(5)
         .snapshots();
 
     return StreamBuilder<QuerySnapshot>(
       stream: issuesStream,
       builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
-        // --- Loading State ---
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        // --- Error State ---
         if (snapshot.hasError) {
           return const Center(child: Text('Something went wrong'));
         }
-        // --- Empty State ---
         if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
           return const Center(
             child: Text(
@@ -285,29 +290,32 @@ class _DashboardScreenState extends State<HomeScreen> {
         return Column(
           children: snapshot.data!.docs
               .map((DocumentSnapshot document) {
-                // Get data from the document
                 Map<String, dynamic> data =
                     document.data()! as Map<String, dynamic>;
 
-                // Use '??' to provide default values if fields are missing
                 String title = data['schoolName'] ?? 'Unknown School';
                 String subtitle = data['issueTitle'] ?? 'No Title';
                 String location = data['location'] ?? 'No Location';
                 String status = data['status'] ?? 'No Status';
 
-                // Build the card
                 return _buildActivityCard(
                   title: '$title - $subtitle',
                   subtitle: '$location - Status, $status',
                   onTap: () {
-                    // TODO: Navigate to the detail page for this issue
-                    // You can pass the document.id to the next screen
-                    print('Tapped on issue: ${document.id}');
+                    // --- 3. LINK RECENT ACTIVITY TO DETAILS PAGE ---
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            // This line is now fixed because of the import
+                            IssueReportDetailsScreen(issueId: document.id),
+                      ),
+                    );
                   },
                 );
               })
-              .toList() // Convert the .map() to a List
-              .cast<Widget>(), // Cast it to a list of Widgets
+              .toList()
+              .cast<Widget>(),
         );
       },
     );
