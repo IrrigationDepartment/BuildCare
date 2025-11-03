@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
+// 🌟 New Import for the Pending Approvals Page 🌟
+import 'pending_approvals_page.dart';
+
 class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
   // Define the consistent colors from the ManagePrincipalsPage
-  static const Color _cardColor = Color(0xFFE3F2FD); 
-  static const Color _primaryBlue = Color(0xFF1E88E5); 
-  static const Color _backgroundColor = Color(0xFFF0F2F5); 
+  static const Color _cardColor = Color(0xFFE3F2FD);
+  static const Color _primaryBlue = Color(0xFF1E88E5);
+  static const Color _backgroundColor = Color(0xFFF0F2F5);
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +37,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatsGrid(),
+              _buildStatsGrid(context), // Pass context to the grid builder
               const SizedBox(height: 24),
               _buildSearchBar(),
               const SizedBox(height: 24),
@@ -60,7 +63,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           ),
         ],
         // The current index is 1 (person icon)
-        currentIndex: 1, 
+        currentIndex: 1,
         selectedItemColor: _primaryBlue, // The highlighted icon is blue
         unselectedItemColor: Colors.grey, // Non-selected icons are grey
         showSelectedLabels: false, // Hide labels for a cleaner look
@@ -72,7 +75,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   }
 
   // Helper widget to build the stats grid (Total TOs, Pending, Active, Schools)
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(BuildContext context) {
     return Column(
       children: [
         Row(
@@ -80,17 +83,30 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           children: [
             // Total TOs - Group Icon
             _buildStatCard('Total TOs', '25', Icons.group_outlined),
-            // Pending - Person with Clock Icon (Changed from access_time)
-            _buildStatCard('Pending', '5', Icons.pending_actions_outlined),
+
+            // 🌟 PENDING CARD - NOW CLICKABLE 🌟
+            _buildStatCard(
+              'Pending',
+              '5',
+              Icons.pending_actions_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PendingApprovalsPage(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Active TOs - Group with 'Add' Icon (Changed from group_add)
+            // Active TOs - Group with 'Add' Icon
             _buildStatCard('Active TOs', '20', Icons.how_to_reg_outlined),
-            // Schools - School/Building Icon (Changed from school)
+            // Schools - School/Building Icon
             _buildStatCard('Schools', '150', Icons.apartment_outlined),
           ],
         ),
@@ -99,48 +115,52 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   }
 
   // Helper widget for a single stat card in the grid
-  // Adopted the signature, styling, and layout from the Principals page
-  Widget _buildStatCard(String title, String count, IconData icon) {
+  // Modified to accept an optional onTap function
+  Widget _buildStatCard(
+      String title, String count, IconData icon, {VoidCallback? onTap}) {
     return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(16),
-        height: 120, // Give it a fixed height for consistent look
-        decoration: BoxDecoration(
-          color: _cardColor, // Use the light blue card color
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05), // Subtle shadow
-              spreadRadius: 1,
-              blurRadius: 3,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w500),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  count,
-                  style: const TextStyle(
-                      fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
-                ),
-                Icon(icon, size: 36, color: _primaryBlue), // Use primary blue icon color
-              ],
-            ),
-          ],
+      child: InkWell(
+        onTap: onTap, // Apply the onTap function here
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.all(16),
+          height: 120, // Give it a fixed height for consistent look
+          decoration: BoxDecoration(
+            color: _cardColor, // Use the light blue card color
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05), // Subtle shadow
+                spreadRadius: 1,
+                blurRadius: 3,
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w500),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    count,
+                    style: const TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
+                  Icon(icon, size: 36, color: _primaryBlue), // Use primary blue icon color
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
