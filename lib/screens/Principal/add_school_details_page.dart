@@ -12,6 +12,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
 
   final TextEditingController _schoolNameController = TextEditingController();
   final TextEditingController _schoolAddressController = TextEditingController();
+  final TextEditingController _schoolEmailController = TextEditingController(); // New Email Controller
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _educationalZoneController = TextEditingController();
   final TextEditingController _studentsController = TextEditingController();
@@ -32,6 +33,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
   void dispose() {
     _schoolNameController.dispose();
     _schoolAddressController.dispose();
+    _schoolEmailController.dispose(); // Dispose the new controller
     _phoneController.dispose();
     _educationalZoneController.dispose();
     _studentsController.dispose();
@@ -89,6 +91,14 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
               children: [
                 _buildTextField("School Name", "Enter Your School name", _schoolNameController, isNumber: false),
                 _buildTextField("School Address", "Enter Your School Address", _schoolAddressController, isNumber: false),
+                // NEW: School Email Field
+                _buildTextField(
+                  "School Email", 
+                  "Enter Your School Email", 
+                  _schoolEmailController, 
+                  isNumber: false, 
+                  isEmail: true,
+                ),
                 _buildTextField("School Phone Number", "Enter Your School Contact Number", _phoneController, isNumber: true),
                 _buildDropdown(),
                 _buildTextField("School Educational Zone", "Enter Your School Educational Zone", _educationalZoneController, isNumber: false),
@@ -106,7 +116,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
   }
 
   /// Builds a text field with a label above it and a F3F3F3 background.
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber}) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber, bool isEmail = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -119,7 +129,11 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
-            keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+            keyboardType: isNumber
+                ? TextInputType.number
+                : isEmail 
+                    ? TextInputType.emailAddress // Use email keyboard for email field
+                    : TextInputType.text,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[600]),
@@ -131,7 +145,16 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             ),
-            validator: (value) => value!.isEmpty ? 'Please enter $label' : null,
+            validator: (value) {
+              if (value!.isEmpty) {
+                return 'Please enter $label';
+              }
+              // Email validation check
+              if (isEmail && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                return 'Please enter a valid email address';
+              }
+              return null;
+            },
           ),
         ],
       ),
@@ -166,7 +189,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
             isExpanded: true,
             items: const [
               DropdownMenuItem(value: "Provincial school", child: Text("Provincial")),
-              DropdownMenuItem(value: "government School", child: Text("Government")),
+              DropdownMenuItem(value: "Government School", child: Text("Government")),
               // DropdownMenuItem(value: "Private School", child: Text("Private School")),
             ],
             onChanged: (value) => setState(() => _schoolType = value),
@@ -182,8 +205,8 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _textFieldBackgroundColor, // 🚩 Changed to F3F3F3
-        borderRadius: BorderRadius.circular(10), // Matched radius to text fields
+        color: _textFieldBackgroundColor, // F3F3F3 color
+        borderRadius: BorderRadius.circular(10), 
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
