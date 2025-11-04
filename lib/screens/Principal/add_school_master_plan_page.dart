@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart'; // 1. Import file_picker
 
 // Primary color for UI consistency
 const Color _primaryColor = Color(0xFF53BDFF);
@@ -11,8 +12,8 @@ class AddSchoolMasterPlanPage extends StatefulWidget {
 }
 
 class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
-  // State variables store the simulated image path (String?). Null means no file selected.
-  // This simulates holding the path to the file selected via ImagePicker.
+  // State variables now store the actual selected file path (String?).
+  // We use String? here to represent the path of the selected file.
   String? _masterPlanImagePath;
   String? _updatedPlanImagePath;
   
@@ -27,28 +28,42 @@ class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
     super.dispose();
   }
 
-  // Helper function to simulate file selection or deselection (like ImagePicker)
-  // NOTE: In this restricted environment, we must simulate the file selection 
-  // by toggling between a mock file name and null.
-  void _pickImageSimulation(String type) {
-    setState(() {
-      if (type == 'master') {
-        // Toggle: if no file, set a mock name/path; if file exists, clear it.
-        _masterPlanImagePath = _masterPlanImagePath == null
-            ? 'MasterPlan_2025_v1.jpg'
-            : null;
-      } else if (type == 'updated') {
-        _updatedPlanImagePath = _updatedPlanImagePath == null
-            ? 'UpdatedPlan_2026_Annex.png'
-            : null;
-      }
-    });
+  // 2. Actual file picking logic using file_picker
+  Future<void> _pickImage(String type) async {
+    // Show a dialog to the user indicating the type of file to select
+    // For simplicity, we directly call the picker here.
     
-    // In a production app, the actual file picker logic (like in the reference code)
-    // would be implemented here, storing the actual file or its path/name.
-    if (type == 'master' && _masterPlanImagePath != null) {
+    // Set the allowed extensions for JPG and PNG files
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      // A file was successfully selected
+      setState(() {
+        final filePath = result.files.single.path;
+        final fileName = result.files.single.name;
+
+        if (type == 'master') {
+          _masterPlanImagePath = filePath;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Master Plan Selected: $fileName')),
+          );
+        } else if (type == 'updated') {
+          _updatedPlanImagePath = filePath;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Updated Plan Selected: $fileName')),
+          );
+        }
+      });
+    } else {
+      // User canceled the picker or selection failed.
+      // We don't change the state here, but in a real app, you might want 
+      // to handle file deselection/clearing if the user wants to remove the existing file.
+      // For now, if they cancel, the existing selection remains.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Image Selected: $_masterPlanImagePath (Simulated)')),
+        const SnackBar(content: Text('File selection cancelled.')),
       );
     }
   }
@@ -76,8 +91,15 @@ class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
             child: OutlinedButton(
               onPressed: () {
                 // TODO: Implement actual save logic (e.g., uploading the files to a database like Firestore/Storage)
+                
+                // Print paths to console for verification (use file names for SnackBar)
+                final masterFileName = _masterPlanImagePath?.split('/').last ?? 'None';
+                final updatedFileName = _updatedPlanImagePath?.split('/').last ?? 'None';
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Master Plan form submitted (Simulated)!')),
+                  SnackBar(
+                    content: Text('Submitted! Master: $masterFileName, Updated: $updatedFileName'),
+                  ),
                 );
               },
               style: OutlinedButton.styleFrom(
@@ -116,7 +138,8 @@ class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
               context,
               'Upload school master plan',
               _masterPlanImagePath, // Pass the image path
-              onTap: () => _pickImageSimulation('master'), // Use the pick image simulation
+              // 3. Use the new _pickImage function
+              onTap: () => _pickImage('master'), 
             ),
             const SizedBox(height: 30),
 
@@ -138,7 +161,8 @@ class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
               context,
               'Upload updated school master plan',
               _updatedPlanImagePath, // Pass the image path
-              onTap: () => _pickImageSimulation('updated'), // Use the pick image simulation
+              // 3. Use the new _pickImage function
+              onTap: () => _pickImage('updated'), 
             ),
             const SizedBox(height: 20),
           ],
@@ -192,11 +216,16 @@ class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
   Widget _buildFileUploadArea(
       BuildContext context,
       String defaultText,
-      String? imagePath, // Changed name to reflect the user's reference file
+      String? imagePath,
       {required VoidCallback onTap}) {
     
     // Check if an image path is present to determine selection state
     final bool isSelected = imagePath != null; 
+    
+    // Get only the file name from the full path for display
+    final String displayText = isSelected 
+        ? imagePath!.split('/').last // Extracts the file name
+        : defaultText;
     
     return InkWell(
       onTap: onTap,
@@ -221,12 +250,18 @@ class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
               color: isSelected ? _primaryColor : Colors.grey,
             ),
             const SizedBox(height: 8),
-            Text(
-              // Display file path/name or default text
-              isSelected ? imagePath! : defaultText, 
-              style: TextStyle(
-                color: isSelected ? _primaryColor : Colors.grey[600],
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            // Display file path/name or default text
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              child: Text(
+                displayText,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? _primaryColor : Colors.grey[600],
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
               ),
             ),
           ],
