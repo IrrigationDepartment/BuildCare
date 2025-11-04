@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 // Import for the Pending Approvals Page
 import 'pending_approvals_page.dart';
 
+// Import the School Master Plan Page
+import 'school_master_plan_page.dart'; 
+
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
 
@@ -40,7 +43,7 @@ class ManagePrincipalsPage extends StatelessWidget {
               const SizedBox(height: 24),
               _buildSearchBar(),
               const SizedBox(height: 24),
-              // The management options in the image are a bit brighter white, so we'll use white
+              // Pass context to the management options builder
               _buildManagementOptions(context),
             ],
           ),
@@ -119,14 +122,13 @@ class ManagePrincipalsPage extends StatelessWidget {
   }
   
   // Helper widget for a single stat card in the grid
-  // Modified to accept an optional onTap function
   Widget _buildStatCard(
       String title, 
       String count, 
       IconData icon, 
       Color cardColor, 
       Color iconColor, 
-      {VoidCallback? onTap} // Added optional onTap
+      {VoidCallback? onTap}
       ) {
     return Expanded(
       child: InkWell(
@@ -201,35 +203,46 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
   
- 
+  //---
 
   // Helper widget to build the three main management option tiles
   Widget _buildManagementOptions(BuildContext context) {
     // The icons in the image are a document icon, an eye/damage icon, and a pencil/contract icon
     return Column(
       children: [
+        // Added onTap to navigate to SchoolMasterPlanPage
         _buildOptionTile(
-            context, 'View School Master Plan', Icons.description_outlined),
+            context, 
+            'View School Master Plan', 
+            Icons.description_outlined,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SchoolMasterPlanPage(),
+                ),
+              );
+            },
+        ),
         const SizedBox(height: 16),
         _buildOptionTile(
-            context, 'View Damage Details', Icons.remove_red_eye_outlined), // Changed to an eye icon for "View"
+            context, 'View Damage Details', Icons.remove_red_eye_outlined), // Action not set, uses default snackbar
         const SizedBox(height: 16),
         _buildOptionTile(
-            context, 'View Contract Details', Icons.edit_note_outlined), // Changed to a pencil/edit icon
+            context, 'View Contract Details', Icons.edit_note_outlined), // Action not set, uses default snackbar
       ],
     );
   }
 
-  
-
   // Helper widget for a single option tile
+  //  Now accepts an optional onTap function
   Widget _buildOptionTile(
-      BuildContext context, String title, IconData icon) {
+      BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
-      onTap: () {
-        // TODO: Implement navigation or action for each option
+      onTap: onTap ?? () {
+        // Default action if no specific onTap is provided
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tapped: $title')),
+          SnackBar(content: Text('Tapped: $title - Navigation not yet set')),
         );
       },
       child: Container(
