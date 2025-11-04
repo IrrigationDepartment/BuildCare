@@ -63,6 +63,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
           }
 
           // Get image list
+          // This list correctly comes from Firestore (which are the server URLs)
           final List<dynamic> images = data['imageUrls'] ?? [];
 
           return SingleChildScrollView(
@@ -98,6 +99,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // This widget now correctly displays the server images
                   _buildImageGallery(images),
                 ],
               ),
@@ -108,49 +110,59 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
-  // --- Helper to build the image gallery ---
+  // --- Helper to build the image gallery (MODIFIED) ---
   Widget _buildImageGallery(List<dynamic> images) {
     if (images.isEmpty) {
       return const Text('No images uploaded.',
           style: TextStyle(color: kSubTextColor));
     }
-    return Row(
-      children: images.map((imageUrl) {
-        return Padding(
-          padding: const EdgeInsets.only(right: 12.0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8.0),
-            child: Image.network(
-              imageUrl.toString(),
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
-              // Loading and error builders for a better UX
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
+    
+    // --- MODIFICATION: Wrapped the Row in a fixed-height SizedBox
+    // and a SingleChildScrollView to allow horizontal scrolling ---
+    return SizedBox(
+      height: 100, // Give the gallery a fixed height
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: images.map((imageUrl) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 12.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: Image.network(
+                  imageUrl.toString(), // This is the server URL
                   width: 100,
                   height: 100,
-                  color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator()),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
-                );
-              },
-            ),
-          ),
-        );
-      }).toList(),
+                  fit: BoxFit.cover,
+                  // Loading and error builders for a better UX
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: 100,
+                      height: 100,
+                      color: Colors.grey[200],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 100,
+                      height: 100,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    );
+                  },
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
+    // --- END MODIFICATION ---
   }
 
-  // --- Helper to build styled detail rows ---
+  // --- Helper to build styled detail rows (Unchanged) ---
   Widget _buildDetailRow(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
