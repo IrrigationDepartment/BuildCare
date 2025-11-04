@@ -1,10 +1,19 @@
+import 'dart:convert'; // For jsonDecode
+import 'package:flutter/foundation.dart'; // For debugPrint, Uint8List
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart'; // For XFile
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart'; // 💡 New import for image picking
-import 'dart:io'; // To handle the File type
+import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart'; // For Uint8List, though imported via foundation above, good for clarity
+
+// --- REMOVED dart:io as we use XFile/Uint8List for cross-platform support ---
 
 class AddBuildingIssuesPage extends StatefulWidget {
-  const AddBuildingIssuesPage({super.key});
+  // Added userNic parameter, consistent with add_issue_screen.dart
+  final String userNic;
+
+  const AddBuildingIssuesPage({super.key, required this.userNic});
 
   @override
   State<AddBuildingIssuesPage> createState() => _AddBuildingIssuesPageState();
@@ -22,23 +31,41 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   String? _selectedBuilding;
   String? _selectedDamageType;
   DateTime? _selectedDate;
-  
-  // 💡 New state variable to hold the selected image file(s)
-  final List<File> _selectedImages = []; 
+
+  // Switched to XFile for cross-platform image handling
+  final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
+
+  bool _isLoading = false; // Added loading state
 
   static const Color _primaryColor = Color(0xFF53BDFF);
   static const Color _textFieldBackgroundColor = Color(0xFFF3F3F3);
 
   final List<String> _buildingTypes = [
-    'Academic Classroom', 'Office', 'Science Lab', 'Technology Lab', 'Library',
-    'Hostel', 'Computer Lab', 'Dahampasala Lab', 'Store Room', 'Auditorium',
-    'Main Hall', 'Changing Room', 'Security Room', 'Wash Room', 'Boundary Wall'
+    'Academic Classroom',
+    'Office',
+    'Science Lab',
+    'Technology Lab',
+    'Library',
+    'Hostel',
+    'Computer Lab',
+    'Dahampasala Lab',
+    'Store Room',
+    'Auditorium',
+    'Main Hall',
+    'Changing Room',
+    'Security Room',
+    'Wash Room',
+    'Boundary Wall'
   ];
 
   final List<String> _damageTypes = [
-    'Foundation & Wall Damage', 'Roofing Damage', 'Utility Damage (Electricity/Water)',
-    'Floor Damage', 'Plumbing/Draining Structural Issue', 'Windows/Doors Frame Damage',
+    'Foundation & Wall Damage',
+    'Roofing Damage',
+    'Utility Damage (Electricity/Water)',
+    'Floor Damage',
+    'Plumbing/Draining Structural Issue',
+    'Windows/Doors Frame Damage',
     'Staircase & Corridor Damage'
   ];
 
@@ -52,8 +79,144 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     super.dispose();
   }
 
-  // Function to show the Date Picker
-  Future<void> _selectDate(BuildContext context) async {
+  // --- Image Picker Function (MODIFIED for multi-select) ---
+  Future<void> _pickImages() async {
+    // Allows picking multiple images
+    final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 70);
+    if (pickedFiles.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(pickedFiles);
+      });
+    }
+  }
+
+  // --- Image Remover Function ---
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  // --- 1. Upload Images to Server Function (Copied from add_issue_screen.dart) ---
+  Future<List<String>> _uploadImages() async {
+    if (_selectedImages.isEmpty) {
+      return [];
+    }
+
+    // --- REPLACE WITH YOUR NEW LINK ---
+    var uri = Uri.parse("http://buildcare.atwebpages.com/index.php");
+    var request = http.MultipartRequest("POST", uri);
+
+    for (var imageFile in _selectedImages) {
+      var fileBytes = await imageFile.readAsBytes();
+      var file = http.MultipartFile.fromBytes(
+        'images[]', // This key 'images[]' MUST match the PHP script
+        fileBytes,
+        filename: imageFile.name,
+      );
+      request.files.add(file);
+    }
+
+    try {
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        var responseBody = await response.stream.bytesToString();
+        var decodedResponse = jsonDecode(responseBody);
+
+        if (decodedResponse['status'] == 'success') {
+          List<String> imageUrls =
+              List<String>.from(decodedResponse['imageUrls']);
+          return imageUrls;
+        } else {
+          debugPrint('Server error: ${decodedResponse['message']}');
+          return [];
+        }
+      } else {
+        debugPrint('HTTP error: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      debugPrint('An error occurred during upload: $e');
+      return [];
+    }
+  }
+
+  // --- 2. Main Save Function (NEW) ---
+  Future<void> _saveIssue() async {
+    // 1. Validation
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select a date of occurance.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Step 1: Upload images
+      List<String> uploadedImageUrls = await _uploadImages();
+
+      if (_selectedImages.isNotEmpty && uploadedImageUrls.isEmpty) {
+        throw Exception('Failed to upload images. Please check server connection.');
+      }
+
+      // Step 2: Prepare Data
+      // Mapping fields to Firestore structure
+      final issueData = {
+        'schoolName': _schoolNameController.text.trim(),
+        'buildingName': _selectedBuilding, // From Dropdown
+        'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
+        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
+        'damageType': _selectedDamageType, // From Dropdown
+        'issueTitle': '$_selectedBuilding - $_selectedDamageType', // Generated Title
+        'description': _descriptionController.text.trim(),
+        'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
+        'imageUrls': uploadedImageUrls,
+        'status': 'Pending', // Default status
+        'addedByNic': widget.userNic,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      // Step 3: Save to 'issues' collection
+      await FirebaseFirestore.instance.collection('issues').add(issueData);
+
+      // Step 4: Success
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Building Issue Reported Successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      // Step 5: Error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to report issue: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      // Step 6: Reset loading state
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  // Function to show the Date Picker (Unchanged, except for renaming the function)
+  Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
@@ -63,7 +226,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         return Theme(
           data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
-              primary: _primaryColor, // Primary color for date picker
+              primary: _primaryColor,
               onPrimary: Colors.white,
               onSurface: Colors.black87,
             ),
@@ -78,31 +241,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         _dateController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
     }
-  }
-
-  // 💡 New function to pick an image
-  Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-    );
-
-    if (pickedFile != null) {
-      setState(() {
-        _selectedImages.add(File(pickedFile.path));
-      });
-      // Optionally show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Image Added: ${pickedFile.name}')),
-      );
-    }
-  }
-
-  // 💡 New function to remove an image
-  void _removeImage(int index) {
-    setState(() {
-      _selectedImages.removeAt(index);
-    });
   }
 
   @override
@@ -123,26 +261,20 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
-            child: OutlinedButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  // Display a confirmation message on successful validation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Building Issue Reported Successfully!')),
-                  );
-                  // Here you would typically save the data (e.g., to Firestore)
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: _primaryColor, width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              ),
-              child: const Text(
-                "Save",
-                style: TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: _primaryColor))
+                : OutlinedButton(
+                    onPressed: _saveIssue, // Calls the Firebase save function
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _primaryColor, width: 1.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    ),
+                    child: const Text(
+                      "Save",
+                      style: TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -156,33 +288,33 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
               children: [
                 _buildTextField("School Name", "Enter Your School name", _schoolNameController, isNumber: false),
                 _buildDropdown(
-                  "Select Damage Building", 
-                  "select Type of Damage Building", 
-                  _buildingTypes, 
-                  _selectedBuilding, 
+                  "Select Damage Building",
+                  "select Type of Damage Building",
+                  _buildingTypes,
+                  _selectedBuilding,
                   (String? value) {
                     setState(() {
                       _selectedBuilding = value;
                     });
-                  }
+                  },
                 ),
                 _buildTextField("Number of Floors", "Enter number of floors in building", _floorsController, isNumber: true),
                 _buildTextField("Number of Classrooms", "Enter Number of rooms in building", _classroomsController, isNumber: true),
                 _buildDropdown(
-                  "Type Of Damage", 
-                  "select Type of Damage", 
-                  _damageTypes, 
-                  _selectedDamageType, 
+                  "Type Of Damage",
+                  "select Type of Damage",
+                  _damageTypes,
+                  _selectedDamageType,
                   (String? value) {
                     setState(() {
                       _selectedDamageType = value;
                     });
-                  }
+                  },
                 ),
                 _buildDescriptionField("Description of Issue", "Describe your School building Issue", _descriptionController),
-                // 💡 Calling the modified function to handle uploads
-                _buildUploadImagesSection(), 
-                _buildDateField("Date Of Damage Occurance", "Enter Date Of Damage Occurance", _dateController, () => _selectDate(context)),
+                // --- MODIFIED: Uses new XFile-based logic ---
+                _buildUploadImagesSection(),
+                _buildDateField("Date Of Damage Occurance", "Enter Date Of Damage Occurance", _dateController, _selectDate),
               ],
             ),
           ),
@@ -190,6 +322,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       ),
     );
   }
+
+  // --- Helper Widgets (Unchanged structure) ---
 
   /// Reusable Text Field builder
   Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber}) {
@@ -217,7 +351,15 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             ),
-            validator: (value) => value!.isEmpty ? 'Please enter $label' : null,
+            validator: (value) {
+              if (value!.isEmpty) {
+                return 'Please enter $label';
+              }
+              if (isNumber && int.tryParse(value) == null) {
+                return 'Please enter a valid number';
+              }
+              return null;
+            },
           ),
         ],
       ),
@@ -226,12 +368,11 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   /// Reusable Dropdown Field builder
   Widget _buildDropdown(
-    String label, 
-    String hint, 
-    List<String> items, 
-    String? currentValue, // Current selected value from State
-    Function(String? value) onChanged
-  ) {
+      String label,
+      String hint,
+      List<String> items,
+      String? currentValue,
+      Function(String? value) onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -243,7 +384,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: currentValue, // CORRECT: Sets the currently selected item
+            value: currentValue,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[600]),
@@ -253,7 +394,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 14, bottom: 14), 
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 14, bottom: 14),
             ),
             isExpanded: true,
             items: items.map((String value) {
@@ -262,7 +403,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 child: Text(value, overflow: TextOverflow.ellipsis),
               );
             }).toList(),
-            onChanged: onChanged, 
+            onChanged: onChanged,
             validator: (value) => value == null ? 'Please select $label' : null,
           ),
         ],
@@ -339,8 +480,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     );
   }
 
-
-  /// 💡 MODIFIED Builder for the Upload Images section.
+  /// MODIFIED Builder for the Upload Images section (Uses XFile and Image.memory).
   Widget _buildUploadImagesSection() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -352,55 +492,43 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
             style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
           ),
           const SizedBox(height: 8),
-          
-          // 💡 InkWell added to make the area clickable for image upload
-          InkWell( 
-            onTap: _pickImage, // Call the image picker function
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-              decoration: BoxDecoration(
-                color: _textFieldBackgroundColor,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _selectedImages.isEmpty ? Colors.transparent : _primaryColor,
-                  width: 1.5
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.cloud_upload_outlined, size: 28, color: Colors.grey),
-                  SizedBox(width: 10),
-                  Text(
-                    'Tap to Upload Building Damage Photos',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          // 💡 Display selected images
+
+          // --- Image Preview Grid (Uses FutureBuilder/Image.memory for XFile) ---
           if (_selectedImages.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 10),
+              padding: const EdgeInsets.only(bottom: 10),
               child: SizedBox(
                 height: 100, // Fixed height for the horizontal list
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: _selectedImages.length,
                   itemBuilder: (context, index) {
+                    // Use FutureBuilder to read the image bytes asynchronously
                     return Padding(
                       padding: const EdgeInsets.only(right: 10),
                       child: Stack(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              _selectedImages[index],
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
+                            child: FutureBuilder<Uint8List>(
+                              future: _selectedImages[index].readAsBytes(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                                  // Display the image from memory
+                                  return Image.memory(
+                                    snapshot.data!,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                  );
+                                }
+                                // Show a loading spinner while reading the file
+                                return const SizedBox(
+                                  width: 100,
+                                  height: 100,
+                                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                );
+                              },
                             ),
                           ),
                           Positioned(
@@ -429,6 +557,35 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 ),
               ),
             ),
+
+          // --- Upload Button ---
+          InkWell(
+            onTap: _pickImages, // Call the image picker function
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+              decoration: BoxDecoration(
+                color: _textFieldBackgroundColor,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _selectedImages.isEmpty ? Colors.transparent : _primaryColor,
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.cloud_upload_outlined, size: 28, color: _selectedImages.isEmpty ? Colors.grey : _primaryColor),
+                  const SizedBox(width: 10),
+                  Text(
+                    _selectedImages.isEmpty
+                        ? 'Tap to Upload Building Damage Photos'
+                        : 'Tap to Add More Photos (${_selectedImages.length} selected)',
+                    style: TextStyle(color: _selectedImages.isEmpty ? Colors.grey : Colors.black87, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

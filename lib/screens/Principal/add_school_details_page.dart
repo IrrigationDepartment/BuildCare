@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import for Firestore
 
 class AddSchoolDetailsPage extends StatefulWidget {
-  const AddSchoolDetailsPage({super.key});
+  // Added userNic parameter to identify who is adding the school,
+  // consistent with your other file.
+  final String userNic;
+
+  const AddSchoolDetailsPage({super.key, required this.userNic});
 
   @override
   State<AddSchoolDetailsPage> createState() => _AddSchoolDetailsPageState();
@@ -10,36 +15,102 @@ class AddSchoolDetailsPage extends StatefulWidget {
 class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
   final _formKey = GlobalKey<FormState>();
 
+  // --- Controllers for text fields ---
   final TextEditingController _schoolNameController = TextEditingController();
   final TextEditingController _schoolAddressController = TextEditingController();
-  final TextEditingController _schoolEmailController = TextEditingController(); // New Email Controller
+  final TextEditingController _schoolEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _educationalZoneController = TextEditingController();
   final TextEditingController _studentsController = TextEditingController();
   final TextEditingController _teachersController = TextEditingController();
   final TextEditingController _nonAcademicController = TextEditingController();
 
+  // --- State for Dropdown & Checkboxes ---
   String? _schoolType;
-  bool electricity = false;
-  bool waterSupply = false;
-  bool sanitation = false;
-  bool communication = false;
+  bool _electricity = false;
+  bool _waterSupply = false;
+  bool _sanitation = false;
+  bool _communication = false;
+  bool _isLoading = false; // New state for loading
 
+  // --- Style Constants ---
   static const Color _primaryColor = Color(0xFF53BDFF);
-  // Color for text fields background (F3F3F3)
   static const Color _textFieldBackgroundColor = Color(0xFFF3F3F3);
 
   @override
   void dispose() {
     _schoolNameController.dispose();
     _schoolAddressController.dispose();
-    _schoolEmailController.dispose(); // Dispose the new controller
+    _schoolEmailController.dispose();
     _phoneController.dispose();
     _educationalZoneController.dispose();
     _studentsController.dispose();
     _teachersController.dispose();
     _nonAcademicController.dispose();
     super.dispose();
+  }
+
+  // --- Firestore Save Function ---
+  Future<void> _saveSchoolDetails() async {
+    // 1. Validate the form
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 2. Create data map
+      final schoolData = {
+        'schoolName': _schoolNameController.text.trim(),
+        'schoolAddress': _schoolAddressController.text.trim(),
+        'schoolPhone': _phoneController.text.trim(),
+        'schoolEmail': _schoolEmailController.text.trim(),
+        'schoolType': _schoolType,
+        'educationalZone': _educationalZoneController.text.trim(),
+        // Parse numbers safely, defaulting to 0
+        'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
+        'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
+        'numNonAcademic': int.tryParse(_nonAcademicController.text.trim()) ?? 0,
+        'infrastructure': {
+          'electricity': _electricity,
+          'waterSupply': _waterSupply,
+          'sanitation': _sanitation,
+          'communication': _communication,
+        },
+        'addedByNic': widget.userNic, // Use the passed NIC
+        'addedAt': Timestamp.now(),
+      };
+
+      // 3. Add to 'schools' collection
+      await FirebaseFirestore.instance.collection('schools').add(schoolData);
+
+      // 4. Show success and navigate back
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('School details saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      // 5. Show error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save school details: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      // 6. Reset loading state
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -60,24 +131,20 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
-            child: OutlinedButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('School details saved successfully!')),
-                  );
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: _primaryColor, width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              ),
-              child: const Text(
-                "Save",
-                style: TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: _primaryColor)) // Show loading
+                : OutlinedButton(
+                    onPressed: _saveSchoolDetails, // Call the new save function
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: _primaryColor, width: 1.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    ),
+                    child: const Text(
+                      "Save",
+                      style: TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -91,15 +158,14 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
               children: [
                 _buildTextField("School Name", "Enter Your School name", _schoolNameController, isNumber: false),
                 _buildTextField("School Address", "Enter Your School Address", _schoolAddressController, isNumber: false),
-                // NEW: School Email Field
                 _buildTextField(
-                  "School Email", 
-                  "Enter Your School Email", 
-                  _schoolEmailController, 
-                  isNumber: false, 
+                  "School Email",
+                  "Enter Your School Email",
+                  _schoolEmailController,
+                  isNumber: false,
                   isEmail: true,
                 ),
-                _buildTextField("School Phone Number", "Enter Your School Contact Number", _phoneController, isNumber: true),
+                _buildTextField("School Phone Number", "Enter Your School Contact Number", _phoneController, isNumber: true, isPhone: true), // Added phone validation flag
                 _buildDropdown(),
                 _buildTextField("School Educational Zone", "Enter Your School Educational Zone", _educationalZoneController, isNumber: false),
                 _buildTextField("Number of Students in School", "Enter Total students in school", _studentsController, isNumber: true),
@@ -115,8 +181,10 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     );
   }
 
+  // --- Helper Widgets and Methods ---
+
   /// Builds a text field with a label above it and a F3F3F3 background.
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber, bool isEmail = false}) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber, bool isEmail = false, bool isPhone = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -131,14 +199,16 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
             controller: controller,
             keyboardType: isNumber
                 ? TextInputType.number
-                : isEmail 
-                    ? TextInputType.emailAddress // Use email keyboard for email field
-                    : TextInputType.text,
+                : isEmail
+                    ? TextInputType.emailAddress
+                    : isPhone
+                        ? TextInputType.phone
+                        : TextInputType.text,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[600]),
               filled: true,
-              fillColor: _textFieldBackgroundColor, // Applied F3F3F3 color
+              fillColor: _textFieldBackgroundColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
@@ -153,6 +223,14 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
               if (isEmail && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                 return 'Please enter a valid email address';
               }
+              // Phone validation (10 digits)
+              if (isPhone && value.length != 10) {
+                return 'Phone number must be 10 digits';
+              }
+              // Number validation
+              if (isNumber && int.tryParse(value) == null) {
+                return 'Please enter a valid number';
+              }
               return null;
             },
           ),
@@ -163,6 +241,15 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
 
   /// Builds a dropdown field with a label above it and a F3F3F3 background.
   Widget _buildDropdown() {
+    // Expanded list of school types for better usability
+    final List<String> schoolTypes = [
+      'Government School',
+      'Provincial School',
+      'Semi-Government School',
+      'Private School',
+      'International School',
+    ];
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -179,19 +266,17 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
               hintText: "Enter Your School Type",
               hintStyle: TextStyle(color: Colors.grey[600]),
               filled: true,
-              fillColor: _textFieldBackgroundColor, // Applied F3F3F3 color
+              fillColor: _textFieldBackgroundColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 14, bottom: 14), 
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 14, bottom: 14),
             ),
             isExpanded: true,
-            items: const [
-              DropdownMenuItem(value: "Provincial school", child: Text("Provincial")),
-              DropdownMenuItem(value: "Government School", child: Text("Government")),
-              // DropdownMenuItem(value: "Private School", child: Text("Private School")),
-            ],
+            items: schoolTypes.map((String type) {
+              return DropdownMenuItem(value: type, child: Text(type));
+            }).toList(),
             onChanged: (value) => setState(() => _schoolType = value),
             validator: (value) => value == null ? 'Please select school type' : null,
           ),
@@ -205,8 +290,8 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _textFieldBackgroundColor, // F3F3F3 color
-        borderRadius: BorderRadius.circular(10), 
+        color: _textFieldBackgroundColor,
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,10 +299,10 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
           const Text("Infrastructure Components",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87)),
           const SizedBox(height: 10),
-          _buildCheckboxTile("Electricity", electricity, (val) => electricity = val!),
-          _buildCheckboxTile("Water Supply", waterSupply, (val) => waterSupply = val!),
-          _buildCheckboxTile("Sanitation", sanitation, (val) => sanitation = val!),
-          _buildCheckboxTile("Communication Facilities", communication, (val) => communication = val!),
+          _buildCheckboxTile("Electricity", _electricity, (val) => _electricity = val!),
+          _buildCheckboxTile("Water Supply", _waterSupply, (val) => _waterSupply = val!),
+          _buildCheckboxTile("Sanitation", _sanitation, (val) => _sanitation = val!),
+          _buildCheckboxTile("Communication Facilities", _communication, (val) => _communication = val!),
         ],
       ),
     );

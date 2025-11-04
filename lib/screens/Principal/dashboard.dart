@@ -87,7 +87,9 @@ class PrincipalDashboard extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddSchoolDetailsPage(),
+                      builder: (context) => AddSchoolDetailsPage(
+                        userNic: userData!['nic'] ?? '',
+                      ),
                     ),
                   );
                 },
@@ -103,7 +105,9 @@ class PrincipalDashboard extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddBuildingIssuesPage(),
+                      builder: (context) => AddBuildingIssuesPage(
+                        userNic: userData!['nic'] ?? '',
+                      ),
                     ),
                   );
                 },
