@@ -67,40 +67,65 @@ class _LoginPageState extends State<LoginPage> {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        final userData = querySnapshot.docs.first.data();
+        // --- FIX: Get the document itself to access both data and ID ---
+        final userDoc = querySnapshot.docs.first;
+        final userData = userDoc.data();
+        final userId = userDoc.id; // Get the document ID
         final userType = userData['userType'] as String?;
 
-        Widget destination;
-        // This switch statement correctly routes users based on their role
-        switch (userType) {
-          case 'Provincial Engineer':
-            destination = ProvincialEngDashboard(userData: userData);
-            break;
-          case 'Chief Engineer':
-            destination = ChiefEngDashboard(userData: userData);
-            break;
-          case 'District Engineer':
-            destination = DistrictEngDashboard(userData: userData);
-            break;
-          case 'Principal':
-            destination = PrincipalDashboard(userData: userData);
-            break;
-          case 'Technical Officer':
-            destination = TODashboard(userData: userData);
-            break;
-          default:
-            _showMessage('Login Error',
-                'Could not determine user role. Please contact support.');
-            setState(() {
-              _isLoading = false;
-            });
-            return;
-        }
+        // --- ADDED: Check if user is active ---
+        // We use 'as bool? ?? false' to safely handle cases where the field
+        // might be null or not exist. If it's null or missing,
+        // we'll treat the user as inactive (false).
+        final bool isActive = userData['isActive'] as bool? ?? false;
 
-        // Navigate to the correct dashboard, replacing the login screen
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => destination),
-        );
+        if (isActive) {
+          // --- User is active, proceed with login ---
+          Widget destination;
+          // This switch statement correctly routes users based on their role
+          switch (userType) {
+            case 'Provincial Engineer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = ProvincialEngDashboard(userData: userData);
+              break;
+            case 'Chief Engineer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = ChiefEngDashboard(userData: userData);
+              break;
+            case 'District Engineer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = DistrictEngDashboard(userData: userData);
+              break;
+            case 'Principal':
+              destination = PrincipalDashboard(userData: userData);
+              break;
+            case 'Technical Officer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = TODashboard(userData: userData); // <-- This is the FIX
+              break;
+            default:
+              _showMessage('Login Error',
+                  'Could not determine user role. Please contact support.');
+              setState(() {
+                _isLoading = false;
+              });
+              return;
+          }
+
+          // Navigate to the correct dashboard, replacing the login screen
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => destination),
+            );
+          }
+        } else {
+          // --- ADDED: User is not active, show error ---
+          _showMessage(
+              'Login Failed',
+              'Your account is not active. Please contact an administrator.');
+        }
+        // --- END OF ADDED SECTION ---
+
       } else {
         _showMessage(
             'Login Failed', 'Invalid NIC or Password. Please try again.');
@@ -261,8 +286,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
-//
-// I HAVE REMOVED ALL THE PLACEHOLDER DASHBOARD CLASSES FROM THE END OF THIS FILE.
-// Your app will now use the real dashboard classes from the imported files.
-//
