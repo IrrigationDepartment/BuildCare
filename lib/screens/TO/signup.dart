@@ -24,6 +24,9 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  // NEW: State for the 'isActive' flag
+  final bool _initialIsActiveStatus = false; // User starts as deactivated
+
   // NEW: FocusNode to detect when the password field is active
   final _passwordFocusNode = FocusNode();
 
@@ -90,6 +93,20 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
+      // Perform password validation check before proceeding
+      if (!_has8Chars ||
+          !_hasLowercase ||
+          !_hasUppercase ||
+          !_hasNumber ||
+          !_hasSpecialChar) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              backgroundColor: Colors.orange,
+              content: Text('Please ensure the password meets all security requirements.')));
+        }
+        return;
+      }
+      
       setState(() => _isLoading = true);
       try {
         await FirebaseFirestore.instance.collection('users').add({
@@ -104,13 +121,15 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
           'password': _passwordController.text.trim(), // Consider hashing this!
           'userType': 'Technical Officer', // MODIFIED
           'createdAt': Timestamp.now(),
+          // *** NEW FIELD ADDED HERE ***
+          'isActive': _initialIsActiveStatus, // Automatically set to false (deactivated)
         });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 backgroundColor: Colors.green,
-                content: Text('Registration successful!')),
+                content: Text('Registration successful! Your account is currently deactivated.')), // Modified success message
           );
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
@@ -303,8 +322,9 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             const Color(0xFF53BDFF),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16),
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                                vertical: 16),
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(30))),
@@ -317,7 +337,8 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                       ],
                     ),
                   ),
-                )
+                ),
+                // Removed the extra closing bracket that was misplaced
               ],
             ),
           ),
@@ -437,10 +458,10 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                   isPassword
                       ? IconButton(
                           icon: Icon(
-                              isPasswordVisible
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: const Color(0xFF53BDFF)),
+                            isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: const Color(0xFF53BDFF)),
                           onPressed: onVisibilityToggle)
                       : null),
               validator: validator ??
