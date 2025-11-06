@@ -86,7 +86,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     }
 
 // --- REPLACE WITH YOUR NEW LINK ---
-    var uri = Uri.parse("http://buildcare.atwebpages.com/index.php");
+    var uri = Uri.parse("http://buildcare.atigalle.x10.mx/index.php");
     var request = http.MultipartRequest("POST", uri);
 
     // --- MODIFIED: Use .readAsBytes() and .fromBytes() ---

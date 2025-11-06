@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Import all the dashboard and new utility screens
-import 'screens/TO/dashboard.dart'; // THIS IMPORT WILL NOW BE USED
-// THIS IS THE IMPORTANT IMPORT THAT WILL NOW BE USED
+// Corrected imports to match your folder structure
+import 'screens/ProvincialEng/dashboard.dart';
+import 'screens/ChiefEng/dashboard.dart';
+import 'screens/DistrictEng/dashboard.dart';
+import 'screens/Principal/dashboard.dart';
+import 'screens/TO/dashboard.dart';
 import 'screens/role_selection.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,15 +17,17 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // ... (all the existing state variables _nicController, _passwordController, etc. remain unchanged) ...
+  // Controllers for the text fields
   final TextEditingController _nicController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  // State for password visibility
   bool _isPasswordVisible = false;
+  // State for loading indicator
   bool _isLoading = false;
 
   /// Shows a dialog message to the user.
   void _showMessage(String title, String message) {
-    // ... (this function remains unchanged) ...
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -42,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Handles the login logic when the button is pressed.
   Future<void> _login() async {
-    // ... (this entire function remains unchanged, it's already correct) ...
+    // Basic validation
     if (_nicController.text.isEmpty || _passwordController.text.isEmpty) {
       _showMessage('Error', 'Please enter both NIC and Password.');
       return;
@@ -53,7 +58,8 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final usersCollection = FirebaseFirestore.instance.collection('users');
+      final usersCollection =
+          FirebaseFirestore.instance.collection('users');
       final querySnapshot = await usersCollection
           .where('nic', isEqualTo: _nicController.text.trim())
           .where('password', isEqualTo: _passwordController.text.trim())
@@ -61,39 +67,66 @@ class _LoginPageState extends State<LoginPage> {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        final userData = querySnapshot.docs.first.data();
+        // --- FIX: Get the document itself to access both data and ID ---
+        final userDoc = querySnapshot.docs.first;
+        final userData = userDoc.data();
+        final userId = userDoc.id; // Get the document ID
         final userType = userData['userType'] as String?;
 
-        Widget destination;
-        switch (userType) {
-          case 'Provincial Engineer':
-            destination = ProvincialEngDashboard(userData: userData);
-            break;
-          case 'Chief Engineer':
-            destination = ChiefEngDashboard(userData: userData);
-            break;
-          case 'District Engineer':
-            destination = DistrictEngDashboard(userData: userData);
-            break;
-          case 'Principal':
-            destination = PrincipalDashboard(userData: userData);
-            break;
-         case 'Technical Officer':
-        // Pass the user's data to the HomeScreen
-        destination = HomeScreen(userData: userData); // <--- THIS IS THE FIX
-        break;
-          default:
-            _showMessage('Login Error',
-                'Could not determine user role. Please contact support.');
-            setState(() {
-              _isLoading = false;
-            });
-            return;
-        }
+        // --- ADDED: Check if user is active ---
+        // We use 'as bool? ?? false' to safely handle cases where the field
+        // might be null or not exist. If it's null or missing,
+        // we'll treat the user as inactive (false).
+        final bool isActive = userData['isActive'] as bool? ?? false;
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => destination),
-        );
+        if (isActive) {
+          // --- User is active, proceed with login ---
+          Widget destination;
+          // This switch statement correctly routes users based on their role
+          switch (userType) {
+            case 'Provincial Engineer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = ProvincialEngDashboard(userData: userData);
+              break;
+            case 'Chief Engineer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = ChiefEngDashboard(userData: userData);
+              break;
+            case 'District Engineer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = DistrictEngDashboard(userData: userData);
+              break;
+            case 'Principal':
+              // ✅ Pass both userData AND userId to the dashboard
+              destination = PrincipalDashboard(userData: userData, userId: userId);
+              break;
+            case 'Technical Officer':
+              // TODO: Update this dashboard to accept userId if it needs a profile page
+              destination = TODashboard(userData: userData); // <-- This is the FIX
+              break;
+            default:
+              _showMessage('Login Error',
+                  'Could not determine user role. Please contact support.');
+              setState(() {
+                _isLoading = false;
+              });
+              return;
+          }
+
+          // Navigate to the correct dashboard, replacing the login screen
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => destination),
+            );
+          }
+        } else {
+          // --- ADDED: User is not active, show error ---
+          _showMessage(
+              'Login Failed',
+              'Your account is not active. Please contact an administrator.');
+        }
+        // --- END OF ADDED SECTION ---
+
       } else {
         _showMessage(
             'Login Failed', 'Invalid NIC or Password. Please try again.');
@@ -111,7 +144,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    // ... (this function remains unchanged) ...
     _nicController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -119,7 +151,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (this entire build method remains unchanged) ...
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -163,6 +194,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
                 _buildPasswordField(),
                 const SizedBox(height: 12),
+                
                 const SizedBox(height: 20),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -213,7 +245,6 @@ class _LoginPageState extends State<LoginPage> {
     required String labelText,
     required IconData icon,
   }) {
-    // ... (this function remains unchanged) ...
     return TextField(
       controller: controller,
       decoration: InputDecoration(
@@ -230,7 +261,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildPasswordField() {
-    // ... (this function remains unchanged) ...
     return TextField(
       controller: _passwordController,
       obscureText: !_isPasswordVisible,
@@ -257,58 +287,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
-// --- Placeholder classes for missing imports ---
-// I am leaving these here so your _login function does not break.
-
-class ProvincialEngDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const ProvincialEngDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Provincial Engineer Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-class ChiefEngDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const ChiefEngDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Chief Engineer Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-class DistrictEngDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const DistrictEngDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('District Engineer Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-class PrincipalDashboard extends StatelessWidget {
-  final Map<String, dynamic> userData;
-  const PrincipalDashboard({super.key, required this.userData});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Principal Dashboard')),
-      body: Center(child: Text('Welcome ${userData['name']}')),
-    );
-  }
-}
-
-// --- I HAVE REMOVED THE PLACEHOLDER TODashboard CLASS ---
-// This ensures the import at the top of the file is used,
-// which points to your real dashboard.dart file.
