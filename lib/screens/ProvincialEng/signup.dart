@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Required for input formatters
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
+// import 'package:crypto/crypto.dart'; // Removed as requested
+// import 'dart:convert'; // Removed as requested
 
 class ProvincialEngRegistrationPage extends StatefulWidget {
   const ProvincialEngRegistrationPage({super.key});
@@ -65,11 +65,14 @@ class _ProvincialEngRegistrationPageState
     super.dispose();
   }
 
+  // Removed the _hashPassword function as requested
+  /*
   String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes); 
-    return digest.toString();
-  }
+      final bytes = utf8.encode(password);
+      final digest = sha256.convert(bytes); 
+      return digest.toString();
+    }
+  */
   
   // Function to check if NIC already exists in Firestore
   Future<void> _checkNicAvailability(String nic) async {
@@ -124,8 +127,9 @@ class _ProvincialEngRegistrationPageState
         _isLoading = true;
       });
       try {
+        // Using plain password directly, as requested
         String plainPassword = _passwordController.text.trim();
-        String hashedPassword = _hashPassword(plainPassword);
+        // String hashedPassword = _hashPassword(plainPassword); // Hashing removed
 
         await FirebaseFirestore.instance.collection('users').add({
           'name': _nameController.text.trim(),
@@ -136,7 +140,10 @@ class _ProvincialEngRegistrationPageState
           'mobilePhone': _mobileController.text.trim(),
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
-          'password': hashedPassword,
+          
+          // Storing the plain text password
+          'password': plainPassword, 
+          
           'userType': 'Provincial Engineer',
           'createdAt': Timestamp.now(),
         });
