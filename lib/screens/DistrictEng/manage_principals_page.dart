@@ -6,6 +6,9 @@ import 'pending_approvals_page.dart';
 // Import the School Master Plan Page
 import 'school_master_plan_page.dart'; 
 
+// 🛑 NEW: Import the View Damage Details Page
+import 'view_damage_details_page.dart';
+
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
 
@@ -207,10 +210,9 @@ class ManagePrincipalsPage extends StatelessWidget {
 
   // Helper widget to build the three main management option tiles
   Widget _buildManagementOptions(BuildContext context) {
-    // The icons in the image are a document icon, an eye/damage icon, and a pencil/contract icon
     return Column(
       children: [
-        // Added onTap to navigate to SchoolMasterPlanPage
+        // Master Plan Navigation
         _buildOptionTile(
             context, 
             'View School Master Plan', 
@@ -225,17 +227,31 @@ class ManagePrincipalsPage extends StatelessWidget {
             },
         ),
         const SizedBox(height: 16),
+        
+        // 🛑 MODIFIED: Added onTap to navigate to ViewDamageDetailsPage
         _buildOptionTile(
-            context, 'View Damage Details', Icons.remove_red_eye_outlined), // Action not set, uses default snackbar
+            context, 
+            'View Damage Details', 
+            Icons.remove_red_eye_outlined,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewDamageDetailsPage(),
+                ),
+              );
+            },
+        ), 
         const SizedBox(height: 16),
+        
+        // Contract Details (Still pending navigation)
         _buildOptionTile(
-            context, 'View Contract Details', Icons.edit_note_outlined), // Action not set, uses default snackbar
+            context, 'View Contract Details', Icons.edit_note_outlined), 
       ],
     );
   }
 
   // Helper widget for a single option tile
-  //  Now accepts an optional onTap function
   Widget _buildOptionTile(
       BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
