@@ -6,8 +6,11 @@ import 'pending_approvals_page.dart';
 // Import the School Master Plan Page
 import 'school_master_plan_page.dart'; 
 
-// Import the View Damage Details Page
+// Import the View Damage Details Page (already added)
 import 'view_damage_details_page.dart';
+
+// Import the View Contract Details Page
+import 'view_contract_details_page.dart'; 
 
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
@@ -228,7 +231,7 @@ class ManagePrincipalsPage extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         
-        // Added onTap to navigate to ViewDamageDetailsPage
+        // Damage Details Navigation
         _buildOptionTile(
             context, 
             'View Damage Details', 
@@ -243,15 +246,27 @@ class ManagePrincipalsPage extends StatelessWidget {
             },
         ), 
         const SizedBox(height: 16),
-        
-        // Contract Details (Still pending navigation)
+
+        // Contract Details Navigation
         _buildOptionTile(
-            context, 'View Contract Details', Icons.edit_note_outlined), 
+            context, 
+            'View Contract Details', 
+            Icons.edit_note_outlined,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewContractDetailsPage(),
+                ),
+              );
+            },
+        ),
       ],
     );
   }
 
   // Helper widget for a single option tile
+  // Now accepts an optional onTap function
   Widget _buildOptionTile(
       BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
