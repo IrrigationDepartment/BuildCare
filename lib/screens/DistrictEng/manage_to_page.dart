@@ -6,7 +6,7 @@ import 'pending_approvals_page.dart';
 // Import the School Master Plan Page
 import 'school_master_plan_page.dart'; 
 
-// 🛑 NEW: Import the View Damage Details Page
+// Import the View Damage Details Page
 import 'view_damage_details_page.dart';
 
 class ManageTechnicalOfficersPage extends StatelessWidget {
@@ -217,8 +217,8 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             },
         ),
         const SizedBox(height: 16),
-        
-        // 🛑 MODIFIED: Added onTap to navigate to ViewDamageDetailsPage
+
+        // Added onTap to navigate to ViewDamageDetailsPage
         _buildOptionTile(
             context, 
             'View Damage Details', 
