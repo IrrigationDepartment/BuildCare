@@ -25,7 +25,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
- 
   final _passwordFocusNode = FocusNode();
 
   String? _selectedOffice;
@@ -34,8 +33,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
-
- 
   bool _isPasswordFocused = false;
   bool _has8Chars = false;
   bool _hasLowercase = false;
@@ -43,7 +40,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
 
- 
   @override
   void initState() {
     super.initState();
@@ -57,7 +53,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
 
   @override
   void dispose() {
-    
     _userTypeController.dispose();
     _nameController.dispose();
     _nicController.dispose();
@@ -69,13 +64,11 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
 
-    
     _passwordController.removeListener(_validatePassword);
     _passwordFocusNode.dispose();
     super.dispose();
   }
 
-  
   void _validatePassword() {
     final password = _passwordController.text;
     setState(() {
@@ -87,7 +80,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     });
   }
 
-  
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
@@ -104,6 +96,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           'securityQuestionNickname': _nicknameController.text.trim(),
           'password': _passwordController.text.trim(), // Consider hashing this!
           'userType': 'Chief Engineer',
+          'isActive': false,
           'createdAt': Timestamp.now(),
         });
 
@@ -131,7 +124,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     }
   }
 
-  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -228,7 +220,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                             keyboardType: TextInputType.phone,
                             validator: (value) {
                               if (value == null || value.isEmpty)
-                                return 'Mobile number cannot be empty';
+                               return 'Mobile number cannot be empty';
                               final phoneRegex = RegExp(r'^\d{10}$');
                               if (!phoneRegex.hasMatch(value))
                                 return 'Mobile number must be 10 digits';
@@ -250,14 +242,14 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                             controller: _passwordController,
                             isPassword: true,
                             isPasswordVisible: _isPasswordVisible,
-                            focusNode: _passwordFocusNode, // NEW: Assign FocusNode
+                            focusNode: _passwordFocusNode,
                             onVisibilityToggle: () => setState(
                                 () => _isPasswordVisible = !_isPasswordVisible),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Password cannot be empty';
                               }
-                            
+
                               if (!_has8Chars ||
                                   !_hasLowercase ||
                                   !_hasUppercase ||
@@ -268,7 +260,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                               return null;
                             }),
 
-                       
                         if (_isPasswordFocused)
                           Padding(
                             padding: const EdgeInsets.only(
@@ -346,7 +337,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
- 
   Widget _buildPasswordValidationUI() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +354,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
-  
   Widget _buildValidationRow(String text, bool isValid) {
     return Row(
       children: [
@@ -385,7 +374,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
-  
   Widget _buildLabeledTextField({
     required String label,
     required TextEditingController controller,
@@ -398,7 +386,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     TextInputType? keyboardType,
     String? infoMessage,
     String? Function(String?)? validator,
-    FocusNode? focusNode, 
+    FocusNode? focusNode,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -425,7 +413,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           const SizedBox(height: 8),
           TextFormField(
               controller: controller,
-              focusNode: focusNode, 
+              focusNode: focusNode,
               readOnly: isReadOnly,
               obscureText: isPassword && !isPasswordVisible,
               keyboardType: keyboardType,
@@ -493,8 +481,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
             borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
-            borderSide:
-                const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
+            borderSide: const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
         errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
             borderSide: const BorderSide(color: Colors.red, width: 1.0)),
