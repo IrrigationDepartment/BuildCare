@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-// Import ManageUsersPage from manage_users.dart
-import 'manage_users.dart';
+// Import ManageUsersPage from manage_users.dart (still needed for 'Add' button)
+// import 'manage_users.dart'; // <-- You can remove this import if not needed
 // Import SettingsPage from settings.dart
 import 'settings.dart';
+
+// --- ADDED THIS IMPORT for ProfilePage ---
+import 'profile.dart'; // Make sure you have a profile.dart file
+
+// --- ADDED THIS IMPORT for the new page ---
+import 'all_users.dart';
 
 // --- ADDED THIS IMPORT ---
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,6 +35,7 @@ class ActivityItem {
 // --- Dashboard Screen (Main Dashboard) ---
 // -----------------------------------------------------------------------------
 class ProvincialEngineerDashboard extends StatefulWidget {
+  // This userData will be passed to the header
   final Map<String, dynamic>? userData;
 
   const ProvincialEngineerDashboard({super.key, this.userData});
@@ -140,10 +147,11 @@ class _ProvincialEngineerDashboardState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // 1. Header Section (Unchanged)
-            const DashboardHeader(),
+            // 1. --- MODIFIED: Header Section ---
+            // We now pass the widget.userData to the DashboardHeader
+            DashboardHeader(userData: widget.userData),
 
-            // 2. --- MODIFIED: User Management Grids ---
+            // 2. --- MODIFIED: User Management Grids (Unchanged) ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: GridView.count(
@@ -246,7 +254,8 @@ class _ProvincialEngineerDashboardState
           ],
         ),
       ),
-      // 4. Bottom Navigation Bar (Unchanged)
+      // 4. --- MODIFIED: Bottom Navigation Bar ---
+      //    (The widget itself is modified below)
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
@@ -293,7 +302,7 @@ class ActivityItemCard extends StatelessWidget {
       case 'user':
         icon = Icons.person_add;
         title = data['name'] ?? 'Unknown User';
-        final role = data['role'] ?? 'New User';
+        final role = data['role'] ?? 'New User'; // Assuming 'role' field
         final status = data['isActive'] == true ? 'Active' : 'Pending';
         subtitle = '$role - Status, $status';
         showButton = false;
@@ -376,13 +385,27 @@ class ActivityItemCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader (Unchanged) ---
+// --- MODIFIED: DashboardHeader ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
-  const DashboardHeader({super.key});
+  // --- ADDED ---
+  // This will receive the user data map
+  final Map<String, dynamic>? userData;
+
+  // --- MODIFIED ---
+  // Added userData to the constructor
+  const DashboardHeader({super.key, this.userData});
 
   @override
   Widget build(BuildContext context) {
+    // --- ADDED ---
+    // Get the name and role from the userData, with fallbacks
+    // Based on your screenshot, the role field is 'userType'
+    final String userName = userData?['name'] ?? 'User';
+    final String userRole =
+        userData?['userType'] ?? 'Provincial Engineer';
+    // --- END ADDED ---
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 30.0),
       decoration: const BoxDecoration(
@@ -429,26 +452,29 @@ class DashboardHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 15),
-          const Column(
+          // --- MODIFIED ---
+          // Removed 'const' to use dynamic text
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'Welcome !',
-                style: TextStyle(
+                'Welcome, $userName!', // Display dynamic user name
+                style: const TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
               Text(
-                'Provincial Engineer',
-                style: TextStyle(
+                userRole, // Display dynamic user role
+                style: const TextStyle(
                   fontSize: 18,
                   color: Colors.black54,
                 ),
               ),
             ],
           ),
+          // --- END MODIFICATION ---
         ],
       ),
     );
@@ -456,7 +482,7 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- NEW WIDGET: UserCountBuilder ---
+// --- MODIFIED: UserCountBuilder ---
 // -----------------------------------------------------------------------------
 /// This widget fetches user counts for a specific `userType`
 /// and builds a `UserManagementCard` with that data.
@@ -505,7 +531,7 @@ class UserCountBuilder extends StatelessWidget {
           }
           activeDisplay = activeCount.toString().padLeft(2, '0');
           pendingDisplay = pendingCount.toString().padLeft(2, '0');
-        } 
+        }
         // 3. If error, display "Err"
         else if (snapshot.hasError) {
           activeDisplay = 'Err';
@@ -518,17 +544,20 @@ class UserCountBuilder extends StatelessWidget {
           title: title,
           activeUsers: activeDisplay,
           pendingUsers: pendingDisplay,
-          // Tap on the whole card -> go to ManageUsersPage
+          // --- MODIFICATION: Tap on card goes to AllUsersPage ---
           onCardPressed: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ManageUsersPage(
-                  roleTitle: title, // e.g., "Manage TO"
+                // Navigate to the NEW common page
+                builder: (context) => AllUsersPage(
+                  // Pass the specific 'userType' for this card
+                  userType: userType,
                 ),
               ),
             );
           },
+          // --- END MODIFICATION ---
           // Tap on the "Add" row -> go to the specific AddPage
           onAddPressed: () {
             Navigator.push(
@@ -543,14 +572,14 @@ class UserCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- MODIFIED: UserManagementCard ---
+// --- MODIFIED: UserManagementCard (Unchanged) ---
 // -----------------------------------------------------------------------------
 class UserManagementCard extends StatelessWidget {
   final String title;
   final String activeUsers;
   final String pendingUsers;
   final VoidCallback onCardPressed; // <-- Callback for tapping the card
-  final VoidCallback onAddPressed;  // <-- Callback for tapping the "Add" row
+  final VoidCallback onAddPressed; // <-- Callback for tapping the "Add" row
 
   const UserManagementCard({
     super.key,
@@ -558,7 +587,7 @@ class UserManagementCard extends StatelessWidget {
     required this.activeUsers,
     required this.pendingUsers,
     required this.onCardPressed, // <-- Now required
-    required this.onAddPressed,  // <-- Now required
+    required this.onAddPressed, // <-- Now required
   });
 
   String _getInitials(String title) {
@@ -662,7 +691,7 @@ class UserManagementCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- CustomBottomNavBar (Unchanged) ---
+// --- MODIFIED: CustomBottomNavBar ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -674,9 +703,15 @@ class CustomBottomNavBar extends StatelessWidget {
     final Color inactiveColor = Colors.blue.shade400;
 
     return Container(
-      height: 60,
+      height: 60, // You can adjust height
       decoration: BoxDecoration(
         color: Colors.white,
+        // --- MODIFICATION: Added rounded corners to match image ---
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        // --- END MODIFICATION ---
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.3),
@@ -712,9 +747,16 @@ class CustomBottomNavBar extends StatelessWidget {
               color: currentIndex == 1 ? activeColor : inactiveColor,
               size: 30,
             ),
+            // --- MODIFICATION: Added navigation to ProfilePage ---
             onPressed: () {
-              // TODO: Profile Page navigation logic goes here
+              if (currentIndex != 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProfilePage()),
+                );
+              }
             },
+            // --- END MODIFICATION ---
           ),
           IconButton(
             icon: Icon(
@@ -769,8 +811,7 @@ class BlankActionPage extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- NEW: Placeholder Add-Form Pages ---
-// (You can move each class to its own .dart file and import it)
+// --- Placeholder Add-Form Pages (Unchanged) ---
 // -----------------------------------------------------------------------------
 
 /// Placeholder for "Add Chief Engineer" page
@@ -857,6 +898,37 @@ class AddPrincipalPage extends StatelessWidget {
           style: TextStyle(fontSize: 20, color: Colors.black54),
         ),
       ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- NEW: Placeholder Profile Page ---
+// (You should create a 'profile.dart' file and move this class there)
+// -----------------------------------------------------------------------------
+
+/// Placeholder for "Profile" page
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        backgroundColor: const Color(0xFFF4F6F8), // Match theme
+        elevation: 0,
+        automaticallyImplyLeading: false, // No back button on main pages
+      ),
+      body: const Center(
+        child: Text(
+          'Profile Page Goes Here',
+          style: TextStyle(fontSize: 20, color: Colors.black54),
+        ),
+      ),
+      // --- IMPORTANT ---
+      // Add the Nav Bar with the correct index (1 for Profile)
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 1),
     );
   }
 }
