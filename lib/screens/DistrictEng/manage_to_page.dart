@@ -6,6 +6,9 @@ import 'pending_approvals_page.dart';
 // Import the School Master Plan Page
 import 'school_master_plan_page.dart'; 
 
+// 🛑 NEW: Import the View Damage Details Page
+import 'view_damage_details_page.dart';
+
 class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
@@ -119,7 +122,6 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   }
 
   // Helper widget for a single stat card in the grid
-  // Modified to accept an optional onTap function
   Widget _buildStatCard(
       String title, String count, IconData icon, {VoidCallback? onTap}) {
     return Expanded(
@@ -200,13 +202,13 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   Widget _buildManagementOptions(BuildContext context) {
     return Column(
       children: [
-        // Added onTap to navigate to SchoolMasterPlanPage
+        // Master Plan Navigation
         _buildOptionTile(
             context, 
             'View School Master Plan', 
             Icons.description_outlined,
             onTap: () {
-               Navigator.push(
+              Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const SchoolMasterPlanPage(),
@@ -215,22 +217,36 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             },
         ),
         const SizedBox(height: 16),
+        
+        // 🛑 MODIFIED: Added onTap to navigate to ViewDamageDetailsPage
         _buildOptionTile(
-            context, 'View Damage Details', Icons.remove_red_eye_outlined), // Changed icon to match 'View' action
+            context, 
+            'View Damage Details', 
+            Icons.remove_red_eye_outlined,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewDamageDetailsPage(),
+                ),
+              );
+            },
+        ), 
         const SizedBox(height: 16),
+        
+        // Contract Details (Still pending navigation)
         _buildOptionTile(
-            context, 'View Contract Details', Icons.edit_note_outlined), // Changed icon to match 'Contract' or 'Edit' action
+            context, 'View Contract Details', Icons.edit_note_outlined), 
       ],
     );
   }
 
   // Helper widget for a single option tile
-  //  Now accepts an optional onTap function
   Widget _buildOptionTile(
       BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap ?? () {
-        // Default action if no onTap is provided (like showing a snackbar)
+        // Default action for unlinked options
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Tapped: $title - Navigation not set')),
         );
