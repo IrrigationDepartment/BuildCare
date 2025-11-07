@@ -5,6 +5,7 @@ class ViewDamageDetailsPage extends StatelessWidget {
 
   // Define consistent colors
   static const Color _primaryBlue = Color(0xFF1E88E5);
+  static const Color _secondaryYellow = Color(0xFFFFC107); // Used for Edit button
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
   // Sample data for the Damage Details list
@@ -150,72 +151,144 @@ class ViewDamageDetailsPage extends StatelessWidget {
   // Helper widget for a single damage report tile
   Widget _buildDamageTile(
       BuildContext context, String school, String details, String date, String status) {
-    return InkWell(
-      onTap: () {
-        // Navigate to detailed damage report view
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Viewing details for: $school')),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 3,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              school,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              details,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black54,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Reported: $date',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(status).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    status,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: _getStatusColor(status),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 1,
+            blurRadius: 3,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row for Title and Status Tag
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      school,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      details,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              
+              // Status Tag
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _getStatusColor(status),
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          
+          // Separator
+          const Divider(height: 16),
+          
+          // Row for Date and Action Buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Reported: $date',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+
+              Row(
+                children: [
+                  // 1. VIEW Button (Blue)
+                  _buildActionButton(
+                    context, 
+                    'View', 
+                    Icons.remove_red_eye, 
+                    _primaryBlue,
+                    () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Viewing Report for: $school')),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+
+                  // 2. EDIT Button (Yellow)
+                  _buildActionButton(
+                    context, 
+                    'Edit', 
+                    Icons.edit, 
+                    _secondaryYellow,
+                    () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Editing Report for: $school')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper widget for a consistent action button style
+  Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
           ],
         ),
