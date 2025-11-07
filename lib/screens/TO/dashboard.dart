@@ -2,24 +2,27 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Import the new Manage Schools Screen
-import 'manage_schools_screen.dart'; // <-- Correct import
-// Import the Add School Screen (can be used by other parts, good to keep)
-import 'add_school_screen.dart';
+// --- Screen Imports ---
+// Manage Schools and Add School
+import 'manage_schools_screen.dart';
+import 'add_school_screen.dart'; // Retained, though not used in the dashboard menu
 
-// --- 1. IMPORT THE NEW ISSUE REPORT SCREEN ---
+// Issue Reporting Screens
 import 'issue_report_list_screen.dart';
-
-// --- 2. THIS IS THE FIX ---
-// This line was missing, causing the error on line 307
 import 'issue_report_details_screen.dart'; 
 
+// --- NEW IMPORTS ---
+import 'contract_details.dart'; // Import for Contract Details Screen
+import 'contractor_details.dart'; // Import for Contractor Details Screen (New file)
+
+// ====================================================================
+// WIDGET
+// ====================================================================
+
 class TODashboard extends StatefulWidget {
-  // 3. --- RECEIVE USER DATA ---
-  // This receives the data from the login page
+  // Receive user data from the login page
   final Map<String, dynamic> userData;
 
-  // 4. --- UPDATE THE CONSTRUCTOR ---
   const TODashboard({super.key, required this.userData});
 
   @override
@@ -43,10 +46,13 @@ class _DashboardScreenState extends State<TODashboard> {
     setState(() {
       _selectedIndex = index;
     });
-    // Add navigation logic here
-    // if (index == 1) { /* Navigate to Profile */ }
-    // if (index == 2) { /* Navigate to Settings */ }
+    // Placeholder for actual bottom navigation logic (Profile, Settings etc.)
+    // For now, only the Home view is built out.
   }
+
+// ====================================================================
+// BUILD METHOD
+// ====================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +96,7 @@ class _DashboardScreenState extends State<TODashboard> {
                 const SizedBox(height: 24),
                 _buildRecentActivityHeader(),
                 const SizedBox(height: 16),
-                _buildRecentActivityList(), // <-- Firebase StreamBuilder is here
+                _buildRecentActivityList(), // Firebase StreamBuilder
               ],
             ),
           ),
@@ -99,7 +105,11 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- 1. Welcome Header Widget (WITH OVERFLOW FIX) ---
+// ====================================================================
+// HELPER WIDGETS
+// ====================================================================
+
+  /// 1. Builds the personalized welcome header.
   Widget _buildWelcomeHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
@@ -130,7 +140,7 @@ class _DashboardScreenState extends State<TODashboard> {
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'Technical Officer',
                   style: TextStyle(
@@ -146,7 +156,7 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- 2. Grid Menu Widget (WITH NAVIGATION) ---
+  /// 2. Builds the 2x2 grid menu for main actions.
   Widget _buildGridMenu() {
     return GridView.count(
       crossAxisCount: 2,
@@ -155,28 +165,26 @@ class _DashboardScreenState extends State<TODashboard> {
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
       children: [
+        // --- Manage School Card ---
         _buildMenuCard(
           icon: Icons.school,
           title: 'Manage School',
           onTap: () {
-            // --- NAVIGATION LOGIC (CORRECTED) ---
             Navigator.push(
               context,
               MaterialPageRoute(
-                // This now points to your new ManageSchoolsScreen
                 builder: (context) => ManageSchoolsScreen(
-                  // Pass the user's NIC to the next screen
                   userNic: widget.userData['nic'] ?? 'UNKNOWN_NIC',
                 ),
               ),
             );
           },
         ),
+        // --- Issues Report Card (Navigates to list) ---
         _buildMenuCard(
-          icon: Icons.assessment, // Changed from settings_applications
+          icon: Icons.assessment,
           title: 'Issues Report',
           onTap: () {
-            // --- 2. ADD NAVIGATION FOR ISSUES REPORT ---
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -187,27 +195,37 @@ class _DashboardScreenState extends State<TODashboard> {
             );
           },
         ),
+        // --- Contract Details Card (NAVIGATES TO ContractDetailsScreen) ---
         _buildMenuCard(
           icon: Icons.description,
           title: 'Contract Details',
           onTap: () {
-            // TODO: Navigate to Contract Details page
-            print('Contract Details tapped');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ContractDetailsScreen(),
+              ),
+            );
           },
         ),
+        // --- Contractor Details Card (NAVIGATES TO ContractorDetailsScreen) ---
         _buildMenuCard(
           icon: Icons.business_center,
           title: 'Contractor Details',
           onTap: () {
-            // TODO: Navigate to Contractor Details page
-            print('Contractor Details tapped');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ContractorDetailsScreen(),
+              ),
+            );
           },
         ),
       ],
     );
   }
 
-  // Helper widget for the grid items
+  /// Helper widget for the grid items (Menu Card)
   Widget _buildMenuCard({
     required IconData icon,
     required String title,
@@ -240,7 +258,7 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- 3. Recent Activity Header ---
+  /// 3. Builds the 'Recent Activity' section header.
   Widget _buildRecentActivityHeader() {
     return Row(
       children: [
@@ -258,9 +276,9 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- 4. Recent Activity List (with Firebase) ---
+  /// 4. Builds the list of recent issues using a Firebase StreamBuilder.
   Widget _buildRecentActivityList() {
-    // This stream is already set up for 'issues' which is perfect
+    // Stream to fetch up to 5 most recent 'Pending Review' issues
     final Stream<QuerySnapshot> issuesStream = FirebaseFirestore.instance
         .collection('issues')
         .where('status', isEqualTo: 'Pending Review')
@@ -290,6 +308,7 @@ class _DashboardScreenState extends State<TODashboard> {
         return Column(
           children: snapshot.data!.docs
               .map((DocumentSnapshot document) {
+                // Safely cast document data
                 Map<String, dynamic> data =
                     document.data()! as Map<String, dynamic>;
 
@@ -300,14 +319,13 @@ class _DashboardScreenState extends State<TODashboard> {
 
                 return _buildActivityCard(
                   title: '$title - $subtitle',
-                  subtitle: '$location - Status, $status',
+                  subtitle: '$location - Status: $status',
                   onTap: () {
-                    // --- 3. LINK RECENT ACTIVITY TO DETAILS PAGE ---
+                    // Navigate to the Issue Details page, passing the document ID
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) =>
-                            // This line is now fixed because of the import
                             IssueReportDetailsScreen(issueId: document.id),
                       ),
                     );
@@ -321,7 +339,7 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // Helper widget for the activity list items
+  /// Helper widget for the activity list items (Activity Card)
   Widget _buildActivityCard({
     required String title,
     required String subtitle,
