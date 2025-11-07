@@ -1,24 +1,141 @@
-// dashboard.dart
 import 'package:flutter/material.dart';
 // Import ManageUsersPage from manage_users.dart
-import 'manage_users.dart'; 
+import 'manage_users.dart';
 // Import SettingsPage from settings.dart
-import 'settings.dart'; 
+import 'settings.dart';
+
+// --- ADDED THIS IMPORT ---
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+// --- ADD RXDART IMPORT FOR COMBINING STREAMS ---
+import 'package:rxdart/rxdart.dart';
+
+// -----------------------------------------------------------------------------
+// --- HELPER CLASS: ActivityItem (Unchanged) ---
+// -----------------------------------------------------------------------------
+class ActivityItem {
+  final DocumentSnapshot snapshot;
+  final String itemType; // 'issue', 'school', or 'user'
+  final DateTime timestamp;
+
+  ActivityItem({
+    required this.snapshot,
+    required this.itemType,
+    required this.timestamp,
+  });
+}
 
 // -----------------------------------------------------------------------------
 // --- Dashboard Screen (Main Dashboard) ---
 // -----------------------------------------------------------------------------
-class ProvincialEngineerDashboard extends StatelessWidget {
+class ProvincialEngineerDashboard extends StatefulWidget {
   final Map<String, dynamic>? userData;
 
   const ProvincialEngineerDashboard({super.key, this.userData});
 
   @override
+  State<ProvincialEngineerDashboard> createState() =>
+      _ProvincialEngineerDashboardState();
+}
+
+class _ProvincialEngineerDashboardState
+    extends State<ProvincialEngineerDashboard> {
+  // --- STATE VARIABLES for "Latest Updates" ---
+  // We no longer need _isLoading or _latestActivities
+  // Instead, we will define a final Stream
+  late final Stream<List<ActivityItem>> _activityStream;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeActivityStream();
+  }
+
+  /// Helper function to safely extract a DateTime from a snapshot (Unchanged)
+  DateTime _safeExtractTimestamp(DocumentSnapshot doc, String fieldName) {
+    try {
+      final data = doc.data() as Map<String, dynamic>;
+      if (data.containsKey(fieldName) && data[fieldName] is Timestamp) {
+        return (data[fieldName] as Timestamp).toDate();
+      }
+    } catch (e) {
+      print('Error extracting timestamp: $e');
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  /// --- NEW FUNCTION: Initializes the combined stream ---
+  void _initializeActivityStream() {
+    // 1. Define a stream for each collection
+    //    We use .snapshots() instead of .get() to listen for live updates
+    Stream<List<ActivityItem>> issuesStream = _firestore
+        .collection('issues')
+        .orderBy('timestamp', descending: true)
+        .limit(5)
+        .snapshots() // <-- Real-time listener
+        .map((snapshot) => snapshot.docs.map((doc) {
+              return ActivityItem(
+                snapshot: doc,
+                itemType: 'issue',
+                timestamp: _safeExtractTimestamp(doc, 'timestamp'),
+              );
+            }).toList());
+
+    Stream<List<ActivityItem>> schoolsStream = _firestore
+        .collection('schools')
+        .orderBy('addedAt', descending: true)
+        .limit(5)
+        .snapshots() // <-- Real-time listener
+        .map((snapshot) => snapshot.docs.map((doc) {
+              return ActivityItem(
+                snapshot: doc,
+                itemType: 'school',
+                timestamp: _safeExtractTimestamp(doc, 'addedAt'),
+              );
+            }).toList());
+
+    Stream<List<ActivityItem>> usersStream = _firestore
+        .collection('users')
+        .orderBy('createdAt', descending: true)
+        .limit(5)
+        .snapshots() // <-- Real-time listener
+        .map((snapshot) => snapshot.docs.map((doc) {
+              return ActivityItem(
+                snapshot: doc,
+                itemType: 'user',
+                timestamp: _safeExtractTimestamp(doc, 'createdAt'),
+              );
+            }).toList());
+
+    // 2. Combine the three streams into one
+    //    This uses the rxdart package
+    _activityStream = CombineLatestStream.list<List<ActivityItem>>([
+      issuesStream,
+      schoolsStream,
+      usersStream,
+    ])
+        .map((List<List<ActivityItem>> allLists) {
+      // 3. Flatten the list (List<List<Item>> -> List<Item>)
+      final List<ActivityItem> combinedList = allLists.expand((list) => list).toList();
+      
+      // 4. Sort the combined list by timestamp (newest first)
+      combinedList.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      
+      // 5. Take the top 5 most recent items from all collections
+      return combinedList.take(5).toList();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    const Color pageBackgroundColor = Color(0xFFF4F6F8);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: pageBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE8F2FF),
+        backgroundColor: pageBackgroundColor,
         toolbarHeight: 0,
         elevation: 0,
       ),
@@ -29,59 +146,237 @@ class ProvincialEngineerDashboard extends StatelessWidget {
             // 1. Header Section
             const DashboardHeader(),
 
-            // 2. User Management Grids (Clicking these navigates to ManageUsersPage)
+            // 2. User Management Grids
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: 2,
-                crossAxisSpacing: 10.0,
-                mainAxisSpacing: 10.0,
-                childAspectRatio: 1.5,
-                children: <Widget>[ 
+                crossAxisSpacing: 12.0,
+                mainAxisSpacing: 12.0,
+                childAspectRatio: 0.9,
+                children: <Widget>[
                   UserManagementCard(
-                    title: 'Chief Engineer',
-                    subtitle: 'Manage',
+                    title: 'Manage Chief eng:',
                     activeUsers: '04',
                     pendingUsers: '04',
                   ),
                   UserManagementCard(
-                    title: 'District Engineer',
-                    subtitle: 'Manage',
+                    title: 'Manage District eng:',
                     activeUsers: '10',
                     pendingUsers: '04',
                   ),
                   UserManagementCard(
-                    title: 'Technical Officer',
-                    subtitle: 'Manage',
+                    title: 'Manage TO',
                     activeUsers: '10',
                     pendingUsers: '04',
                   ),
                   UserManagementCard(
-                    title: 'Principal',
-                    subtitle: 'Manage',
+                    title: 'Manage Principal',
                     activeUsers: '10',
                     pendingUsers: '04',
                   ),
                 ],
               ),
             ),
-            
-            // 3. User Approvals/Latest Users Section (If used)
+
+            // 3. --- UPDATED: "Latest Updates" Section ---
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Latest Updates',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // --- REPLACED with StreamBuilder ---
+                  // This widget will now automatically rebuild
+                  // whenever the _activityStream emits new data
+                  StreamBuilder<List<ActivityItem>>(
+                    stream: _activityStream,
+                    builder: (context, snapshot) {
+                      // 1. Show loading spinner
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      // 2. Show error if one occurs
+                      if (snapshot.hasError) {
+                        print('StreamBuilder Error: ${snapshot.error}');
+                        return const Center(
+                            child: Text('Error loading updates.'));
+                      }
+
+                      // 3. Show message if no updates are found
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text(
+                              'No recent updates found.',
+                              style: TextStyle(
+                                  color: Colors.black54, fontSize: 16),
+                            ),
+                          ),
+                        );
+                      }
+
+                      // 4. Build the list using the data from the stream
+                      final latestActivities = snapshot.data!;
+                      return Column(
+                        children: latestActivities.map((item) {
+                          return ActivityItemCard(item: item);
+                        }).toList(),
+                      );
+                    },
+                  ),
+                  // --- End of StreamBuilder ---
+                ],
+              ),
+            ),
+
             const SizedBox(height: 20),
           ],
         ),
       ),
       // 4. Bottom Navigation Bar
-      // Home (0) is active on the Dashboard
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader (The Blue Header) ---
+// --- ActivityItemCard (Unchanged) ---
+// -----------------------------------------------------------------------------
+class ActivityItemCard extends StatelessWidget {
+  final ActivityItem item;
+
+  const ActivityItemCard({super.key, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = item.snapshot.data() as Map<String, dynamic>;
+
+    IconData icon;
+    String title;
+    String subtitle;
+    bool showButton = false;
+
+    switch (item.itemType) {
+      case 'issue':
+        icon = Icons.apartment;
+        final schoolName = data['schoolName'] ?? 'Unknown School';
+        final issueTitle = data['issueTitle'] ?? 'No Title';
+        final city = data['educationalZone'] ?? 'Unknown Location';
+        final status = data['status'] ?? 'No Status';
+
+        title = '$schoolName - $issueTitle';
+        subtitle = '$city - Status, $status';
+        showButton = true;
+        break;
+
+      case 'school':
+        icon = Icons.school;
+        title = data['schoolName'] ?? 'Unknown School';
+        final city = data['educationalZone'] ?? 'Unknown Location';
+        subtitle = '$city - New school added';
+        showButton = false;
+        break;
+
+      case 'user':
+        icon = Icons.person_add;
+        title = data['name'] ?? 'Unknown User';
+        final role = data['role'] ?? 'New User';
+        final status = data['isActive'] == true ? 'Active' : 'Pending';
+        subtitle = '$role - Status, $status';
+        showButton = false;
+        break;
+
+      default:
+        icon = Icons.info;
+        title = 'New Activity';
+        subtitle = 'A new item was added.';
+        showButton = false;
+    }
+
+    return Card(
+      elevation: 1,
+      color: Colors.white,
+      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: Colors.grey[700],
+              size: 40,
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            if (showButton)
+              OutlinedButton(
+                onPressed: () {
+                  // TODO: Navigate to details page for this issue
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  side: BorderSide(color: Colors.blue.shade600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                ),
+                child: const Text(
+                  'View Details',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              )
+            else
+              Container(width: 80),
+          ],
+        ),
+      ),
+    );
+  }
+}
+// -----------------------------------------------------------------------------
+// --- DashboardHeader (Unchanged) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   const DashboardHeader({super.key});
@@ -89,26 +384,48 @@ class DashboardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 30.0),
+      padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 30.0),
       decoration: const BoxDecoration(
-        color: Color(0xFFE8F2FF),
+        color: Colors.white,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          )
+        ],
       ),
       child: Row(
         children: <Widget>[
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
               shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.lightBlue.shade200,
+                  Colors.blue.shade500,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Icon(
               Icons.person,
-              size: 50,
-              color: Colors.blue,
+              size: 55,
+              color: Colors.white,
             ),
           ),
           const SizedBox(width: 15),
@@ -139,84 +456,112 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserManagementCard (The Grid Cards on Dashboard) ---
+// --- UserManagementCard (Unchanged) ---
 // -----------------------------------------------------------------------------
 class UserManagementCard extends StatelessWidget {
   final String title;
-  final String subtitle;
   final String activeUsers;
   final String pendingUsers;
 
   const UserManagementCard({
     super.key,
     required this.title,
-    required this.subtitle,
     required this.activeUsers,
     required this.pendingUsers,
   });
+
+  String _getInitials(String title) {
+    if (title.contains('Chief')) return 'C.E.';
+    if (title.contains('District')) return 'D.E.';
+    if (title.contains('TO')) return 'TO';
+    if (title.contains('Principal')) return 'Principal';
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        String pageTitle = 'Manage $title';
-        // Navigates to the ManageUsersPage (imported from manage_users.dart)
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ManageUsersPage(
-              roleTitle: pageTitle,
+              roleTitle: title,
             ),
           ),
         );
       },
       child: Card(
         elevation: 2,
+        color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  const Icon(Icons.person, size: 20, color: Colors.black87),
+                  const Icon(Icons.person_outline,
+                      size: 20, color: Colors.black54),
                   const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                children: [
                   Text(
-                    'Manage ${title.split(' ').first}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    'Add a ${_getInitials(title)}',
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
                   ),
                   const Spacer(),
-                  const Icon(Icons.add_circle_outline, color: Colors.blue),
+                  Icon(Icons.add_circle, color: Colors.blue.shade600, size: 22),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Text(
+                    'Active Users',
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                  const Spacer(),
+                  Text(
+                    activeUsers,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade600,
+                      fontSize: 16,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 5),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text('Add a ${title.split(' ').first}:',
-                      style: const TextStyle(fontSize: 12)),
-                  const SizedBox(height: 5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Active Users',
-                          style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(activeUsers,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.blue)),
-                    ],
+                  const Text(
+                    'Pending Users',
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Pending Users',
-                          style: TextStyle(fontSize: 12, color: Colors.black54)),
-                      Text(pendingUsers,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.blue)),
-                    ],
+                  const Spacer(),
+                  Text(
+                    pendingUsers,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade600,
+                      fontSize: 16,
+                    ),
                   ),
                 ],
               ),
@@ -229,150 +574,17 @@ class UserManagementCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserCard (Dashboard Approval List Item) ---
-// -----------------------------------------------------------------------------
-class UserCard extends StatelessWidget {
-  final String userName;
-  final String userRole;
-  final bool isApproved;
-
-  const UserCard({
-    super.key,
-    required this.userName,
-    required this.userRole,
-    required this.isApproved,
-  });
-
-  // Common navigation function for buttons
-  void _navigateToBlankPage(BuildContext context, String action) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BlankActionPage(
-          action: action,
-          target: userName,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Card(
-        elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  const Icon(Icons.account_circle, size: 40, color: Colors.blueGrey),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          userName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          userRole,
-                          style: const TextStyle(fontSize: 14, color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    isApproved ? Icons.check_circle : Icons.pending,
-                    color: isApproved ? Colors.green : Colors.orange,
-                    size: 20,
-                  ),
-                ],
-              ),
-              const Divider(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // 1. View Button
-                  _ActionButton(
-                    text: 'View',
-                    color: Colors.blue,
-                    onPressed: () => _navigateToBlankPage(context, 'View Details'),
-                  ),
-                  // 2. Edit Button
-                  _ActionButton(
-                    text: 'Edit',
-                    color: Colors.deepOrange,
-                    onPressed: () => _navigateToBlankPage(context, 'Edit User'),
-                  ),
-                  // 3. Approve Button (Show only if not approved)
-                  if (!isApproved)
-                    _ActionButton(
-                      text: 'Approve',
-                      color: Colors.green,
-                      onPressed: () => _navigateToBlankPage(context, 'Approve User'),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Helper Widget for Buttons (Used in Dashboard UserCard)
-class _ActionButton extends StatelessWidget {
-  final String text;
-  final Color color;
-  final VoidCallback onPressed;
-
-  const _ActionButton({
-    required this.text,
-    required this.color,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            elevation: 1,
-          ),
-          child: Text(text),
-        ),
-      ),
-    );
-  }
-}
-
-
-// -----------------------------------------------------------------------------
-// --- CustomBottomNavBar (Used in Dashboard) ---
+// --- CustomBottomNavBar (Unchanged) ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
-  // currentIndex = 0: Home (Dashboard)
   final int currentIndex;
   const CustomBottomNavBar({super.key, required this.currentIndex});
 
   @override
   Widget build(BuildContext context) {
+    final Color activeColor = Colors.blue.shade700;
+    final Color inactiveColor = Colors.blue.shade400;
+
     return Container(
       height: 60,
       decoration: BoxDecoration(
@@ -389,41 +601,46 @@ class CustomBottomNavBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
-          // Home icon (Active on Dashboard)
           IconButton(
             icon: Icon(
-              Icons.home_outlined, 
-              color: currentIndex == 0 ? Colors.blue : Colors.black54, 
-              size: 30
+              Icons.home,
+              color: currentIndex == 0 ? activeColor : inactiveColor,
+              size: 30,
             ),
             onPressed: () {
-              // No action needed as we are already on the Dashboard
+              if (currentIndex != 0) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          const ProvincialEngineerDashboard()),
+                );
+              }
             },
           ),
-          // Profile icon
           IconButton(
             icon: Icon(
-              Icons.person, 
-              color: currentIndex == 1 ? Colors.blue : Colors.black54, 
-              size: 30
+              Icons.person,
+              color: currentIndex == 1 ? activeColor : inactiveColor,
+              size: 30,
             ),
             onPressed: () {
-              // Profile Page navigation logic goes here
+              // TODO: Profile Page navigation logic goes here
             },
           ),
-          // Settings icon (Navigate to SettingsPage)
           IconButton(
             icon: Icon(
-              Icons.settings_outlined, 
-              color: currentIndex == 2 ? Colors.blue : Colors.black54, 
-              size: 30
+              Icons.settings,
+              color: currentIndex == 2 ? activeColor : inactiveColor,
+              size: 30,
             ),
             onPressed: () {
-              // Open SettingsPage
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()), 
-              );
+              if (currentIndex != 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                );
+              }
             },
           ),
         ],
@@ -433,7 +650,7 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- Blank Action Page (for button clicks on Dashboard UserCard) ---
+// --- Blank Pages (Unchanged, hidden for brevity) ---
 // -----------------------------------------------------------------------------
 class BlankActionPage extends StatelessWidget {
   final String action;
