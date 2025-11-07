@@ -61,7 +61,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     super.dispose();
   }
 
-  // --- 1. Main Save Function ---
+  // --- 1. Main Save Function (UPDATED) ---
   Future<void> _saveSchool() async {
     // First, validate the form
     if (!_formKey.currentState!.validate()) {
@@ -82,7 +82,8 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
         'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
         'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
         'numNonAcademic': int.tryParse(_staffController.text.trim()) ?? 0,
-        'infrastructure': { // Store checkboxes as a nested map
+        'infrastructure': {
+          // Store checkboxes as a nested map
           'electricity': _hasElectricity,
           'waterSupply': _hasWaterSupply,
           'sanitation': _hasSanitation,
@@ -90,6 +91,10 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
         },
         'addedByNic': widget.userNic, // Save *who* added it
         'addedAt': Timestamp.now(), // Save *when* it was added
+
+        // --- THIS IS THE CHANGE YOU REQUESTED ---
+        'isActive': false, // Default to inactive, requires higher-level approval
+        // -----------------------------------------
       };
 
       // Add to the 'schools' collection in Firestore
@@ -99,7 +104,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('School added successfully!'),
+            content: Text('School added successfully! Pending approval.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -150,7 +155,8 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                     hint: 'Enter Your School Address',
                     controller: _addressController,
                   ),
-                  _buildTextField( // New field
+                  _buildTextField(
+                    // New field
                     label: 'School E-mail',
                     hint: 'Enter Your School E-mail',
                     controller: _emailController,

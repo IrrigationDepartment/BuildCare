@@ -21,8 +21,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
   static const Color kCardColor = Colors.white;
   static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
-  static const Color kActiveColor = Color(0xFF4CAF50); // Green
-  static const Color kInactiveColor = Color(0xFF757575); // Grey
 
   @override
   void initState() {
@@ -40,7 +38,7 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     super.dispose();
   }
 
-  // --- Function to update school status directly ---
+  // --- This function is no longer used but can be kept for other pages ---
   Future<void> _updateSchoolStatus(String schoolId, bool isActive) async {
     try {
       await FirebaseFirestore.instance
@@ -49,13 +47,15 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           .update({
         'isActive': isActive,
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('School status updated!'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to update status: $e'),
@@ -160,11 +160,10 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     );
   }
 
-  // --- This is the new, cleaner school card ---
+  // --- This is the MODIFIED school card with the Ad Button ---
   Widget _buildSchoolCard(DocumentSnapshot schoolDoc) {
     final schoolData = schoolDoc.data() as Map<String, dynamic>;
     final String schoolId = schoolDoc.id;
-    final bool isActive = schoolData['isActive'] ?? false;
     final String schoolName = schoolData['schoolName'] ?? 'Unnamed School';
     final String schoolAddress = schoolData['schoolAddress'] ?? 'No Address';
 
@@ -188,32 +187,32 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           schoolAddress,
           style: const TextStyle(color: kSubTextColor),
         ),
-        // --- Trailing section with Status and Toggle ---
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              isActive ? 'Active' : 'Deactivated',
-              style: TextStyle(
-                color: isActive ? kActiveColor : kInactiveColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
+
+        // --- NEW TRAILING AD BUTTON ---
+        trailing: TextButton.icon(
+          icon: const Icon(Icons.ads_click, size: 18), // Ad icon
+          label: const Text('View Details'),
+          style: TextButton.styleFrom(
+            foregroundColor: kPrimaryBlue, // Use your app's theme color
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
             ),
-            SizedBox(
-              height: 20, // Constrain height of the switch
-              child: Switch(
-                value: isActive,
-                onChanged: (newStatus) {
-                  _updateSchoolStatus(schoolId, newStatus);
-                },
-                activeColor: kActiveColor,
-              ),
-            ),
-          ],
+          ),
+          onPressed: () {
+            // --- TODO: Add your ad logic here ---
+            // For example, load a full-screen ad
+            print('Ad button pressed for school $schoolId');
+            
+            // You can show a dialog, navigate to an ad page, etc.
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Showing Ad... (placeholder)')),
+            );
+          },
         ),
-        // --- Tapping the card opens the details page ---
+        // ---------------------------------
+        
+        // --- Tapping the card still opens the details page ---
         onTap: () {
           Navigator.push(
             context,
