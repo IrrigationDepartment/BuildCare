@@ -41,8 +41,6 @@ class ProvincialEngineerDashboard extends StatefulWidget {
 class _ProvincialEngineerDashboardState
     extends State<ProvincialEngineerDashboard> {
   // --- STATE VARIABLES for "Latest Updates" ---
-  // We no longer need _isLoading or _latestActivities
-  // Instead, we will define a final Stream
   late final Stream<List<ActivityItem>> _activityStream;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -66,10 +64,9 @@ class _ProvincialEngineerDashboardState
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  /// --- NEW FUNCTION: Initializes the combined stream ---
+  /// --- NEW FUNCTION: Initializes the combined stream (Unchanged) ---
   void _initializeActivityStream() {
     // 1. Define a stream for each collection
-    //    We use .snapshots() instead of .get() to listen for live updates
     Stream<List<ActivityItem>> issuesStream = _firestore
         .collection('issues')
         .orderBy('timestamp', descending: true)
@@ -110,7 +107,6 @@ class _ProvincialEngineerDashboardState
             }).toList());
 
     // 2. Combine the three streams into one
-    //    This uses the rxdart package
     _activityStream = CombineLatestStream.list<List<ActivityItem>>([
       issuesStream,
       schoolsStream,
@@ -118,11 +114,12 @@ class _ProvincialEngineerDashboardState
     ])
         .map((List<List<ActivityItem>> allLists) {
       // 3. Flatten the list (List<List<Item>> -> List<Item>)
-      final List<ActivityItem> combinedList = allLists.expand((list) => list).toList();
-      
+      final List<ActivityItem> combinedList =
+          allLists.expand((list) => list).toList();
+
       // 4. Sort the combined list by timestamp (newest first)
       combinedList.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      
+
       // 5. Take the top 5 most recent items from all collections
       return combinedList.take(5).toList();
     });
@@ -143,10 +140,10 @@ class _ProvincialEngineerDashboardState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // 1. Header Section
+            // 1. Header Section (Unchanged)
             const DashboardHeader(),
 
-            // 2. User Management Grids
+            // 2. --- MODIFIED: User Management Grids ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: GridView.count(
@@ -156,32 +153,36 @@ class _ProvincialEngineerDashboardState
                 crossAxisSpacing: 12.0,
                 mainAxisSpacing: 12.0,
                 childAspectRatio: 0.9,
-                children: <Widget>[
-                  UserManagementCard(
+                children: const <Widget>[
+                  // --- REPLACED with UserCountBuilder ---
+                  UserCountBuilder(
                     title: 'Manage Chief eng:',
-                    activeUsers: '04',
-                    pendingUsers: '04',
+                    userType: 'Chief Engineer', // NOTE: Assumed 'userType' string
+                    addPage: AddCEPage(),
                   ),
-                  UserManagementCard(
+                  // --- REPLACED with UserCountBuilder ---
+                  UserCountBuilder(
                     title: 'Manage District eng:',
-                    activeUsers: '10',
-                    pendingUsers: '04',
+                    userType: 'District Engineer', // NOTE: Assumed 'userType' string
+                    addPage: AddDEPage(),
                   ),
-                  UserManagementCard(
+                  // --- REPLACED with UserCountBuilder ---
+                  UserCountBuilder(
                     title: 'Manage TO',
-                    activeUsers: '10',
-                    pendingUsers: '04',
+                    userType: 'Technical Officer', // From your request
+                    addPage: AddTOPage(),
                   ),
-                  UserManagementCard(
+                  // --- REPLACED with UserCountBuilder ---
+                  UserCountBuilder(
                     title: 'Manage Principal',
-                    activeUsers: '10',
-                    pendingUsers: '04',
+                    userType: 'Principal', // NOTE: Assumed 'userType' string
+                    addPage: AddPrincipalPage(),
                   ),
                 ],
               ),
             ),
 
-            // 3. --- UPDATED: "Latest Updates" Section ---
+            // 3. --- UPDATED: "Latest Updates" Section (Unchanged) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
@@ -197,9 +198,7 @@ class _ProvincialEngineerDashboardState
                   ),
                   const SizedBox(height: 10),
 
-                  // --- REPLACED with StreamBuilder ---
-                  // This widget will now automatically rebuild
-                  // whenever the _activityStream emits new data
+                  // --- StreamBuilder for activities (Unchanged) ---
                   StreamBuilder<List<ActivityItem>>(
                     stream: _activityStream,
                     builder: (context, snapshot) {
@@ -247,7 +246,7 @@ class _ProvincialEngineerDashboardState
           ],
         ),
       ),
-      // 4. Bottom Navigation Bar
+      // 4. Bottom Navigation Bar (Unchanged)
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
@@ -375,6 +374,7 @@ class ActivityItemCard extends StatelessWidget {
     );
   }
 }
+
 // -----------------------------------------------------------------------------
 // --- DashboardHeader (Unchanged) ---
 // -----------------------------------------------------------------------------
@@ -456,18 +456,109 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserManagementCard (Unchanged) ---
+// --- NEW WIDGET: UserCountBuilder ---
+// -----------------------------------------------------------------------------
+/// This widget fetches user counts for a specific `userType`
+/// and builds a `UserManagementCard` with that data.
+class UserCountBuilder extends StatelessWidget {
+  final String userType;
+  final String title;
+  final Widget addPage;
+
+  const UserCountBuilder({
+    super.key,
+    required this.userType,
+    required this.title,
+    required this.addPage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      // 1. Stream data from Firebase where 'userType' matches
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('userType', isEqualTo: userType)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int activeCount = 0;
+        int pendingCount = 0;
+        String activeDisplay = '...';
+        String pendingDisplay = '...';
+
+        // 2. If data is loaded, process it
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+              // Check 'isActive' field. If true, increment active.
+              // Else (false, null, or missing), increment pending.
+              if (data.containsKey('isActive') && data['isActive'] == true) {
+                activeCount++;
+              } else {
+                pendingCount++;
+              }
+            } catch (e) {
+              print('Error parsing user data for $userType: $e');
+              pendingCount++; // Count as pending if data is malformed
+            }
+          }
+          activeDisplay = activeCount.toString().padLeft(2, '0');
+          pendingDisplay = pendingCount.toString().padLeft(2, '0');
+        } 
+        // 3. If error, display "Err"
+        else if (snapshot.hasError) {
+          activeDisplay = 'Err';
+          pendingDisplay = 'Err';
+        }
+        // 4. While loading, '...' is used by default
+
+        // 5. Return the UserManagementCard with the counts and navigation
+        return UserManagementCard(
+          title: title,
+          activeUsers: activeDisplay,
+          pendingUsers: pendingDisplay,
+          // Tap on the whole card -> go to ManageUsersPage
+          onCardPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ManageUsersPage(
+                  roleTitle: title, // e.g., "Manage TO"
+                ),
+              ),
+            );
+          },
+          // Tap on the "Add" row -> go to the specific AddPage
+          onAddPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => addPage),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- MODIFIED: UserManagementCard ---
 // -----------------------------------------------------------------------------
 class UserManagementCard extends StatelessWidget {
   final String title;
   final String activeUsers;
   final String pendingUsers;
+  final VoidCallback onCardPressed; // <-- Callback for tapping the card
+  final VoidCallback onAddPressed;  // <-- Callback for tapping the "Add" row
 
   const UserManagementCard({
     super.key,
     required this.title,
     required this.activeUsers,
     required this.pendingUsers,
+    required this.onCardPressed, // <-- Now required
+    required this.onAddPressed,  // <-- Now required
   });
 
   String _getInitials(String title) {
@@ -480,17 +571,9 @@ class UserManagementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // This GestureDetector handles taps on the entire card area
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ManageUsersPage(
-              roleTitle: title,
-            ),
-          ),
-        );
-      },
+      onTap: onCardPressed,
       child: Card(
         elevation: 2,
         color: Colors.white,
@@ -519,15 +602,20 @@ class UserManagementCard extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              Row(
-                children: [
-                  Text(
-                    'Add a ${_getInitials(title)}',
-                    style: const TextStyle(fontSize: 13, color: Colors.black87),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.add_circle, color: Colors.blue.shade600, size: 22),
-                ],
+              // This GestureDetector handles taps ONLY on the "Add" row
+              GestureDetector(
+                onTap: onAddPressed,
+                behavior: HitTestBehavior.opaque, // Makes the whole row tappable
+                child: Row(
+                  children: [
+                    Text(
+                      'Add a ${_getInitials(title)}',
+                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.add_circle, color: Colors.blue.shade600, size: 22),
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
               Row(
@@ -650,7 +738,7 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- Blank Pages (Unchanged, hidden for brevity) ---
+// --- BlankActionPage (Unchanged) ---
 // -----------------------------------------------------------------------------
 class BlankActionPage extends StatelessWidget {
   final String action;
@@ -674,6 +762,99 @@ class BlankActionPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 20, color: Colors.black54),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- NEW: Placeholder Add-Form Pages ---
+// (You can move each class to its own .dart file and import it)
+// -----------------------------------------------------------------------------
+
+/// Placeholder for "Add Chief Engineer" page
+class AddCEPage extends StatelessWidget {
+  const AddCEPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Chief Engineer'),
+        backgroundColor: const Color(0xFFF4F6F8), // Match theme
+        elevation: 0,
+      ),
+      body: const Center(
+        child: Text(
+          'Add C.E. Form Goes Here',
+          style: TextStyle(fontSize: 20, color: Colors.black54),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder for "Add District Engineer" page
+class AddDEPage extends StatelessWidget {
+  const AddDEPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add District Engineer'),
+        backgroundColor: const Color(0xFFF4F6F8), // Match theme
+        elevation: 0,
+      ),
+      body: const Center(
+        child: Text(
+          'Add D.E. Form Goes Here',
+          style: TextStyle(fontSize: 20, color: Colors.black54),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder for "Add Technical Officer" page
+class AddTOPage extends StatelessWidget {
+  const AddTOPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Technical Officer'),
+        backgroundColor: const Color(0xFFF4F6F8), // Match theme
+        elevation: 0,
+      ),
+      body: const Center(
+        child: Text(
+          'Add T.O. Form Goes Here',
+          style: TextStyle(fontSize: 20, color: Colors.black54),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder for "Add Principal" page
+class AddPrincipalPage extends StatelessWidget {
+  const AddPrincipalPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Principal'),
+        backgroundColor: const Color(0xFFF4F6F8), // Match theme
+        elevation: 0,
+      ),
+      body: const Center(
+        child: Text(
+          'Add Principal Form Goes Here',
+          style: TextStyle(fontSize: 20, color: Colors.black54),
         ),
       ),
     );
