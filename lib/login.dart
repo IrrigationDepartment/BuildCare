@@ -1,3 +1,7 @@
+// [----- ADD THIS IMPORT -----]
+import 'screens/forgot_password_flow.dart'; // Import the new screen
+// [-----------------------------]
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -74,34 +78,26 @@ class _LoginPageState extends State<LoginPage> {
         final userType = userData['userType'] as String?;
 
         // --- ADDED: Check if user is active ---
-        // We use 'as bool? ?? false' to safely handle cases where the field
-        // might be null or not exist. If it's null or missing,
-        // we'll treat the user as inactive (false).
         final bool isActive = userData['isActive'] as bool? ?? false;
 
         if (isActive) {
           // --- User is active, proceed with login ---
           Widget destination;
-          // This switch statement correctly routes users based on their role
           switch (userType) {
             case 'Provincial Engineer':
-              // TODO: Update this dashboard to accept userId if it needs a profile page
               destination = ProvincialEngDashboard(userData: userData);
               break;
             case 'Chief Engineer':
-              // TODO: Update this dashboard to accept userId if it needs a profile page
               destination = ChiefEngDashboard(userData: userData);
               break;
             case 'District Engineer':
-              // TODO: Update this dashboard to accept userId if it needs a profile page
               destination = DistrictEngDashboard(userData: userData);
               break;
             case 'Principal':
-              destination = PrincipalDashboard(userData: userData);
+              destination = PrincipalDashboard(userData: userData, userId: userId);
               break;
             case 'Technical Officer':
-              // TODO: Update this dashboard to accept userId if it needs a profile page
-              destination = TODashboard(userData: userData); // <-- This is the FIX
+              destination = TODashboard(userData: userData); 
               break;
             default:
               _showMessage('Login Error',
@@ -112,7 +108,6 @@ class _LoginPageState extends State<LoginPage> {
               return;
           }
 
-          // Navigate to the correct dashboard, replacing the login screen
           if (mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (context) => destination),
@@ -124,7 +119,6 @@ class _LoginPageState extends State<LoginPage> {
               'Login Failed',
               'Your account is not active. Please contact an administrator.');
         }
-        // --- END OF ADDED SECTION ---
 
       } else {
         _showMessage(
@@ -193,7 +187,27 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
                 _buildPasswordField(),
                 const SizedBox(height: 12),
-                
+
+                // [----- ADD THIS WIDGET -----]
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordFlow(),
+                      ));
+                    },
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Colors.blueAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                // [-----------------------------]
+
                 const SizedBox(height: 20),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
