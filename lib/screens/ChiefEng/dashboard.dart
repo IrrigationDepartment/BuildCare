@@ -5,15 +5,15 @@ import 'package:buildcare/screens/ChiefEng/view_school_details.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
 import 'package:flutter/material.dart';
 
-class ChiefEngineerDashboard extends StatefulWidget {
+class ChiefEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
-  const ChiefEngineerDashboard({super.key, required this.userData});
+  const ChiefEngDashboard({super.key, required this.userData});
 
   @override
-  State<ChiefEngineerDashboard> createState() => _ChiefEngineerDashboardState();
+  State<ChiefEngDashboard> createState() => _ChiefEngineerDashboardState();
 }
 
-class _ChiefEngineerDashboardState extends State<ChiefEngineerDashboard> {
+class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   int _selectedIndex = 0;
 
   List<Widget> get _pages => [
