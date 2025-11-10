@@ -85,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
           Widget destination;
           switch (userType) {
             case 'Provincial Engineer':
-              destination = ProvincialEngDashboard(userData: userData);
+              destination = ProvincialEngineerDashboard(userData: userData);
               break;
             case 'Chief Engineer':
               destination = ChiefEngDashboard(userData: userData);
@@ -94,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
               destination = DistrictEngDashboard(userData: userData);
               break;
             case 'Principal':
-              destination = PrincipalDashboard(userData: userData, userId: userId);
+              destination = PrincipalDashboard(userData: userData);
               break;
             case 'Technical Officer':
               destination = TODashboard(userData: userData); 
