@@ -220,7 +220,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                             keyboardType: TextInputType.phone,
                             validator: (value) {
                               if (value == null || value.isEmpty)
-                               return 'Mobile number cannot be empty';
+                                return 'Mobile number cannot be empty';
                               final phoneRegex = RegExp(r'^\d{10}$');
                               if (!phoneRegex.hasMatch(value))
                                 return 'Mobile number must be 10 digits';
@@ -291,25 +291,26 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                             : SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                    onPressed: _registerUser,
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF53BDFF),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(30))),
-                                    child: const Text('Sign Up',
-                                        style: TextStyle(
-                                            fontSize: 18,
-                                            color: Color.fromARGB(
-                                                255, 255, 255, 255),
-                                            fontWeight: FontWeight.bold))))
+                                  onPressed: _registerUser,
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF53BDFF),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(30))),
+                                  child: const Text('Sign Up',
+                                      style: TextStyle(
+                                          fontSize: 18,
+                                          color: Color.fromARGB(
+                                              255, 255, 255, 255),
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ),
                       ],
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),

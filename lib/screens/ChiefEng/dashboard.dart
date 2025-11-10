@@ -1,4 +1,5 @@
 import 'package:buildcare/screens/ChiefEng/contract_details_page.dart';
+import 'package:buildcare/screens/ChiefEng/view_contractor_detail.dart';
 import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_distric_eng_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_details.dart';
@@ -31,7 +32,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,   
+      backgroundColor: Colors.white,
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -72,7 +73,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
     );
   }
 
-  
   Widget _buildDashboardPage() {
     return SingleChildScrollView(
       child: Padding(
@@ -329,6 +329,18 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                         builder: (context) => ContractDetailsScreen()));
               },
             ),
+            const SizedBox(height: 12),
+
+            _buildActionButton(
+              'View Contractor Details ',
+              Icons.description,
+              () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => ContractorDetailsPage()));
+              },
+            ),
 
             const SizedBox(height: 20),
           ],
@@ -459,7 +471,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
         ),
         child: Row(
           children: [
-           
             const SizedBox(width: 15),
             Expanded(
               child: Text(
@@ -483,7 +494,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
     );
   }
 
-  
   Widget _buildProfilePage() {
     return Container(
       color: Colors.white,
@@ -604,7 +614,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
     );
   }
 
-  
   Widget _buildSettingsPage() {
     return Container(
       color: Colors.white,
