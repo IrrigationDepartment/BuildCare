@@ -12,6 +12,9 @@ import 'view_damage_details_page.dart';
 // Import the View Contract Details Page
 import 'view_contract_details_page.dart';
 
+// Import the View Contractor Details Page
+import 'view_contractor_details_page.dart';
+
 class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
@@ -247,6 +250,22 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => const ViewContractDetailsPage(),
+                ),
+              );
+            },
+        ), 
+        const SizedBox(height: 16),
+
+        // Contractor Details Navigation
+        _buildOptionTile(
+            context, 
+            'View Contractor Details', 
+            Icons.edit_note_outlined,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewContractorDetailsPage(),
                 ),
               );
             },
