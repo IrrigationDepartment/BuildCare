@@ -6,11 +6,14 @@ import 'pending_approvals_page.dart';
 // Import the School Master Plan Page
 import 'school_master_plan_page.dart'; 
 
-// Import the View Damage Details Page (already added)
+// Import the View Damage Details Page 
 import 'view_damage_details_page.dart';
 
 // Import the View Contract Details Page
 import 'view_contract_details_page.dart'; 
+
+// Import the View Contractor Details Page
+import 'view_contractor_details_page.dart';
 
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
@@ -261,6 +264,22 @@ class ManagePrincipalsPage extends StatelessWidget {
               );
             },
         ),
+        const SizedBox(height: 16),
+
+        // Contractor Details Navigation
+        _buildOptionTile(
+            context, 
+            'View Contractor Details', 
+            Icons.edit_note_outlined,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewContractorDetailsPage(),
+                ),
+              );
+            },
+        ), 
       ],
     );
   }
