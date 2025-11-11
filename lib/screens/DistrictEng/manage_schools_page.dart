@@ -135,6 +135,31 @@ class ManageSchoolsPage extends StatefulWidget {
 }
 
 class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
+  // --- NEW: State variables for search functionality ---
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for changes in the search bar
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // NEW: Function to update the search query state
+  void _onSearchChanged() {
+    setState(() {
+      _searchQuery = _searchController.text.toLowerCase();
+    });
+  }
+
   // Function to show the school details dialog
   void _showSchoolDetails(BuildContext context, School school) {
     showDialog(
@@ -236,15 +261,33 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
 
                 // If we have data, display it in a list
                 final schoolDocs = snapshot.data!.docs;
+                
+                // Convert to School objects and filter based on search query
+                final List<School> allSchools = schoolDocs
+                    .map((doc) => School.fromFirestore(doc))
+                    .toList();
+                
+                final List<School> filteredSchools = allSchools.where((school) {
+                  final nameLower = school.name.toLowerCase();
+                  final addressLower = school.address.toLowerCase();
+                  return nameLower.contains(_searchQuery) ||
+                      addressLower.contains(_searchQuery);
+                }).toList();
+
+                if (filteredSchools.isEmpty && _searchQuery.isNotEmpty) {
+                  return const Center(
+                      child: Text('No schools match your search.'));
+                } else if (filteredSchools.isEmpty) {
+                   return const Center(child: Text('No schools found.'));
+                }
+
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                  itemCount: schoolDocs.length,
+                  itemCount: filteredSchools.length,
                   itemBuilder: (context, index) {
-                    // Convert Firestore doc to our School object
-                    final school = School.fromFirestore(schoolDocs[index]);
-                    // Build the card for each school
-                    return _buildSchoolCard(school);
+                    // Build the card for each filtered school
+                    return _buildSchoolCard(filteredSchools[index]);
                   },
                 );
               },
@@ -256,7 +299,7 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
   }
 
   Widget _buildSearchBar() {
-    // ... (SearchBar code remains the same) ...
+    // --- UPDATED: Connect TextField to _searchController and logic ---
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10.0),
       decoration: BoxDecoration(
@@ -271,13 +314,28 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
           ),
         ],
       ),
-      child: const TextField(
+      child: TextField(
+        controller: _searchController, // NEW: Controller
         decoration: InputDecoration(
           hintText: 'Search Schools..........',
           border: InputBorder.none,
           prefixIcon: Icon(Icons.search, color: Colors.grey),
+          // NEW: Clear button only when text is present
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchQuery = '';
+                    });
+                  },
+                )
+              : null,
           contentPadding: EdgeInsets.symmetric(vertical: 10.0),
         ),
+        // The listener in initState handles the setState, so onChanged is optional here
+        // onChanged: (value) => _onSearchChanged(), 
       ),
     );
   }
