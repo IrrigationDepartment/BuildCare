@@ -1,305 +1,180 @@
-// In screens/TO/contract_details.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 
-class ContractDetailsScreen extends StatefulWidget {
-  const ContractDetailsScreen({super.key});
+// Import the new contract details form screen
+import 'add_contract.dart';
+// --- 1. IMPORT THE VIEW DETAILS SCREEN ---
+import 'view_details.dart';
 
-  @override
-  State<ContractDetailsScreen> createState() => _ContractDetailsScreenState();
+// --- Data Model for Contract Details ---
+class Contract {
+  final String id;
+  final String cidaRegisterNumber;
+  final String contractorName;
+
+  Contract({
+    required this.id,
+    required this.cidaRegisterNumber,
+    required this.contractorName,
+  });
+
+  // Factory constructor to create a Contract from a Firestore Document
+  factory Contract.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return Contract(
+      id: doc.id,
+      // Field name must match what is stored in Firestore
+      cidaRegisterNumber: data['cidaRegisterNumber'] ?? 'N/A',
+      contractorName: data['contractorName'] ?? 'Unknown Contractor',
+    );
+  }
 }
 
-class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
-  // --- Constants ---
-  static const Color kPrimaryBlue = Color(0xFF42A5F5);
-  static const Color kBackgroundColor = Color(0xFFF5F7FA);
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  // --- Form Controllers & State ---
-  final TextEditingController _cidaController = TextEditingController();
-  final TextEditingController _contractorController = TextEditingController();
-  final TextEditingController _typeController = TextEditingController();
-  final TextEditingController _valueController = TextEditingController();
-
-  DateTime? _startDate;
-  DateTime? _endDate;
-
-  @override
-  void dispose() {
-    _cidaController.dispose();
-    _contractorController.dispose();
-    _typeController.dispose();
-    _valueController.dispose();
-    super.dispose();
-  }
-
-  // --- Date Picker Function ---
-  Future<void> _selectDate(BuildContext context, bool isStart) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          _startDate = picked;
-        } else {
-          _endDate = picked;
-        }
-      });
-    }
-  }
-
-  // --- Firebase Save Logic ---
-  Future<void> _saveContractDetails() async {
-    if (_formKey.currentState!.validate()) {
-      if (_startDate == null || _endDate == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select both Start and End dates.')),
-        );
-        return;
-      }
-
-      try {
-        await FirebaseFirestore.instance.collection('contract_details').add({
-          'cidaRegistrationNumber': _cidaController.text.trim(),
-          'contractorName': _contractorController.text.trim(),
-          'typeOfContract': _typeController.text.trim(),
-          'startDate': _startDate,
-          'endDate': _endDate,
-          'contractValue': double.tryParse(_valueController.text.trim()) ?? 0.0,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contract details saved successfully!')),
-        );
-        Navigator.pop(context);
-
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save data: $e')),
-        );
-      }
-    }
-  }
-
-  // --- Widget for custom text fields (FIXED to prevent assertion error) ---
-  Widget _buildTextField({
-    required String label,
-    required String hintText,
-    required IconData suffixIcon,
-    required TextEditingController controller,
-    bool isDate = false,
-    VoidCallback? onTap,
-    String? Function(String?)? validator,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    String displayValue = controller.text;
-    if (isDate) {
-      if (label == 'Start date' && _startDate != null) {
-        displayValue = DateFormat('yyyy-MM-dd').format(_startDate!);
-      } else if (label == 'End date' && _endDate != null) {
-        displayValue = DateFormat('yyyy-MM-dd').format(_endDate!);
-      } else {
-        displayValue = '';
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$label:',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF333333),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            // FIX: Use controller for regular fields, but null for read-only date fields
-            controller: isDate ? null : controller, 
-            
-            // FIX: Use initialValue for read-only date fields
-            initialValue: isDate ? displayValue : null, 
-            
-            readOnly: isDate,
-            onTap: isDate ? onTap : null,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(color: Color(0xFF333333)),
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: const TextStyle(color: Color(0xFF757575)),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              suffixIcon: Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: Icon(suffixIcon, color: kPrimaryBlue),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+// --- Manage Contracts List Screen Widget ---
+class ContractDetailsScreen extends StatelessWidget {
+  const ContractDetailsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        backgroundColor: kBackgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Contract Details',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF333333),
-          ),
-        ),
-        centerTitle: true,
+        title: const Text('Manage Contracts'),
+        backgroundColor:
+            const Color(0xFFF5F7FA), // Use the light background color
+        elevation: 1,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // 1. CIDA Registration Number
-                _buildTextField(
-                  label: 'CIDA Registration Number',
-                  hintText: 'Enter Your Registaion Number',
-                  suffixIcon: Icons.badge,
-                  controller: _cidaController,
-                  validator: (value) => value!.isEmpty ? 'Please enter CIDA number' : null,
-                ),
+      // The StreamBuilder listens to the 'contracts' collection in Firestore
+      body: StreamBuilder<QuerySnapshot>(
+        // Ensure this collection name matches the one used in the form (add_contract.dart)
+        stream: FirebaseFirestore.instance.collection('contracts').snapshots(),
+        builder: (context, snapshot) {
+          // Display a loading indicator while data is being fetched
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                // 2. Contractor Name
-                _buildTextField(
-                  label: 'Contractor Name',
-                  hintText: 'Enter Contractor Name',
-                  suffixIcon: Icons.person,
-                  controller: _contractorController,
-                  validator: (value) => value!.isEmpty ? 'Please enter contractor name' : null,
-                ),
+          // Display an error if the connection fails
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
 
-                // 3. Type of Contract
-                _buildTextField(
-                  label: 'Type of Contract',
-                  hintText: 'Enter Conterct Type',
-                  suffixIcon: Icons.category,
-                  controller: _typeController,
-                  validator: (value) => value!.isEmpty ? 'Please enter contract type' : null,
+          // Display a message if no data is found
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text(
+                  'No contracts found. Tap "Add Contract" to begin.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
+              ),
+            );
+          }
 
-                // 4. Start Date (Uses the corrected logic)
-                _buildTextField(
-                  label: 'Start date',
-                  hintText: 'Enter Project Start Date',
-                  suffixIcon: Icons.calendar_today,
-                  // Passing a dummy/unrelated controller since it will be ignored by isDate logic:
-                  controller: _cidaController, 
-                  isDate: true,
-                  onTap: () => _selectDate(context, true),
-                  validator: (value) => _startDate == null ? 'Please select a start date' : null,
-                ),
+          // --- Data Loaded Successfully: Build the List ---
+          final List<Contract> contracts = snapshot.data!.docs
+              .map((doc) => Contract.fromFirestore(doc))
+              .toList();
 
-                // 5. End Date (Uses the corrected logic)
-                _buildTextField(
-                  label: 'End date',
-                  hintText: 'Enter Project End Date',
-                  suffixIcon: Icons.calendar_today,
-                  // Passing a dummy/unrelated controller since it will be ignored by isDate logic:
-                  controller: _cidaController,
-                  isDate: true,
-                  onTap: () => _selectDate(context, false),
-                  validator: (value) => _endDate == null ? 'Please select an end date' : null,
-                ),
-
-                // 6. Value
-                _buildTextField(
-                  label: 'Value',
-                  hintText: 'Value of the Project',
-                  suffixIcon: Icons.attach_money,
-                  controller: _valueController,
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Please enter project value';
-                    if (double.tryParse(value) == null) return 'Enter a valid number';
-                    return null;
+          return Column(
+            children: [
+              // Search Bar (Mimicking the structure of the school list)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search by CIDA No. or Contractor Name...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[200],
+                  ),
+                  onChanged: (value) {
+                    // TODO: Implement search/filtering logic here
                   },
                 ),
+              ),
 
-                const SizedBox(height: 32),
-
-                // --- Buttons ---
-                Row(
-                  children: [
-                    // Save Button
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _saveContractDetails,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryBlue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 5,
+              // Contract List
+              Expanded(
+                child: ListView.builder(
+                  itemCount: contracts.length,
+                  itemBuilder: (context, index) {
+                    final contract = contracts[index];
+                    return Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 6.0, horizontal: 10.0),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons
+                              .engineering, // A more specific icon for contractors/projects
+                          color: Color(0xFF42A5F5),
+                          size: 30,
                         ),
-                        child: const Text(
-                          'Save',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        title: Text(
+                          contract.contractorName,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
                         ),
+                        subtitle: Text(
+                          'CIDA Reg No: ${contract.cidaRegisterNumber}',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        trailing: TextButton.icon(
+                          onPressed: () {
+                            // --- 2. NAVIGATION TO VIEW DETAILS ---
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => ViewContractDetailsScreen(
+                                    contractId: contract.id),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.info_outline,
+                              size: 18, color: Colors.blue),
+                          label: const Text('Details',
+                              style: TextStyle(color: Colors.blue)),
+                        ),
+                        onTap: () {
+                          // --- 2. NAVIGATION TO VIEW DETAILS (also on tap) ---
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => ViewContractDetailsScreen(
+                                  contractId: contract.id),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                    const SizedBox(width: 20),
-                    // Back Button
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: kPrimaryBlue,
-                          side: const BorderSide(color: kPrimaryBlue, width: 2),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Back',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
+            ],
+          );
+        },
       ),
+
+      // Floating Action Button for "Add Contract"
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          // *** NAVIGATION TO ADD CONTRACT SCREEN ***
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => AddContractScreen()),
+          );
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Add Contract'),
+        backgroundColor: const Color(0xFF42A5F5), // Primary Blue
+        foregroundColor: Colors.white,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
