@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
-// Existing Import for Technical Officer Management
+import 'package:cloud_firestore/cloud_firestore.dart'; // **Firebase Import**
+
+// Existing Imports
 import 'manage_to_page.dart'; 
-
-// Import the file containing the Manage Principals page
 import 'manage_principals_page.dart';
-
-// Import the file containing the Manage Schools page
 import 'manage_schools_page.dart';
-
-// Import for the Pending Approvals Page
 import 'pending_approvals_page.dart';
 
 class DistrictEngDashboard extends StatefulWidget {
@@ -22,6 +18,18 @@ class DistrictEngDashboard extends StatefulWidget {
 
 class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   int _selectedIndex = 0; // State for BottomNavigationBar
+  
+  // State variables for fetched data
+  int _totalSchools = 0;
+  int _activeTOs = 0;
+  int _pendingRequests = 0;
+  bool _isLoading = true; // Loading state
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOverviewCounts(); // Start fetching data when the widget is created
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -30,6 +38,60 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     // TODO: Handle navigation for other tabs (Profile, Settings)
   }
 
+  // **FIRESTORE DATA FETCHING METHOD**
+  Future<void> _fetchOverviewCounts() async {
+    try {
+      // 1. Total Schools Count (Assuming a 'schools' collection)
+      final schoolsSnapshot = await FirebaseFirestore.instance.collection('schools').get();
+      final schoolsCount = schoolsSnapshot.docs.length;
+
+      // 2. Active TOs Count (Assuming a 'users' collection with userType: 'Technical Officer' and status: 'active')
+      final tosSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userType', isEqualTo: 'Technical Officer') // Match your Firestore field
+          .where('status', isEqualTo: 'active') // Match your Firestore field
+          .get();
+      final tosCount = tosSnapshot.docs.length;
+      
+      // 3. Pending Approvals Count (Assuming a 'approvals' collection with status: 'pending')
+      final pendingSnapshot = await FirebaseFirestore.instance
+          .collection('approvals')
+          .where('status', isEqualTo: 'pending') // Match your Firestore field
+          .get();
+      final pendingCount = pendingSnapshot.docs.length;
+
+
+      // Update the state with the fetched counts
+      if (mounted) {
+        setState(() {
+          _totalSchools = schoolsCount;
+          _activeTOs = tosCount;
+          _pendingRequests = pendingCount;
+          _isLoading = false; // Data fetching complete
+        });
+      }
+    } catch (e) {
+      // Handle any errors during fetching (e.g., logging)
+      print("Error fetching overview counts: $e");
+      // Set counts to 0 and stop loading on error to prevent indefinite spinning
+      if(mounted) {
+        setState(() {
+          _totalSchools = 0;
+          _activeTOs = 0;
+          _pendingRequests = 0;
+          _isLoading = false;
+        });
+      }
+      // Show an error message to the user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load dashboard data. Please check connection. Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,6 +143,10 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   // --- WIDGET BUILDER HELPERS ---
 
   Widget _buildHeader() {
+    // Error Fix Applied: Using '??' for null safety on Map access.
+    final userName = widget.userData['name'] ?? 'User';
+    final userType = widget.userData['userType'] ?? 'District Engineer';
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -107,7 +173,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Welcome, ${widget.userData['name'] ?? 'User'}!',
+                'Welcome, $userName!',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -115,7 +181,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
               ),
               const SizedBox(height: 4),
               Text(
-                widget.userData['userType'] ?? 'District Engineer',
+                userType,
                 style: const TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
@@ -129,10 +195,22 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   }
 
   Widget _buildOverviewSection() {
-    // TODO: Fetch these counts from Firestore
-    const totalSchools = '150';
-    const activeTOs = '25';
-    const pendingRequests = '5';
+    // Handle loading state
+    if (_isLoading) {
+      return _buildCard(
+        child: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
+    // Use fetched data (already checked for null and initialized to 0)
+    final totalSchools = _totalSchools.toString();
+    final activeTOs = _activeTOs.toString();
+    final pendingRequests = _pendingRequests.toString();
 
     return _buildCard(
       child: Column(
@@ -251,7 +329,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   }
 
   Widget _buildRecentActivitySection() {
-    // TODO: Fetch this list from Firestore
+    // TODO: Use a StreamBuilder or FutureBuilder here to fetch and display the list from Firestore
     return _buildCard(
       child: Column(
         children: [
@@ -292,7 +370,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   }
 
   Widget _buildApprovalRequestSection() {
-    // TODO: Fetch this request from Firestore
+    // TODO: Use a StreamBuilder or FutureBuilder here to fetch the latest request from Firestore
     return _buildCard(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
