@@ -451,5 +451,3 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     );
   }
 }
-
-// --- REMOVED: EditSchoolPage was here, now in 'edit_school_page.dart' ---
