@@ -1,4 +1,4 @@
-// main_manage_schools_page.dart (or wherever this file is named)
+// main_manage_schools_page.dart 
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
