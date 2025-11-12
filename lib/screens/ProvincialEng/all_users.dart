@@ -48,8 +48,7 @@ class AllUsersPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('All $userType' +
-            's'), // Added 'All' and 's' for better title
+        title: Text('All $userType' 's'), // Added 'All' and 's' for better title
         backgroundColor: const Color(0xFFF4F6F8), // Match theme
         elevation: 1,
       ),
@@ -123,7 +122,7 @@ class AllUsersPage extends StatelessWidget {
                   // Replaced Icon with a Switch
                   trailing: Switch(
                     value: isActive,
-                    activeColor: Colors.green,
+                    activeThumbColor: Colors.green,
                     onChanged: (newValue) {
                       // Call the function to update Firebase
                       _toggleUserStatus(context, userId, isActive);

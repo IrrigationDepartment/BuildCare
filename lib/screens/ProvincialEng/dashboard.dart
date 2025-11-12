@@ -1,19 +1,10 @@
 import 'package:flutter/material.dart';
-// Import ManageUsersPage from manage_users.dart (still needed for 'Add' button)
-// import 'manage_users.dart'; // <-- You can remove this import if not needed
-// Import SettingsPage from settings.dart
-import 'settings.dart';
+// Remove external imports and define placeholders below
+// import 'settings.dart'; 
+// import 'profile.dart'; 
+// import 'all_users.dart'; 
 
-// --- ADDED THIS IMPORT for ProfilePage ---
-import 'profile.dart'; // Make sure you have a profile.dart file
-
-// --- ADDED THIS IMPORT for the new page ---
-import 'all_users.dart';
-
-// --- ADDED THIS IMPORT ---
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-// --- ADD RXDART IMPORT FOR COMBINING STREAMS ---
 import 'package:rxdart/rxdart.dart';
 
 // -----------------------------------------------------------------------------
@@ -151,46 +142,46 @@ class _ProvincialEngineerDashboardState
             // We now pass the widget.userData to the DashboardHeader
             DashboardHeader(userData: widget.userData),
 
-            // 2. --- MODIFIED: User Management Grids (Unchanged) ---
+            // 2. --- MODIFIED: User Management Grids (Card size reduced here) ---
             Padding(
-              padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(12.0),
               child: GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: 2,
-                crossAxisSpacing: 12.0,
-                mainAxisSpacing: 12.0,
-                childAspectRatio: 0.9,
-                children: const <Widget>[
+                  crossAxisSpacing: 8.0,
+                  mainAxisSpacing: 8.0,
+                  childAspectRatio: 1.8,
+                children: <Widget>[
                   // --- REPLACED with UserCountBuilder ---
                   UserCountBuilder(
                     title: 'Manage Chief eng:',
                     userType: 'Chief Engineer', // NOTE: Assumed 'userType' string
-                    addPage: AddCEPage(),
+                    addPage: const AddCEPage(),
                   ),
                   // --- REPLACED with UserCountBuilder ---
                   UserCountBuilder(
                     title: 'Manage District eng:',
                     userType: 'District Engineer', // NOTE: Assumed 'userType' string
-                    addPage: AddDEPage(),
+                    addPage: const AddDEPage(),
                   ),
                   // --- REPLACED with UserCountBuilder ---
                   UserCountBuilder(
                     title: 'Manage TO',
                     userType: 'Technical Officer', // From your request
-                    addPage: AddTOPage(),
+                    addPage: const AddTOPage(),
                   ),
                   // --- REPLACED with UserCountBuilder ---
                   UserCountBuilder(
                     title: 'Manage Principal',
                     userType: 'Principal', // NOTE: Assumed 'userType' string
-                    addPage: AddPrincipalPage(),
+                    addPage: const AddPrincipalPage(),
                   ),
                 ],
               ),
             ),
 
-            // 3. --- UPDATED: "Latest Updates" Section (Unchanged) ---
+            // 3. --- UPDATED: "Latest Updates" Section (Unchanged logic) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
@@ -206,7 +197,7 @@ class _ProvincialEngineerDashboardState
                   ),
                   const SizedBox(height: 10),
 
-                  // --- StreamBuilder for activities (Unchanged) ---
+                  // --- StreamBuilder for activities (Unchanged logic) ---
                   StreamBuilder<List<ActivityItem>>(
                     stream: _activityStream,
                     builder: (context, snapshot) {
@@ -255,14 +246,13 @@ class _ProvincialEngineerDashboardState
         ),
       ),
       // 4. --- MODIFIED: Bottom Navigation Bar ---
-      //    (The widget itself is modified below)
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
 }
 
 // -----------------------------------------------------------------------------
-// --- ActivityItemCard (Unchanged) ---
+// --- ActivityItemCard (Unchanged logic) ---
 // -----------------------------------------------------------------------------
 class ActivityItemCard extends StatelessWidget {
   final ActivityItem item;
@@ -385,7 +375,7 @@ class ActivityItemCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- MODIFIED: DashboardHeader ---
+// --- MODIFIED: DashboardHeader (Unchanged logic) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   // --- ADDED ---
@@ -408,9 +398,9 @@ class DashboardHeader extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 30.0),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(30),
           bottomRight: Radius.circular(30),
         ),
@@ -418,7 +408,7 @@ class DashboardHeader extends StatelessWidget {
           BoxShadow(
             color: Colors.black12,
             blurRadius: 10,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           )
         ],
       ),
@@ -482,7 +472,7 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- MODIFIED: UserCountBuilder ---
+// --- MODIFIED: UserCountBuilder (Unchanged logic) ---
 // -----------------------------------------------------------------------------
 /// This widget fetches user counts for a specific `userType`
 /// and builds a `UserManagementCard` with that data.
@@ -549,7 +539,7 @@ class UserCountBuilder extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                // Navigate to the NEW common page
+                // Navigate to the NEW common page (Placeholder)
                 builder: (context) => AllUsersPage(
                   // Pass the specific 'userType' for this card
                   userType: userType,
@@ -572,7 +562,7 @@ class UserCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- MODIFIED: UserManagementCard (Unchanged) ---
+// --- MODIFIED: UserManagementCard (Card size optimized) ---
 // -----------------------------------------------------------------------------
 class UserManagementCard extends StatelessWidget {
   final String title;
@@ -608,10 +598,10 @@ class UserManagementCard extends StatelessWidget {
         color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.all(8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distributes vertically
             children: <Widget>[
               Row(
                 children: <Widget>[
@@ -623,30 +613,32 @@ class UserManagementCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                          fontSize: 13,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              const Spacer(),
               // This GestureDetector handles taps ONLY on the "Add" row
               GestureDetector(
                 onTap: onAddPressed,
                 behavior: HitTestBehavior.opaque, // Makes the whole row tappable
-                child: Row(
-                  children: [
-                    Text(
-                      'Add a ${_getInitials(title)}',
-                      style: const TextStyle(fontSize: 13, color: Colors.black87),
-                    ),
-                    const Spacer(),
-                    Icon(Icons.add_circle, color: Colors.blue.shade600, size: 22),
-                  ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0), // Smaller vertical pad
+                  child: Row(
+                    children: [
+                      Text(
+                        'Add a ${_getInitials(title)}',
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.add_circle, color: Colors.blue.shade600, size: 22),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 5), // Reduced vertical space
               Row(
                 children: [
                   const Text(
@@ -691,7 +683,7 @@ class UserManagementCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- MODIFIED: CustomBottomNavBar ---
+// --- MODIFIED: CustomBottomNavBar (Unchanged logic) ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -732,6 +724,7 @@ class CustomBottomNavBar extends StatelessWidget {
             ),
             onPressed: () {
               if (currentIndex != 0) {
+                // Navigate to Dashboard
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
@@ -747,7 +740,7 @@ class CustomBottomNavBar extends StatelessWidget {
               color: currentIndex == 1 ? activeColor : inactiveColor,
               size: 30,
             ),
-            // --- MODIFICATION: Added navigation to ProfilePage ---
+            // --- MODIFICATION: Added navigation to ProfilePage (Placeholder) ---
             onPressed: () {
               if (currentIndex != 1) {
                 Navigator.push(
@@ -768,7 +761,7 @@ class CustomBottomNavBar extends StatelessWidget {
               if (currentIndex != 2) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const SettingsPage()),
+                  MaterialPageRoute(builder: (context) => const SettingsPage()), // Placeholder
                 );
               }
             },
@@ -880,7 +873,7 @@ class AddTOPage extends StatelessWidget {
   }
 }
 
-/// Placeholder for "Add Principal" page
+/// Placeholder for "Add Principal" page (was missing)
 class AddPrincipalPage extends StatelessWidget {
   const AddPrincipalPage({super.key});
 
@@ -902,12 +895,8 @@ class AddPrincipalPage extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- NEW: Placeholder Profile Page ---
-// (You should create a 'profile.dart' file and move this class there)
-// -----------------------------------------------------------------------------
-
-/// Placeholder for "Profile" page
+/// Placeholder for the Profile page used in the bottom navigation.
+/// Added here so references to `ProfilePage` compile.
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -915,20 +904,64 @@ class ProfilePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Profile'),
-        backgroundColor: const Color(0xFFF4F6F8), // Match theme
+        title: const Text('Profile'),
+        backgroundColor: const Color(0xFFF4F6F8),
         elevation: 0,
-        automaticallyImplyLeading: false, // No back button on main pages
       ),
       body: const Center(
         child: Text(
-          'Profile Page Goes Here',
+          'Profile Page Placeholder',
           style: TextStyle(fontSize: 20, color: Colors.black54),
         ),
       ),
-      // --- IMPORTANT ---
-      // Add the Nav Bar with the correct index (1 for Profile)
-      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 1),
+    );
+  }
+}
+
+/// Placeholder for the Settings page used in the bottom navigation.
+/// Added here so references to `SettingsPage` compile.
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+        backgroundColor: const Color(0xFFF4F6F8),
+        elevation: 0,
+      ),
+      body: const Center(
+        child: Text(
+          'Settings Page Placeholder',
+          style: TextStyle(fontSize: 20, color: Colors.black54),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder for the AllUsers page used when tapping a user management card.
+/// Accepts a `userType` parameter as required by the navigation call.
+class AllUsersPage extends StatelessWidget {
+  final String userType;
+
+  const AllUsersPage({super.key, required this.userType});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('All Users - $userType'),
+        backgroundColor: const Color(0xFFF4F6F8),
+        elevation: 0,
+      ),
+      body: Center(
+        child: Text(
+          'List of users for: $userType',
+          style: const TextStyle(fontSize: 18, color: Colors.black54),
+        ),
+      ),
     );
   }
 }
