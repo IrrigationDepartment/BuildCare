@@ -1,3 +1,4 @@
+// add_building_issues.dart 
 import 'dart:convert'; // For jsonDecode
 import 'package:flutter/foundation.dart'; // For debugPrint, Uint8List
 import 'package:flutter/material.dart';
@@ -5,19 +6,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart'; // For XFile
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart'; // For Uint8List
+import 'package:flutter/services.dart'; // For Uint8List, though imported via foundation above, good for clarity
 
-class AddIssueScreen extends StatefulWidget {
-  // Kept userNic parameter
+// --- REMOVED dart:io as we use XFile/Uint8List for cross-platform support ---
+
+class AddBuildingIssuesPage extends StatefulWidget {
+  // Added userNic parameter, consistent with add_issue_screen.dart
   final String userNic;
 
-  const AddIssueScreen({super.key, required this.userNic});
+  const AddBuildingIssuesPage({super.key, required this.userNic});
 
   @override
-  State<AddIssueScreen> createState() => _AddIssueScreenState();
+  State<AddBuildingIssuesPage> createState() => _AddBuildingIssuesPageState();
 }
 
-class _AddIssueScreenState extends State<AddIssueScreen> {
+class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _schoolNameController = TextEditingController();
@@ -39,7 +42,6 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
   static const Color _primaryColor = Color(0xFF53BDFF);
   static const Color _textFieldBackgroundColor = Color(0xFFF3F3F3);
 
-  // --- CONTENT FROM add_building_issues.dart ---
   final List<String> _buildingTypes = [
     'Academic Classroom',
     'Office',
@@ -67,7 +69,6 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     'Windows/Doors Frame Damage',
     'Staircase & Corridor Damage'
   ];
-  // --- END OF NEW CONTENT ---
 
   @override
   void dispose() {
@@ -97,13 +98,13 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     });
   }
 
-  // --- 1. Upload Images to Server Function (From add_building_issues.dart) ---
+  // --- 1. Upload Images to Server Function (Copied from add_issue_screen.dart) ---
   Future<List<String>> _uploadImages() async {
     if (_selectedImages.isEmpty) {
       return [];
     }
 
-    // --- USING THE NEW LINK ---
+    // --- REPLACE WITH YOUR NEW LINK ---
     var uri = Uri.parse("http://buildcare.atwebpages.com/index.php");
     var request = http.MultipartRequest("POST", uri);
 
@@ -142,7 +143,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     }
   }
 
-  // --- 2. Main Save Function (NEW from add_building_issues.dart) ---
+  // --- 2. Main Save Function (NEW) ---
   Future<void> _saveIssue() async {
     // 1. Validation
     if (!_formKey.currentState!.validate()) {
@@ -167,7 +168,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
         throw Exception('Failed to upload images. Please check server connection.');
       }
 
-      // Step 2: Prepare Data (Using new dropdown fields)
+      // Step 2: Prepare Data
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding, // From Dropdown
@@ -179,6 +180,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
         'imageUrls': uploadedImageUrls,
         'status': 'Pending', // Default status
+        // ⭐ NIC IS SAVED HERE
         'addedByNic': widget.userNic,
         'timestamp': FieldValue.serverTimestamp(),
       };
@@ -214,7 +216,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     }
   }
 
-  // Function to show the Date Picker
+  // Function to show the Date Picker (Unchanged, except for renaming the function)
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -244,7 +246,6 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // --- USING THE NEW UI from add_building_issues.dart ---
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -312,6 +313,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
                   },
                 ),
                 _buildDescriptionField("Description of Issue", "Describe your School building Issue", _descriptionController),
+                // --- MODIFIED: Uses new XFile-based logic ---
                 _buildUploadImagesSection(),
                 _buildDateField("Date Of Damage Occurance", "Enter Date Of Damage Occurance", _dateController, _selectDate),
               ],
@@ -322,7 +324,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     );
   }
 
-  // --- Helper Widgets (From add_building_issues.dart) ---
+  // --- Helper Widgets (Unchanged structure) ---
 
   /// Reusable Text Field builder
   Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber}) {

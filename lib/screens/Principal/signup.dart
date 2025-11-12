@@ -53,72 +53,47 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     super.dispose();
   }
 
-  /// Registers the Principal in Firestore after checking for NIC uniqueness
+  /// Registers the Principal in Firestore
   Future<void> _registerUser() async {
-    if (!_formKey.currentState!.validate()) {
-      return; // If form is not valid, do nothing
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final nic = _nicController.text.trim();
-
-      // 1. Check if NIC already exists in the database
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('nic', isEqualTo: nic)
-          .limit(1) // We only need to know if at least one exists
-          .get();
-
-      // If a document with this NIC is found, show an error and stop.
-      if (querySnapshot.docs.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('An account with this NIC already exists.')),
-          );
-        }
-        // Stop the function here
-        return;
-      }
-
-      // 2. If NIC is unique, proceed to add the new user
-      await FirebaseFirestore.instance.collection('users').add({
-        'userType': 'Principal',
-        'nic': nic,
-        'schoolName': _schoolNameController.text.trim(),
-        'schoolType': _selectedSchoolType,
-        'email': _schoolEmailController.text.trim(),
-        'officePhone': _schoolPhoneController.text.trim(),
-        'name': _principalNameController.text.trim(),
-        'mobilePhone': _principalMobileController.text.trim(),
-        'securityQuestionPet': _petNameController.text.trim(),
-        'securityQuestionNickname': _nicknameController.text.trim(),
-        'password': _passwordController.text.trim(),
-        'createdAt': Timestamp.now(),
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
       });
 
-      if (mounted) {
+      try {
+        // Add a new document to the 'users' collection
+        await FirebaseFirestore.instance.collection('users').add({
+          // Mapping fields from your form to the Firebase structure
+          'userType': 'Principal', // Hardcoded for this page
+          'nic': _nicController.text.trim(),
+          'schoolName': _schoolNameController.text.trim(), // Using a clear field name
+          'schoolType': _selectedSchoolType,
+          'email': _schoolEmailController.text.trim(), // Corresponds to School Email
+          'officePhone': _schoolPhoneController.text.trim(), // Corresponds to School Phone
+          'name': _principalNameController.text.trim(), // Corresponds to Principal Name
+          'mobilePhone': _principalMobileController.text.trim(), // Corresponds to Principal Mobile
+          'securityQuestionPet': _petNameController.text.trim(),
+          'securityQuestionNickname': _nicknameController.text.trim(),
+          'password': _passwordController.text.trim(), // Storing password
+          'createdAt': Timestamp.now(),
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Registration successful! Please login.')),
         );
+        // Go back to the very first screen (usually login)
         Navigator.of(context).popUntil((route) => route.isFirst);
-      }
-    } catch (e) {
-      if (mounted) {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Registration failed: $e')),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -217,17 +192,17 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                 labelText: 'Principal\'s Mobile Number',
                 icon: Icons.phone_iphone,
                 keyboardType: TextInputType.phone,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'This field cannot be empty';
-                    }
-                     // Allows 10 digits (e.g., 0712345678)
-                    final phoneRegex = RegExp(r'^\d{10}$');
-                    if (!phoneRegex.hasMatch(value.trim())) {
-                      return 'Enter a valid 10-digit mobile number';
-                    }
-                    return null;
-                  },
+                 validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field cannot be empty';
+                  }
+                   // Allows 10 digits (e.g., 0712345678)
+                  final phoneRegex = RegExp(r'^\d{10}$');
+                  if (!phoneRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid 10-digit mobile number';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 24),
               const Text("Security Questions", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -290,7 +265,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     );
   }
 
-  // --- HELPER WIDGETS (UNCHANGED) ---
+  // --- HELPER WIDGETS (ADAPTED FROM YOUR EXAMPLE) ---
 
   Widget _buildTextFormField({
     required TextEditingController controller,

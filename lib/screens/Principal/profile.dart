@@ -29,16 +29,23 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool _isLoading = false;
 
+  // Define the primary color (matching #53BDFF from SettingsPage)
+  static const Color _primaryColor = Color(0xFF53BDFF);
+
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with the correct keys from Firestore
+    // Initialize controllers with data.
+    // **IMPORTANT**: If 'principalName', 'phone', or 'mobile' are not the
+    // exact keys in your Firestore document, you must change them here.
+    // I've kept your existing keys and added a safe default ('') using `??`.
     _principalNameController =
         TextEditingController(text: widget.userData['principalName'] ?? '');
     _schoolNameController =
         TextEditingController(text: widget.userData['schoolName'] ?? '');
     _schoolTypeController =
         TextEditingController(text: widget.userData['schoolType'] ?? '');
+    // Assuming 'Title' field in the UI is 'userType' in Firestore
     _titleController =
         TextEditingController(text: widget.userData['userType'] ?? '');
     _emailController =
@@ -90,6 +97,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
+      // Data fields that are editable and need to be updated in Firestore
       final dataToUpdate = {
         'principalName': _principalNameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -104,11 +112,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
       _showMessage('Success', 'Your profile has been updated.');
     } catch (e) {
-      // --- THIS IS THE FIX ---
-      // Instead of a generic message, show the actual Firebase error.
-      // This will tell you if it's a PERMISSION_DENIED error.
+      // Show the actual Firebase error for debugging
       _showMessage('Update Failed', 'Error: ${e.toString()}');
-      // --- END OF FIX ---
     } finally {
       if (mounted) {
         setState(() {
@@ -118,7 +123,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- Helper Widgets for Building the UI (No changes below this line) ---
+  // --- Helper Widgets for Building the UI ---
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -152,7 +157,8 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Column(
         children: [
-          _buildTextField(_principalNameController, "Principal Name"),
+          // This field is made editable as it's part of the `dataToUpdate` map.
+          _buildTextField(_principalNameController, "Principal Name", readOnly: false), 
           const SizedBox(height: 10),
           _buildTextField(_schoolNameController, "School Name", readOnly: true),
           const SizedBox(height: 10),
@@ -224,19 +230,22 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildTextField(TextEditingController controller, String label,
       {bool readOnly = false}) {
+    // Note: Using a standard blue for the text field focus color.
+    final accentColor = readOnly ? Colors.grey[600] : _primaryColor;
     return TextField(
       controller: controller,
       readOnly: readOnly,
+      style: TextStyle(color: readOnly ? Colors.black54 : Colors.black),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
-            color: readOnly ? Colors.grey[600] : Colors.blueAccent,
+            color: accentColor,
             fontWeight: FontWeight.w500),
         enabledBorder: UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.grey[300]!),
         ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.blueAccent),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: _primaryColor), // Use primary color here
         ),
         fillColor: readOnly ? Colors.grey[100] : Colors.transparent,
         filled: readOnly,
@@ -249,10 +258,19 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Edit Profile'),
+        // UPDATED: Title widget is wrapped in Center and uses bold font weight
+        title: const Center(
+          child: Text(
+            'Edit Profile',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
+        // The default `centerTitle` property of AppBar is `false` unless 
+        // there is a leading widget (which there is not here), or the theme 
+        // sets it to true. Using Center widget explicitly ensures centering.
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -276,7 +294,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     right: 0,
                     child: CircleAvatar(
                       radius: 20,
-                      backgroundColor: Colors.blueAccent,
+                      backgroundColor: _primaryColor, // Use primary color here
                       child: IconButton(
                         icon: const Icon(Icons.camera_alt,
                             color: Colors.white, size: 20),
@@ -293,6 +311,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildSectionTitle('Personal Information'),
             _buildPersonalInfoCard(),
             _buildSectionTitle('Contact Information'),
+            // These fields are editable and will be updated
             _buildEditableInfoCard(
                 _emailController, 'Work Email', Icons.email_outlined),
             _buildEditableInfoCard(
@@ -314,7 +333,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: ElevatedButton(
                         onPressed: _updateProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
+                          backgroundColor: _primaryColor, // Use primary color here
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
@@ -331,26 +350,38 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+      // --- Bottom Navigation Bar with consistent color and size ---
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
+        currentIndex: 1, // Highlight the Profile icon (index 1)
+        selectedItemColor: _primaryColor, // Use the consistent primary color
+        unselectedItemColor: Colors.grey[600], // Standard unselected color
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        type: BottomNavigationBarType.fixed, // Ensure icons and labels don't shift
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
+            icon: Icon(Icons.home_outlined, size: 30),
+            activeIcon: Icon(Icons.home, size: 30), 
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(Icons.person_outline, size: 30), 
+            activeIcon: Icon(Icons.person, size: 30), 
             label: 'Profile',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
+            icon: Icon(Icons.settings_outlined, size: 30),
+            activeIcon: Icon(Icons.settings, size: 30), 
             label: 'Settings',
           ),
         ],
         onTap: (index) {
           if (index == 0) {
-            Navigator.pop(context);
-          }
+            // Navigate back to the Dashboard/Home page
+            Navigator.pop(context); 
+          } 
+          // index 1 (Profile) does nothing, as we are already here.
+          // For index 2 (Settings), you would implement navigation to the SettingsPage.
         },
       ),
     );
