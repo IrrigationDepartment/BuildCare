@@ -1,3 +1,4 @@
+// add_building_issues.dart 
 import 'dart:convert'; // For jsonDecode
 import 'package:flutter/foundation.dart'; // For debugPrint, Uint8List
 import 'package:flutter/material.dart';
@@ -168,7 +169,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       }
 
       // Step 2: Prepare Data
-      // Mapping fields to Firestore structure
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding, // From Dropdown
@@ -180,6 +180,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
         'imageUrls': uploadedImageUrls,
         'status': 'Pending', // Default status
+        // ⭐ NIC IS SAVED HERE
         'addedByNic': widget.userNic,
         'timestamp': FieldValue.serverTimestamp(),
       };

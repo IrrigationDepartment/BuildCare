@@ -1,18 +1,23 @@
-import 'dart:convert'; // For jsonDecode
-import 'dart:io'; // For File (needed for mobile Image.file)
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
-import 'package:image_picker/image_picker.dart'; // For ImagePicker
-import 'package:http/http.dart' as http; // For HTTP requests
-import 'package:flutter/foundation.dart' show kIsWeb; // For checking if on web
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AddMasterPlanScreen extends StatefulWidget {
   final String schoolName;
+  final String userNic;
+  // Optional ID for editing an existing document
+  final String? masterPlanId;
 
   const AddMasterPlanScreen({
     Key? key,
     required this.schoolName,
+    required this.userNic,
+    this.masterPlanId, // Make the ID optional
   }) : super(key: key);
 
   @override
@@ -24,9 +29,50 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
   final _formKey = GlobalKey<FormState>();
   final ImagePicker _picker = ImagePicker();
 
-  // We store the XFile from the picker directly. It's cross-platform.
   XFile? _pickedFile;
   bool _isLoading = false;
+  String _currentImageUrl = ''; // To show existing image when editing
+
+  @override
+  void initState() {
+    super.initState();
+    // Use WidgetsBinding to ensure context is available before async call
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.masterPlanId != null) {
+        _loadMasterPlanForEdit(widget.masterPlanId!);
+      }
+    });
+  }
+
+  // Function to fetch existing data for editing
+  Future<void> _loadMasterPlanForEdit(String id) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('schoolMasterPlans')
+          .doc(id)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        _descriptionController.text = data['description'] ?? '';
+        setState(() {
+          _currentImageUrl = data['masterPlanUrl'] ?? '';
+        });
+        _showSuccessSnackBar("Master Plan loaded for editing.");
+      } else {
+        _showErrorSnackBar("Error: Master Plan not found.");
+      }
+    } catch (e) {
+      _showErrorSnackBar("Error loading plan: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   // 1. Method to pick an image
   Future<void> _pickImage() async {
@@ -35,100 +81,181 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
 
     if (pickedFile != null) {
       setState(() {
-        // Just store the XFile, don't convert it to a dart:io File
         _pickedFile = pickedFile;
+        _currentImageUrl = ''; // Clear current image URL if a new image is picked
       });
     }
   }
 
-  // 2. Main method to upload and save data
+  // 2. Main method to upload and save/update data
   Future<void> _uploadAndSave() async {
-    // --- Validation ---
     if (!_formKey.currentState!.validate()) {
-      return; // Form is not valid
+      return;
     }
-    if (_pickedFile == null) {
+    if (widget.masterPlanId == null &&
+        _pickedFile == null &&
+        _currentImageUrl.isEmpty) {
       _showErrorSnackBar("Please select an image to upload.");
-      return; // No image selected
+      return;
     }
 
     setState(() {
       _isLoading = true;
     });
 
+    String finalImageUrl = _currentImageUrl;
+
     try {
-      // --- STEP A: Upload Image to your PHP Server ---
-      var uri = Uri.parse("http://buildcare.atigalle.x10.mx/index.php");
-      var request = http.MultipartRequest("POST", uri);
+      if (_pickedFile != null) {
+        // --- STEP A: Upload NEW Image to your PHP Server ---
+        var uri = Uri.parse("http://buildcare.atigalle.x10.mx/index.php");
+        var request = http.MultipartRequest("POST", uri);
 
-      // Add text fields
-      request.fields['description'] = _descriptionController.text;
-      request.fields['schoolName'] = widget.schoolName;
+        request.fields['description'] = _descriptionController.text;
+        request.fields['schoolName'] = widget.schoolName;
 
-      // --- This block is now cross-platform ---
-      // It uses the methods from XFile to read the data
-      if (kIsWeb) {
-        // WEB UPLOAD
-        var bytes = await _pickedFile!.readAsBytes();
-        var multipartFile = http.MultipartFile.fromBytes(
-          'master_plan_file',
-          bytes,
-          filename: _pickedFile!.name, // Use XFile.name
-        );
-        request.files.add(multipartFile);
-      } else {
-        // MOBILE UPLOAD
-        var stream = _pickedFile!.openRead();
-        var length = await _pickedFile!.length();
-        var multipartFile = http.MultipartFile(
-          'master_plan_file',
-          stream,
-          length,
-          filename: _pickedFile!.name, // Use XFile.name
-        );
-        request.files.add(multipartFile);
-      }
-      // --- End of cross-platform block ---
+        // Cross-platform file upload logic
+        if (kIsWeb) {
+          var bytes = await _pickedFile!.readAsBytes();
+          var multipartFile = http.MultipartFile.fromBytes(
+              'master_plan_file', bytes,
+              filename: _pickedFile!.name);
+          request.files.add(multipartFile);
+        } else {
+          var stream = _pickedFile!.openRead();
+          var length = await _pickedFile!.length();
+          var multipartFile = http.MultipartFile('master_plan_file', stream, length,
+              filename: _pickedFile!.name);
+          request.files.add(multipartFile);
+        }
 
-      // Send request and get response
-      var response = await request.send();
-      var responseBody = await response.stream.bytesToString();
+        var response = await request.send();
+        var responseBody = await response.stream.bytesToString();
 
-      // Check PHP response
-      if (response.statusCode == 200) {
-        var decodedResponse = jsonDecode(responseBody);
-
-        if (decodedResponse['status'] == 'success') {
-          // --- STEP B: Save URL to Firestore ---
-          String imageUrlFromPHP = decodedResponse['masterPlanUrl'];
-
-          await FirebaseFirestore.instance.collection('schoolMasterPlans').add({
-            'schoolName': widget.schoolName,
-            'description': _descriptionController.text,
-            'masterPlanUrl': imageUrlFromPHP,
-            'createdAt': Timestamp.now(),
-          });
-
-          _showSuccessSnackBar("Master plan added successfully!");
-          if (mounted) {
-            Navigator.pop(context);
+        if (response.statusCode == 200) {
+          var decodedResponse = jsonDecode(responseBody);
+          if (decodedResponse['status'] == 'success') {
+            finalImageUrl = decodedResponse['masterPlanUrl'];
+          } else {
+            _showErrorSnackBar(
+                "Server upload error: ${decodedResponse['message']}");
+            return;
           }
         } else {
-          _showErrorSnackBar("Server error: ${decodedResponse['message']}");
+          _showErrorSnackBar("HTTP Upload Error: ${response.statusCode}");
+          return;
         }
+      }
+      // If we are editing AND no new file was picked, finalImageUrl remains _currentImageUrl
+
+      // --- STEP B: Save/Update URL to Firestore ---
+      Map<String, dynamic> firestoreData = {
+        'schoolName': widget.schoolName,
+        'description': _descriptionController.text,
+        'masterPlanUrl': finalImageUrl,
+        'addedByNic': widget.userNic,
+      };
+
+      if (widget.masterPlanId == null) {
+        // CREATE NEW RECORD
+        firestoreData['createdAt'] = Timestamp.now();
+        await FirebaseFirestore.instance
+            .collection('schoolMasterPlans')
+            .add(firestoreData);
+        _showSuccessSnackBar("Master plan added successfully!");
       } else {
-        _showErrorSnackBar("HTTP Error: ${response.statusCode}");
+        // UPDATE EXISTING RECORD
+        firestoreData['updatedAt'] = Timestamp.now();
+        await FirebaseFirestore.instance
+            .collection('schoolMasterPlans')
+            .doc(widget.masterPlanId)
+            .update(firestoreData);
+        _showSuccessSnackBar("Master plan updated successfully!");
+      }
+
+      // Clear form/navigate after successful submission/update
+      _descriptionController.clear();
+      setState(() {
+        _pickedFile = null;
+        _currentImageUrl = '';
+      });
+      if (mounted) {
+        // Send true back to indicate a possible refresh is needed on the previous page
+        Navigator.pop(context, true); 
       }
     } catch (e) {
-      _showErrorSnackBar("An error occurred: $e");
+      _showErrorSnackBar("An error occurred during save: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  // --- Helper snackbar methods ---
+  // --- DELETE FUNCTIONALITY ---
+  Future<void> _deleteMasterPlan(String docId) async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      // Step A: Delete the document from Firestore
+      await FirebaseFirestore.instance
+          .collection('schoolMasterPlans')
+          .doc(docId)
+          .delete();
+
+      _showSuccessSnackBar("Master plan deleted successfully!");
+
+    } catch (e) {
+      _showErrorSnackBar("Error deleting plan: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // New utility function for confirmation dialog
+  Future<void> _showDeleteConfirmationDialog(String docId) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap a button
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Deletion'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Are you sure you want to delete this master plan?'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteMasterPlan(docId);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // --- END DELETE FUNCTIONALITY ---
+
+  // --- Helper snackbar methods (assuming they are correct) ---
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,24 +284,145 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     super.dispose();
   }
 
+  // Widget to display the record list using StreamBuilder
+  Widget _buildRecordsList() {
+    return StreamBuilder<QuerySnapshot>(
+      // Use where clause to filter by current user's NIC
+      stream: FirebaseFirestore.instance
+          .collection('schoolMasterPlans')
+          .where('addedByNic', isEqualTo: widget.userNic)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+              child: Text(
+                  'Error loading data: ${snapshot.error}. Please ensure the required Firestore index is created.'));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: 20.0),
+              child: Text('No master plans added by you yet.'),
+            ),
+          );
+        }
+
+        final documents = snapshot.data!.docs;
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: documents.length,
+          itemBuilder: (context, index) {
+            final doc = documents[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final masterPlanId = doc.id;
+            final schoolName = data['schoolName'] ?? 'N/A';
+            final description = data['description'] ?? 'No description';
+            final timestamp = data['createdAt'] as Timestamp?;
+
+            String formattedDate = timestamp != null
+                ? 'Added on: ${timestamp.toDate().toString().split(' ')[0]}'
+                : 'Date N/A';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.map_outlined, color: Colors.blueAccent),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(schoolName,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
+                              Text(description,
+                                  maxLines: 2, overflow: TextOverflow.ellipsis),
+                              Text(formattedDate,
+                                  style:
+                                      TextStyle(color: Colors.grey[600], fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // EDIT Button
+                        TextButton.icon(
+                          icon: const Icon(Icons.edit, size: 20),
+                          label: const Text("Edit"),
+                          onPressed: () async {
+                            // Navigate to the same screen for editing
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddMasterPlanScreen(
+                                  schoolName: schoolName,
+                                  userNic: widget.userNic,
+                                  masterPlanId: masterPlanId, // PASS THE ID HERE
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+
+                        // DELETE Button
+                        TextButton.icon(
+                          icon: const Icon(Icons.delete,
+                              size: 20, color: Colors.red),
+                          label: const Text("Delete",
+                              style: TextStyle(color: Colors.red)),
+                          onPressed: () => _showDeleteConfirmationDialog(masterPlanId),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
   // 3. Build the UI
   @override
   Widget build(BuildContext context) {
+    String titleText =
+        widget.masterPlanId == null ? "Add New Master Plan" : "Edit Master Plan";
+    String buttonText = widget.masterPlanId == null ? "Save" : "Update";
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          "Add School Master Plan",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          titleText,
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.blue),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, true), // Pop and signal refresh
         ),
         actions: [
-          // Save Button
+          // Save/Update Button
           _isLoading
               ? const Padding(
                   padding: EdgeInsets.all(16.0),
@@ -184,10 +432,10 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2)),
                 )
               : TextButton(
-                  onPressed: _uploadAndSave, // This calls the upload function
-                  child: const Text(
-                    "Save",
-                    style: TextStyle(
+                  onPressed: _uploadAndSave,
+                  child: Text(
+                    buttonText,
+                    style: const TextStyle(
                       color: Colors.blue,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -198,95 +446,116 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // --- Image Upload Box ---
-              const Text(
-                "Upload Master Plan (JPG/PNG)",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 200,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- Record Submission Form ---
+            Text(
+              "Master Plan Details",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 15),
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Master Plan Image",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
-                  // Check the new _pickedFile variable
-                  child: _pickedFile == null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.image_search,
-                                size: 60,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "Upload school master plan",
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          // This logic uses the XFile.path to display
-                          child: kIsWeb
-                              ? Image.network(
-                                  _pickedFile!.path, // Web uses Image.network
-                                  fit: BoxFit.cover,
+                  const SizedBox(height: 10),
+                  // Image Upload/Display Box
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: _pickedFile != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: kIsWeb
+                                  ? Image.network(_pickedFile!.path,
+                                      fit: BoxFit.cover)
+                                  : Image.file(File(_pickedFile!.path),
+                                      fit: BoxFit.cover),
+                            )
+                          : _currentImageUrl.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(_currentImageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (c, o, s) => const Icon(
+                                          Icons.broken_image,
+                                          size: 60,
+                                          color: Colors.red)),
                                 )
-                              : Image.file(
-                                  File(_pickedFile!
-                                      .path), // Mobile must use Image.file
-                                  fit: BoxFit.cover,
+                              : Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.image_search,
+                                          size: 60, color: Colors.grey[400]),
+                                      const SizedBox(height: 8),
+                                      Text("Tap to upload master plan",
+                                          style: TextStyle(
+                                              color: Colors.grey[600])),
+                                    ],
+                                  ),
                                 ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 24),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
 
-              // --- Description Box ---
-              const Text(
-                "Description",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  hintText: "describe about school master plan",
-                  fillColor: Colors.white,
-                  filled: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  // Description Box
+                  const Text(
+                    "Description",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _descriptionController,
+                    maxLines: 5,
+                    decoration: InputDecoration(
+                      hintText: "describe about school master plan",
+                      fillColor: Colors.white,
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Please enter a description";
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Please enter a description";
-                  }
-                  return null;
-                },
+                  const SizedBox(height: 24),
+                ],
               ),
-            ],
-          ),
+            ),
+
+            // --- Record Display Section ---
+            const Text(
+              "Your Submitted Master Plans",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 15),
+
+            // Display the records added by the current NIC
+            _buildRecordsList(),
+          ],
         ),
       ),
     );

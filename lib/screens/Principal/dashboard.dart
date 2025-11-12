@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
-import 'add_school_master_plan_page.dart'; // <-- 1. MAKE SURE THIS IMPORT IS CORRECT
-import 'profile.dart'; // Import the Profile Page
-import 'settings_page.dart'; // Import the Settings Page
+// This import is correct, it imports the file containing 'AddMasterPlanScreen'
+import 'add_school_master_plan_page.dart';
+import 'profile.dart';
+import 'settings_page.dart';
+
+// 🚀 NEW IMPORTS
+// Add these two lines to import Firestore and date formatting tools
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class PrincipalDashboard extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -19,7 +25,6 @@ class PrincipalDashboard extends StatelessWidget {
     } else if (index == 1) {
       // Profile - Navigate to ProfilePage
       if (userData != null) {
-        // NOTE: The actual userId would come from your authentication process
         final String principalId = userData!['uid'] ?? 'principal_doc_id_123';
         Navigator.push(
           context,
@@ -45,10 +50,10 @@ class PrincipalDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // --- Handle null userData safely ---
-    // Added a check for 'schoolName' as it's now required for the button
     if (userData == null ||
         userData!['name'] == null ||
-        userData!['schoolName'] == null) {
+        userData!['schoolName'] == null ||
+        userData!['nic'] == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("Error")),
         body: const Center(
@@ -58,7 +63,7 @@ class PrincipalDashboard extends StatelessWidget {
               Icon(Icons.error_outline, color: Colors.red, size: 60),
               SizedBox(height: 16),
               Text(
-                'Could not load user data. Please ensure "name" and "schoolName" are available.',
+                'Could not load user data. Please ensure "name", "nic", and "schoolName" are available.',
                 style: TextStyle(fontSize: 18),
                 textAlign: TextAlign.center,
               ),
@@ -68,8 +73,8 @@ class PrincipalDashboard extends StatelessWidget {
       );
     }
 
-    // ⭐ STEP 1: Extract the principal's name from the user data map.
-    // The key 'name' is assumed to hold the principal's full name from sign-up.
+    // ⭐ EXTRACTED NIC: This line correctly extracts the NIC.
+    final String userNic = userData!['nic'];
     final String principalName = userData!['name'];
 
     return Scaffold(
@@ -81,11 +86,10 @@ class PrincipalDashboard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              // ⭐ STEP 2: Pass the extracted name to the header widget.
               _buildWelcomeHeader(principalName),
               const SizedBox(height: 30),
 
-              // Button 1: Navigate to Add School Details Form
+              // Button 1: Add School Details
               _buildActionButton(
                 icon: Icons.add,
                 text: 'Add Your School Details',
@@ -94,7 +98,7 @@ class PrincipalDashboard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => AddSchoolDetailsPage(
-                        userNic: userData!['nic'] ?? '',
+                        userNic: userNic,
                       ),
                     ),
                   );
@@ -112,7 +116,8 @@ class PrincipalDashboard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => AddBuildingIssuesPage(
-                        userNic: userData!['nic'] ?? '',
+                        // ⭐ NIC IS ALREADY BEING PASSED HERE
+                        userNic: userNic,
                       ),
                     ),
                   );
@@ -126,26 +131,23 @@ class PrincipalDashboard extends StatelessWidget {
                 icon: Icons.map_outlined,
                 text: 'Manage Master Plans',
                 onTap: () {
-                  // --- 2. THIS IS THE FIX ---
-                  
-                  // Get the school name from your user's data.
                   final String schoolName = userData!['schoolName'];
 
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      // 3. Pass the schoolName to the correct screen
                       builder: (context) => AddMasterPlanScreen(
                         schoolName: schoolName,
+                        userNic: userNic,
                       ),
                     ),
                   );
-                  // --- END OF FIX ---
                 },
               ),
 
               const SizedBox(height: 30),
-              _buildReportedIssuesSection(),
+              // 🚀 MODIFIED: Pass the userNic to the function
+              _buildReportedIssuesSection(userNic),
             ],
           ),
         ),
@@ -167,17 +169,13 @@ class PrincipalDashboard extends StatelessWidget {
               icon: Icon(Icons.settings_outlined, size: 30),
               label: 'Settings'),
         ],
-        // Navigation logic applied here
         onTap: (index) => _onItemTapped(context, index),
       ),
     );
   }
 
-  // --------------------------------------------------------------------------
-  // --- WIDGET HELPER FUNCTIONS ---
-  // --------------------------------------------------------------------------
+  // --- WIDGET HELPER FUNCTIONS (kept as provided) ---
 
-  // ⭐ WELCOME HEADER CARD: This function takes the principal's name as an argument.
   Widget _buildWelcomeHeader(String name) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -212,9 +210,8 @@ class PrincipalDashboard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              // ⭐ NAME DISPLAY: This Text widget displays the name passed in the argument.
               Text(
-                name, // The principal's name is shown here!
+                name,
                 style: TextStyle(fontSize: 16, color: Colors.grey[700]),
               ),
             ],
@@ -224,7 +221,6 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- ACTION BUTTON CARD ---
   Widget _buildActionButton({
     required IconData icon,
     required String text,
@@ -273,8 +269,10 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- REPORTED ISSUES SECTION ---
-  Widget _buildReportedIssuesSection() {
+  //
+  // 🚀 MODIFIED: This entire function is replaced with a StreamBuilder
+  //
+  Widget _buildReportedIssuesSection(String userNic) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -290,26 +288,85 @@ class PrincipalDashboard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 15),
-        _buildIssueCard(
-          title: 'Thurstan College - Damaged Roof',
-          status: 'Colombo • Pending Review',
-          date: '2025-09-09',
-        ),
-        _buildIssueCard(
-          title: 'Thurstan College - Broken Windows',
-          status: 'Colombo • Pending Review',
-          date: '2025-09-15',
+        
+        // Use StreamBuilder to listen for data from Firestore
+        StreamBuilder<QuerySnapshot>(
+          // Create the query:
+          // 1. Go to the 'issues' collection
+          // 2. Filter where 'addedByNic' is equal to the logged-in user's NIC
+          stream: FirebaseFirestore.instance
+              .collection('issues')
+              .where('addedByNic', isEqualTo: userNic)
+              .snapshots(),
+              
+          builder: (context, snapshot) {
+            // Show a loading circle while waiting
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // Show an error message if something went wrong
+            if (snapshot.hasError) {
+              return Center(
+                  child: Text("Error loading issues: ${snapshot.error}"));
+            }
+
+            // Show a message if the user has no reported issues
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Text("You have not reported any issues yet."),
+                ),
+              );
+            }
+
+            // If we have data, get the list of documents
+            final issues = snapshot.data!.docs;
+
+            // Build a list of cards
+            return ListView.builder(
+              shrinkWrap: true, // Needed inside a SingleChildScrollView
+              physics: const NeverScrollableScrollPhysics(), // Stops scrolling conflicts
+              itemCount: issues.length,
+              itemBuilder: (context, index) {
+                // Get the data for the current issue
+                final issueDoc = issues[index];
+                final data = issueDoc.data() as Map<String, dynamic>;
+
+                // Extract fields from the document (based on your screenshot)
+                final String title = data['issueTitle'] ?? 'No Title';
+                final String building = data['buildingName'] ?? 'N/A';
+                final String status = data['status'] ?? 'N/A';
+                
+                // Safely get and format the date
+                String formattedDate = 'Date N/A';
+                if (data['dateOfOccurance'] != null) {
+                  final Timestamp timestamp = data['dateOfOccurance'];
+                  // Format date as YYYY-MM-DD
+                  formattedDate = DateFormat('yyyy-MM-dd').format(timestamp.toDate());
+                }
+
+                // Call the existing card widget with the live data
+                return _buildIssueCard(
+                  title: title,
+                  status: '$building • $status', // Combine building and status
+                  date: formattedDate,
+                );
+              },
+            );
+          },
         ),
       ],
     );
   }
 
-  // --- ISSUE CARD ---
   Widget _buildIssueCard({
     required String title,
     required String status,
     required String date,
   }) {
+    // This widget is unchanged, as it's perfect for displaying the data
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 15),
@@ -344,7 +401,9 @@ class PrincipalDashboard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             OutlinedButton(
-              onPressed: () {},
+              onPressed: () {
+                // TODO: Add navigation to a details page
+              },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: _primaryColor),
                 foregroundColor: _primaryColor,

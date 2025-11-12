@@ -1,3 +1,4 @@
+// login.dart
 // [----- ADD THIS IMPORT -----]
 import 'screens/forgot_password_flow.dart'; // Import the new screen
 // [-----------------------------]
@@ -77,6 +78,14 @@ class _LoginPageState extends State<LoginPage> {
         final userId = userDoc.id; // Get the document ID
         final userType = userData['userType'] as String?;
 
+        // ⭐ START MODIFICATION: Capture the NIC and prepare data for dashboard
+        final String loggedInNic = _nicController.text.trim();
+        final Map<String, dynamic> combinedUserData = {
+          ...userData,
+          'nic': loggedInNic, // Explicitly ensure NIC is in the map for transit
+        };
+        // ⭐ END MODIFICATION
+
         // --- ADDED: Check if user is active ---
         final bool isActive = userData['isActive'] as bool? ?? false;
 
@@ -85,19 +94,20 @@ class _LoginPageState extends State<LoginPage> {
           Widget destination;
           switch (userType) {
             case 'Provincial Engineer':
-              destination = ProvincialEngDashboard(userData: userData);
+              destination = ProvincialEngDashboard(userData: combinedUserData);
               break;
             case 'Chief Engineer':
-              destination = ChiefEngDashboard(userData: userData);
+              destination = ChiefEngDashboard(userData: combinedUserData);
               break;
             case 'District Engineer':
-              destination = DistrictEngDashboard(userData: userData);
+              destination = DistrictEngDashboard(userData: combinedUserData);
               break;
             case 'Principal':
-              destination = PrincipalDashboard(userData: userData);
+              // Pass the combined data to the Principal dashboard
+              destination = PrincipalDashboard(userData: combinedUserData);
               break;
             case 'Technical Officer':
-              destination = TODashboard(userData: userData); 
+              destination = TODashboard(userData: combinedUserData); 
               break;
             default:
               _showMessage('Login Error',
