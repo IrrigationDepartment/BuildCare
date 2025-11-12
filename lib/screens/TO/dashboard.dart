@@ -5,16 +5,36 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // --- Screen Imports ---
 // Manage Schools and Add School
 import 'manage_schools_screen.dart';
-import 'add_school_screen.dart'; // Retained, though not used in the dashboard menu
-
 // Issue Reporting Screens
 import 'issue_report_list_screen.dart';
 import 'issue_report_details_screen.dart';
+// Contract and Contractor Imports
+import 'contract_details.dart';
+import 'contractor_list_screen.dart';
+// --- Import Details Screens for Navigation ---
+import 'view_details.dart'; // For Contract details
+import 'view_contractor_screen.dart'; // For Contractor details
 
-// --- NEW IMPORTS ---
-import 'contract_details.dart'; // Import for Contract Details Screen
-// --- CHANGED IMPORT ---
-import 'contractor_list_screen.dart'; // Import for Contractor List Screen
+// ====================================================================
+// UNIFIED DATA MODEL FOR RECENT ACTIVITY
+// ====================================================================
+class RecentActivityItem {
+  final String id;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final DateTime timestamp;
+  final String type; // 'issue', 'school', 'contract', 'contractor'
+
+  RecentActivityItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.timestamp,
+    required this.type,
+  });
+}
 
 // ====================================================================
 // WIDGET
@@ -40,15 +60,161 @@ class _DashboardScreenState extends State<TODashboard> {
   static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
 
-  // --- Bottom Nav Bar State ---
+  // --- State ---
   int _selectedIndex = 0;
+  late final Future<List<RecentActivityItem>> _recentActivitiesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch the merged activity list when the widget is first built
+    _recentActivitiesFuture = _fetchRecentActivities();
+  }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // Placeholder for actual bottom navigation logic (Profile, Settings etc.)
-    // For now, only the Home view is built out.
+  }
+
+  // ====================================================================
+  // DATA FETCHING (MERGED)
+  // ====================================================================
+  Future<List<RecentActivityItem>> _fetchRecentActivities() async {
+    final String userNic = widget.userData['nic'] ?? '';
+    List<RecentActivityItem> allActivities = [];
+    final now = DateTime.now(); // Fallback timestamp
+
+    // 1. Fetch Issues (filtered by user)
+    try {
+      final issuesSnap = await FirebaseFirestore.instance
+          .collection('issues')
+          .where('addedByNic', isEqualTo: userNic)
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .get();
+
+      for (var doc in issuesSnap.docs) {
+        var data = doc.data();
+        allActivities.add(RecentActivityItem(
+          id: doc.id,
+          title: "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
+          subtitle: "${data['location'] ?? 'No Location'} - Status: ${data['status'] ?? 'No Status'}",
+          icon: Icons.home_work_outlined, // Icon from your image
+          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
+          type: 'issue',
+        ));
+      }
+    } catch (e) {
+      debugPrint("Error fetching issues: $e");
+    }
+
+    // 2. Fetch Schools (filtered by user)
+    try {
+      final schoolsSnap = await FirebaseFirestore.instance
+          .collection('schools')
+          .where('addedByNic', isEqualTo: userNic)
+          .orderBy('addedAt', descending: true)
+          .limit(5)
+          .get();
+
+      for (var doc in schoolsSnap.docs) {
+        var data = doc.data();
+        allActivities.add(RecentActivityItem(
+          id: doc.id,
+          title: data['schoolName'] ?? 'Unnamed School',
+          subtitle: data['schoolAddress'] ?? 'No Address',
+          icon: Icons.school, // Icon from your menu
+          timestamp: (data['addedAt'] as Timestamp?)?.toDate() ?? now,
+          type: 'school',
+        ));
+      }
+    } catch (e) {
+      debugPrint("Error fetching schools: $e");
+    }
+
+    // 3. Fetch Contracts (Global)
+    try {
+      final contractsSnap = await FirebaseFirestore.instance
+          .collection('contracts')
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .get();
+
+      for (var doc in contractsSnap.docs) {
+        var data = doc.data();
+        allActivities.add(RecentActivityItem(
+          id: doc.id,
+          title: data['contractorName'] ?? 'Unknown Contractor',
+          subtitle: "Contract: ${data['typeOfContract'] ?? 'N/A'}",
+          icon: Icons.description, // Icon from your menu
+          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
+          type: 'contract',
+        ));
+      }
+    } catch (e) {
+      debugPrint("Error fetching contracts: $e");
+    }
+
+    // 4. Fetch Contractors (Global)
+    try {
+      final contractorsSnap = await FirebaseFirestore.instance
+          .collection('contractor_details')
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .get();
+
+      for (var doc in contractorsSnap.docs) {
+        var data = doc.data();
+        allActivities.add(RecentActivityItem(
+          id: doc.id,
+          title: data['companyName'] ?? 'Unknown Company',
+          subtitle: "Contractor: ${data['contractorName'] ?? 'N/A'}",
+          icon: Icons.business_center, // Icon from your menu
+          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
+          type: 'contractor',
+        ));
+      }
+    } catch (e) {
+      debugPrint("Error fetching contractors: $e");
+    }
+
+    // 5. Sort all activities by date and take the top 5
+    allActivities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return allActivities.take(5).toList();
+  }
+
+  // ====================================================================
+  // NAVIGATION HELPER
+  // ====================================================================
+  void _navigateToDetails(String type, String id) {
+    Widget? page;
+    switch (type) {
+      case 'issue':
+        page = IssueReportDetailsScreen(issueId: id);
+        break;
+      case 'contract':
+        page = ViewContractDetailsScreen(contractId: id);
+        break;
+      case 'contractor':
+        page = ViewContractorScreen(contractorId: id);
+        break;
+      case 'school':
+        // Placeholder: Navigates to the school list.
+        // Replace with 'ViewSchoolScreen(schoolId: id)' when you build it.
+        page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? 'UNKNOWN_NIC');
+        debugPrint("Navigate to school details for ID: $id (showing list as placeholder)");
+        break;
+      default:
+        debugPrint("Unknown activity type: $type");
+    }
+
+    if (page != null && mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => page!),
+      );
+    }
   }
 
 // ====================================================================
@@ -59,21 +225,11 @@ class _DashboardScreenState extends State<TODashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
-      // --- Bottom Navigation Bar ---
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: kPrimaryBlue,
@@ -83,7 +239,6 @@ class _DashboardScreenState extends State<TODashboard> {
         elevation: 10,
         type: BottomNavigationBarType.fixed,
       ),
-      // --- Main Body ---
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -97,7 +252,8 @@ class _DashboardScreenState extends State<TODashboard> {
                 const SizedBox(height: 24),
                 _buildRecentActivityHeader(),
                 const SizedBox(height: 16),
-                _buildRecentActivityList(), // Firebase StreamBuilder
+                // --- THIS IS THE NEW WIDGET ---
+                _buildRecentActivitySection(),
               ],
             ),
           ),
@@ -131,7 +287,6 @@ class _DashboardScreenState extends State<TODashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  // Use the user's name from the data
                   'Welcome, ${widget.userData['name'] ?? ''}!',
                   style: TextStyle(
                     fontSize: 22,
@@ -166,7 +321,6 @@ class _DashboardScreenState extends State<TODashboard> {
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
       children: [
-        // --- Manage School Card ---
         _buildMenuCard(
           icon: Icons.school,
           title: 'Manage School',
@@ -181,7 +335,6 @@ class _DashboardScreenState extends State<TODashboard> {
             );
           },
         ),
-        // --- Issues Report Card (Navigates to list) ---
         _buildMenuCard(
           icon: Icons.assessment,
           title: 'Issues Report',
@@ -196,7 +349,6 @@ class _DashboardScreenState extends State<TODashboard> {
             );
           },
         ),
-        // --- Contract Details Card (NAVIGATES TO ContractDetailsScreen) ---
         _buildMenuCard(
           icon: Icons.description,
           title: 'Contract Details',
@@ -209,7 +361,6 @@ class _DashboardScreenState extends State<TODashboard> {
             );
           },
         ),
-        // --- Contractor Details Card (NAVIGATES TO ContractorListScreen) ---
         _buildMenuCard(
           icon: Icons.business_center,
           title: 'Contractor Details',
@@ -217,7 +368,6 @@ class _DashboardScreenState extends State<TODashboard> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                // --- NAVIGATION CHANGED ---
                 builder: (context) => const ContractorListScreen(),
               ),
             );
@@ -278,73 +428,50 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  /// 4. Builds the list of recent issues using a Firebase StreamBuilder.
-  Widget _buildRecentActivityList() {
-    // Stream to fetch up to 5 most recent 'Pending Review' issues
-    final Stream<QuerySnapshot> issuesStream = FirebaseFirestore.instance
-        .collection('issues')
-        .where('status', isEqualTo: 'Pending Review')
-        .orderBy('timestamp', descending: true)
-        .limit(5)
-        .snapshots();
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: issuesStream,
-      builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+  // --- 4. NEW: Builds the merged activity list ---
+  Widget _buildRecentActivitySection() {
+    return FutureBuilder<List<RecentActivityItem>>(
+      future: _recentActivitiesFuture, // Use the future defined in initState
+      builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return const Center(child: Text('Something went wrong'));
+          return Center(child: Text('Error loading activity: ${snapshot.error}'));
         }
-        if (snapshot.data == null || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(
             child: Text(
-              'No pending reviews found.',
+              'No recent activities found.',
               style: TextStyle(color: kSubTextColor),
             ),
           );
         }
 
         // --- Data Loaded State ---
+        final activities = snapshot.data!;
         return Column(
-          children: snapshot.data!.docs
-              .map((DocumentSnapshot document) {
-                // Safely cast document data
-                Map<String, dynamic> data =
-                    document.data()! as Map<String, dynamic>;
-
-                String title = data['schoolName'] ?? 'Unknown School';
-                String subtitle = data['issueTitle'] ?? 'No Title';
-                String location = data['location'] ?? 'No Location';
-                String status = data['status'] ?? 'No Status';
-
-                return _buildActivityCard(
-                  title: '$title - $subtitle',
-                  subtitle: '$location - Status: $status',
-                  onTap: () {
-                    // Navigate to the Issue Details page, passing the document ID
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            IssueReportDetailsScreen(issueId: document.id),
-                      ),
-                    );
-                  },
-                );
-              })
-              .toList()
-              .cast<Widget>(),
+          children: activities.map((activity) {
+            return _buildActivityCard(
+              title: activity.title,
+              subtitle: activity.subtitle,
+              icon: activity.icon, // Pass the correct icon
+              onTap: () {
+                _navigateToDetails(activity.type, activity.id);
+              },
+            );
+          }).toList(),
         );
       },
     );
   }
 
   /// Helper widget for the activity list items (Activity Card)
+  /// --- UPDATED to match screenshot ---
   Widget _buildActivityCard({
     required String title,
     required String subtitle,
+    required IconData icon, // Accepts icon from the activity item
     required VoidCallback onTap,
   }) {
     return Card(
@@ -356,7 +483,7 @@ class _DashboardScreenState extends State<TODashboard> {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            const Icon(Icons.home_work_outlined, color: kPrimaryBlue, size: 28),
+            Icon(icon, color: kPrimaryBlue, size: 28), // Use the passed icon
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -369,6 +496,8 @@ class _DashboardScreenState extends State<TODashboard> {
                       fontWeight: FontWeight.w600,
                       color: kTextColor,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -377,6 +506,8 @@ class _DashboardScreenState extends State<TODashboard> {
                       fontSize: 13,
                       color: kSubTextColor,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
