@@ -9,29 +9,35 @@ class SchoolMasterPlanPage extends StatelessWidget {
 
   // Sample data for the Master Plan list
   final List<Map<String, String>> masterPlans = const [
+    // I've added a dummy image path here. You should replace 'assets/master_plan_image.jpg'
+    // with the actual path to your image asset or a network image URL.
     {
       'title': 'Master Plan 2020-2025',
       'school': 'G/Rippon Girls\' Collage',
       'updated': '2024/05/12',
       'size': '5.4MB',
+      'image_path': 'assets/master_plan_image.jpg', // Placeholder image path
     },
     {
       'title': 'Master Plan 2020-2025',
       'school': 'G/Rippon Girls\' Collage',
       'updated': '2024/05/12',
       'size': '5.4MB',
+      'image_path': 'assets/master_plan_image.jpg',
     },
     {
       'title': 'Master Plan 2020-2025',
       'school': 'G/Rippon Girls\' Collage',
       'updated': '2024/05/12',
       'size': '5.4MB',
+      'image_path': 'assets/master_plan_image.jpg',
     },
     {
       'title': 'Master Plan 2020-2025',
       'school': 'G/Rippon Girls\' Collage',
       'updated': '2024/05/12',
       'size': '5.4MB',
+      'image_path': 'assets/master_plan_image.jpg',
     },
     // You can add more data here
   ];
@@ -61,7 +67,7 @@ class SchoolMasterPlanPage extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: _buildSearchBar(),
             ),
-            
+
             // Master Plan List
             Expanded(
               child: ListView.separated(
@@ -70,12 +76,8 @@ class SchoolMasterPlanPage extends StatelessWidget {
                 separatorBuilder: (context, index) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final plan = masterPlans[index];
-                  return _buildPlanTile(
-                    plan['title']!,
-                    plan['school']!,
-                    plan['updated']!,
-                    plan['size']!,
-                  );
+                  // Pass the whole plan map to the tile
+                  return _buildPlanTile(context, plan);
                 },
               ),
             ),
@@ -108,6 +110,91 @@ class SchoolMasterPlanPage extends StatelessWidget {
       ),
     );
   }
+  
+  // --- NEW FUNCTION: Show Master Plan Dialog ---
+  void _showMasterPlanDialog(BuildContext context, String title, String imagePath) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        // We use Dialog for a custom shape and content
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0), // Rounded corners for the dialog
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Header Row (Title and Close Button)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'View Master Plan',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Icon(Icons.close, color: Colors.grey, size: 24), // 'x' close button
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Master Plan Image
+                // NOTE: Using Image.asset requires you to have the image in your assets folder
+                // and updated pubspec.yaml. For a real app, you might use Image.network().
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.contain,
+                      height: MediaQuery.of(context).size.height * 0.5, // Take up half of screen height
+                      // For demonstration, use a placeholder if the asset isn't available
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 200,
+                          color: Colors.grey[200],
+                          child: Center(
+                            child: Text(
+                              'Image for Master Plan not found at:\n$imagePath',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Optional: Master Plan Title/Details
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   // Helper widget for the search bar
   Widget _buildSearchBar() {
@@ -135,8 +222,14 @@ class SchoolMasterPlanPage extends StatelessWidget {
     );
   }
 
-  // Helper widget for a single master plan document tile
-  Widget _buildPlanTile(String title, String school, String updated, String size) {
+  // Helper widget for a single master plan document tile (UPDATED to accept map)
+  Widget _buildPlanTile(BuildContext context, Map<String, String> plan) {
+    final String title = plan['title']!;
+    final String school = plan['school']!;
+    final String updated = plan['updated']!;
+    final String size = plan['size']!;
+    final String imagePath = plan['image_path']!; // Get the image path
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -190,7 +283,8 @@ class SchoolMasterPlanPage extends StatelessWidget {
             children: [
               ElevatedButton.icon(
                 onPressed: () {
-                  // Action for View
+                  // *** ACTION: Call the dialog function here ***
+                  _showMasterPlanDialog(context, title, imagePath);
                 },
                 icon: const Icon(Icons.visibility, size: 18),
                 label: const Text('View'),
