@@ -4,6 +4,7 @@ import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_distric_eng_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_details.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class ChiefEngDashboard extends StatefulWidget {
@@ -163,8 +164,10 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildOverviewCard(
-                          'Total Schools', '150', const Color(0xFFB3E5FC)),
+                      SchoolsDashboardCard(),
+
+                      // _buildOverviewCard(
+                      //     'Total Schools', '150', const Color(0xFFB3E5FC)),
                       _buildOverviewCard(
                           'Active TOs', '25', const Color(0xFFB3E5FC)),
                       _buildOverviewCard(
@@ -310,7 +313,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
 
             _buildActionButton(
               'View Damage Details',
-              Icons.description,
+              Icons.home_repair_service,
               () {
                 Navigator.push(
                     context,
@@ -321,26 +324,30 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
             const SizedBox(height: 12),
             _buildActionButton(
               'View Contract Details',
-              Icons.description,
+              Icons.receipt_long,
               () {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => ContractDetailsScreen()));
+                        builder: (context) => ContractDetailsListScreen()));
               },
             ),
             const SizedBox(height: 12),
 
+            
+
             _buildActionButton(
               'View Contractor Details ',
-              Icons.description,
+              Icons.person_search,
               () {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => ContractorDetailsPage()));
+                        builder: (context) => ContractorDetailsListScreen()));
               },
             ),
+
+            
 
             const SizedBox(height: 20),
           ],
@@ -419,7 +426,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey,
                   ),
@@ -709,6 +716,160 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
         ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+//todo:view the total of  school
+
+// services/school_service.dart
+
+class SchoolService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Schools collection එකේ මුළු documents ගණන ලබාගන්න
+  Future<int> getTotalSchoolsCount() async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('schools').get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting schools count: $e');
+      return 0;
+    }
+  }
+
+  // Real-time updates අවශ්ය නම්
+  Stream<int> getSchoolsCountStream() {
+    return _firestore.collection('schools').snapshots().map(
+          (snapshot) => snapshot.size,
+        );
+  }
+}
+
+class SchoolsDashboardCard extends StatefulWidget {
+  const SchoolsDashboardCard({Key? key}) : super(key: key);
+
+  @override
+  State<SchoolsDashboardCard> createState() => _SchoolsDashboardCardState();
+}
+
+class _SchoolsDashboardCardState extends State<SchoolsDashboardCard> {
+  final SchoolService _schoolService = SchoolService();
+  int _schoolsCount = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolsCount();
+  }
+
+  Future<void> _loadSchoolsCount() async {
+    try {
+      final count = await _schoolService.getTotalSchoolsCount();
+      setState(() {
+        _schoolsCount = count;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('Error loading schools count: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildOverviewCard(
+      'Total Schools',
+      _isLoading ? '...' : _schoolsCount.toString(),
+      const Color(0xFFB3E5FC),
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String count, Color color) {
+    return Container(
+      width: 90,
+      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SchoolsDashboardCardStream extends StatelessWidget {
+  const SchoolsDashboardCardStream({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: SchoolService().getSchoolsCountStream(),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final count = snapshot.data ?? 0;
+
+        return _buildOverviewCard(
+          'Total Schools',
+          isLoading ? '...' : count.toString(),
+          const Color(0xFFB3E5FC),
+        );
+      },
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String count, Color color) {
+    return Container(
+      width: 90,
+      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }

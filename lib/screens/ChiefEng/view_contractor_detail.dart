@@ -1,40 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ContractorDetailsPage extends StatefulWidget {
-  const ContractorDetailsPage({Key? key}) : super(key: key);
-
-  @override
-  State<ContractorDetailsPage> createState() => _ContractorDetailsPageState();
-}
-
-class _ContractorDetailsPageState extends State<ContractorDetailsPage> {
-  final _companyNameController = TextEditingController();
-  final _registrationController = TextEditingController();
-  final _contractorNameController = TextEditingController();
-  final _nicController = TextEditingController();
-  final _contactController = TextEditingController();
-
-  @override
-  void dispose() {
-    _companyNameController.dispose();
-    _registrationController.dispose();
-    _contractorNameController.dispose();
-    _nicController.dispose();
-    _contactController.dispose();
-    super.dispose();
-  }
+class ContractorDetailsListScreen extends StatelessWidget {
+  const ContractorDetailsListScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.blue, size: 20),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Contractor Details',
@@ -46,183 +25,382 @@ class _ContractorDetailsPageState extends State<ContractorDetailsPage> {
         ),
         centerTitle: true,
       ),
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-             
-             
-              const Text(
-                'Manage Contractor Information and Documents',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black54,
-                ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('contractor_details')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red),
               ),
-              const SizedBox(height: 32),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInputField(
-                        label: 'Contractor Company Name:',
-                        hint: 'Enter Your Company Name',
-                        controller: _companyNameController,
-                        icon: Icons.business,
-                      ),
-                      const SizedBox(height: 30),
-                      _buildInputField(
-                        label: 'CIDA Registration Number:',
-                        hint: 'Enter Your Registration Number',
-                        controller: _registrationController,
-                        icon: Icons.card_membership,
-                      ),
-                      const SizedBox(height: 30),
-                      _buildInputField(
-                        label: 'Contractor Name:',
-                        hint: 'Enter Your Name',
-                        controller: _contractorNameController,
-                        icon: Icons.person,
-                      ),
-                      const SizedBox(height: 30),
-                      _buildInputField(
-                        label: 'NIC number:',
-                        hint: 'Enter your NIC number',
-                        controller: _nicController,
-                        icon: Icons.credit_card,
-                      ),
-                      const SizedBox(height: 30),
-                      _buildInputField(
-                        label: 'Contact Number:',
-                        hint: 'Enter your Contact Number',
-                        controller: _contactController,
-                        icon: Icons.phone,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Save functionality
-                        print('Save button pressed');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF64B5F6),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Save',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF64B5F6),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Back',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  Icon(Icons.business_outlined, size: 80, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'No contractors found',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-            ],
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final doc = snapshot.data!.docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  leading: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.business,
+                      color: Colors.blue,
+                      size: 28,
+                    ),
+                  ),
+                  title: Text(
+                    data['contractorName'] ?? 'N/A',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(
+                        'Company: ${data['companyName'] ?? 'N/A'}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        'CIDA: ${data['cidaRegistrationNumber'] ?? 'N/A'}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ContractorDetailsViewScreen(
+                          contractorId: doc.id,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+
+
+
+class ContractorDetailsViewScreen extends StatelessWidget {
+  final String contractorId;
+
+  const ContractorDetailsViewScreen({
+    Key? key,
+    required this.contractorId,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.blue, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Contractor Details',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
         ),
+        centerTitle: true,
+      ),
+      body: ContractorDetailCard(contractorId: contractorId),
+    );
+  }
+}
+
+class ContractorDetailCard extends StatelessWidget {
+  final String contractorId;
+
+  const ContractorDetailCard({
+    super.key,
+    required this.contractorId,
+  });
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(top: 6, right: 12),
+            decoration: const BoxDecoration(
+              color: Colors.blue,
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14.0,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16.0,
+                    color: Colors.black54,
+                  ),
+                  softWrap: true,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildInputField({
-    required String label,
-    required String hint,
-    required TextEditingController controller,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    if (timestamp is Timestamp) {
+      final DateTime dateTime = timestamp.toDate();
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
+    return timestamp.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('contractor_details')
+          .doc(contractorId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                const SizedBox(height: 16),
+                Text(
+                  'Error: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person_off, color: Colors.grey, size: 60),
+                SizedBox(height: 16),
+                Text(
+                  'Contractor details not found',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15.0),
+            ),
+            elevation: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: const Icon(
+                          Icons.business_center,
+                          color: Colors.blue,
+                          size: 30,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data['contractorName'] ?? 'N/A',
+                              style: const TextStyle(
+                                fontSize: 20.0,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              data['companyName'] ?? 'N/A',
+                              style: TextStyle(
+                                fontSize: 16.0,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  const Divider(thickness: 1),
+                  const SizedBox(height: 16),
+                  
+                  // Contractor Details
+                  const Text(
+                    'Contractor Information',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  _buildDetailRow(
+                    'CIDA Registration Number',
+                    data['cidaRegistrationNumber']?.toString() ?? 'N/A',
+                  ),
+                  
+                  _buildDetailRow(
+                    'Contractor Company Name',
+                    data['companyName'] ?? 'N/A',
+                  ),
+                  
+                  _buildDetailRow(
+                    'Contractor Name',
+                    data['contractorName'] ?? 'N/A',
+                  ),
+                  
+                  _buildDetailRow(
+                    'Contact Number',
+                    data['contactNumber']?.toString() ?? 'N/A',
+                  ),
+                  
+                  _buildDetailRow(
+                    'NIC Number',
+                    data['nicNumber']?.toString() ?? 'N/A',
+                  ),
+                  
+                  // Timestamp
+                  if (data['timestamp'] != null) ...[
+                    const SizedBox(height: 8),
+                    _buildDetailRow(
+                      'Registered Date',
+                      _formatTimestamp(data['timestamp']),
+                    ),
+                  ],
+                  
+                 
+                  const SizedBox(height: 24),
+                
+                ],
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(
-              color: Colors.grey[400],
-              fontSize: 14,
-            ),
-            suffixIcon: Icon(
-              icon,
-              color: const Color(0xFF64B5F6),
-              size: 20,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            filled: true,
-            fillColor: Colors.grey[100],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF64B5F6), width: 2),
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
