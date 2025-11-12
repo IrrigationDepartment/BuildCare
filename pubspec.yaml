@@ -36,7 +36,10 @@ dependencies:
   firebase_storage: ^12.4.10 # Compatible with firebase_core ^3.1.1
   intl: ^0.19.0 # Added for date formatting
   image_picker: ^1.0.4 #  Add this line for image functionality
-  file_picker: ^6.1.1
+
+  http: ^1.2.1
+  http_parser: ^4.0.2
+  file_picker: ^6.0.0 # You already have this
 
   
 dev_dependencies:

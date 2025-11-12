@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
-import 'add_school_master_plan_page.dart';
+import 'add_school_master_plan_page.dart'; // <-- 1. MAKE SURE THIS IMPORT IS CORRECT
 import 'profile.dart'; // Import the Profile Page
 import 'settings_page.dart'; // Import the Settings Page
 
@@ -45,7 +45,10 @@ class PrincipalDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // --- Handle null userData safely ---
-    if (userData == null || userData!['name'] == null) {
+    // Added a check for 'schoolName' as it's now required for the button
+    if (userData == null ||
+        userData!['name'] == null ||
+        userData!['schoolName'] == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("Error")),
         body: const Center(
@@ -55,7 +58,7 @@ class PrincipalDashboard extends StatelessWidget {
               Icon(Icons.error_outline, color: Colors.red, size: 60),
               SizedBox(height: 16),
               Text(
-                'Could not load user data. Please ensure "name" is available.',
+                'Could not load user data. Please ensure "name" and "schoolName" are available.',
                 style: TextStyle(fontSize: 18),
                 textAlign: TextAlign.center,
               ),
@@ -79,7 +82,7 @@ class PrincipalDashboard extends StatelessWidget {
             children: [
               const SizedBox(height: 20),
               // ⭐ STEP 2: Pass the extracted name to the header widget.
-              _buildWelcomeHeader(principalName), 
+              _buildWelcomeHeader(principalName),
               const SizedBox(height: 30),
 
               // Button 1: Navigate to Add School Details Form
@@ -123,12 +126,21 @@ class PrincipalDashboard extends StatelessWidget {
                 icon: Icons.map_outlined,
                 text: 'Manage Master Plans',
                 onTap: () {
+                  // --- 2. THIS IS THE FIX ---
+                  
+                  // Get the school name from your user's data.
+                  final String schoolName = userData!['schoolName'];
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddSchoolMasterPlanPage(),
+                      // 3. Pass the schoolName to the correct screen
+                      builder: (context) => AddMasterPlanScreen(
+                        schoolName: schoolName,
+                      ),
                     ),
                   );
+                  // --- END OF FIX ---
                 },
               ),
 
@@ -152,7 +164,8 @@ class PrincipalDashboard extends StatelessWidget {
           BottomNavigationBarItem(
               icon: Icon(Icons.person_outline, size: 30), label: 'Profile'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined, size: 30), label: 'Settings'),
+              icon: Icon(Icons.settings_outlined, size: 30),
+              label: 'Settings'),
         ],
         // Navigation logic applied here
         onTap: (index) => _onItemTapped(context, index),
@@ -308,8 +321,7 @@ class PrincipalDashboard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.home_work_outlined,
-                size: 40, color: Colors.grey[700]),
+            Icon(Icons.home_work_outlined, size: 40, color: Colors.grey[700]),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
@@ -322,11 +334,11 @@ class PrincipalDashboard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(status,
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.grey[600])),
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey[600])),
                   Text(date,
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.grey[600])),
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey[600])),
                 ],
               ),
             ),
@@ -340,8 +352,8 @@ class PrincipalDashboard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              child: const Text('View Details',
-                  style: TextStyle(fontSize: 12)),
+              child:
+                  const Text('View Details', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),

@@ -1,410 +1,293 @@
-import 'dart:io'; // Required to work with File objects
-import 'package:firebase_storage/firebase_storage.dart'; // For file uploads
-import 'package:cloud_firestore/cloud_firestore.dart'; // For database
+import 'dart:convert'; // For jsonDecode
+import 'dart:io'; // For File (needed for mobile Image.file)
+
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // For Firestore
+import 'package:image_picker/image_picker.dart'; // For ImagePicker
+import 'package:http/http.dart' as http; // For HTTP requests
+import 'package:flutter/foundation.dart' show kIsWeb; // For checking if on web
 
-// Primary color for UI consistency
-const Color _primaryColor = Color(0xFF53BDFF);
+class AddMasterPlanScreen extends StatefulWidget {
+  final String schoolName;
 
-class AddSchoolMasterPlanPage extends StatefulWidget {
-  const AddSchoolMasterPlanPage({super.key});
+  const AddMasterPlanScreen({
+    Key? key,
+    required this.schoolName,
+  }) : super(key: key);
 
   @override
-  State<AddSchoolMasterPlanPage> createState() => _AddSchoolMasterPlanPageState();
+  _AddMasterPlanScreenState createState() => _AddMasterPlanScreenState();
 }
 
-class _AddSchoolMasterPlanPageState extends State<AddSchoolMasterPlanPage> {
-  // Store the File object directly
-  File? _masterPlanFile;
-  File? _updatedPlanFile;
-  
-  // To show a loading indicator while uploading
-  bool _isLoading = false; 
-  
-  // Text editing controllers
-  final TextEditingController _schoolNameController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
+  final _descriptionController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final ImagePicker _picker = ImagePicker();
 
-  @override
-  void dispose() {
-    _schoolNameController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
+  // We store the XFile from the picker directly. It's cross-platform.
+  XFile? _pickedFile;
+  bool _isLoading = false;
 
-  /// 1. Pick Image Logic
-  Future<void> _pickImage(String type) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png'],
-    );
+  // 1. Method to pick an image
+  Future<void> _pickImage() async {
+    final XFile? pickedFile =
+        await _picker.pickImage(source: ImageSource.gallery);
 
-    if (result != null && result.files.single.path != null) {
-      final filePath = result.files.single.path!;
-      final fileName = result.files.single.name;
-
+    if (pickedFile != null) {
       setState(() {
-        if (type == 'master') {
-          _masterPlanFile = File(filePath); // Store as File
-        } else if (type == 'updated') {
-          _updatedPlanFile = File(filePath); // Store as File
-        }
+        // Just store the XFile, don't convert it to a dart:io File
+        _pickedFile = pickedFile;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Selected: $fileName')),
-      );
-
-    } else {
-      // User canceled the picker
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File selection cancelled.')),
-      );
     }
   }
 
-  /// 2. Firebase Upload Logic
-  
-  /// Helper function to upload a file to Firebase Storage
-  Future<String> _uploadFile(File file, String schoolName, String planType) async {
-    try {
-      // Create a unique file name
-      String fileExtension = file.path.split('.').last;
-      String fileName = '${planType}_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
-      
-      // Create a reference in Firebase Storage
-      Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('school_plans') // Main folder
-          .child(schoolName)      // Sub-folder for the school
-          .child(fileName);       // File
-
-      // Upload the file
-      UploadTask uploadTask = storageRef.putFile(file);
-      TaskSnapshot snapshot = await uploadTask;
-
-      // Get the download URL
-      String downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
-
-    } catch (e) {
-      print("File Upload Error: $e");
-      throw Exception('Failed to upload file.');
+  // 2. Main method to upload and save data
+  Future<void> _uploadAndSave() async {
+    // --- Validation ---
+    if (!_formKey.currentState!.validate()) {
+      return; // Form is not valid
     }
-  }
-
-  /// Main function to save all data
-  Future<void> _saveToFirebase() async {
-    // Basic Validation
-    if (_schoolNameController.text.isEmpty) {
-      _showErrorSnackBar('Please enter a school name.');
-      return;
-    }
-    if (_masterPlanFile == null) {
-      _showErrorSnackBar('Please upload the main master plan.');
-      return;
+    if (_pickedFile == null) {
+      _showErrorSnackBar("Please select an image to upload.");
+      return; // No image selected
     }
 
-    // Show loading indicator
     setState(() {
       _isLoading = true;
     });
 
     try {
-      String schoolName = _schoolNameController.text.trim();
-      String? masterPlanUrl;
-      String? updatedPlanUrl;
+      // --- STEP A: Upload Image to your PHP Server ---
+      var uri = Uri.parse("http://buildcare.atigalle.x10.mx/index.php");
+      var request = http.MultipartRequest("POST", uri);
 
-      // Upload Master Plan (Required)
-      masterPlanUrl = await _uploadFile(_masterPlanFile!, schoolName, 'master');
+      // Add text fields
+      request.fields['description'] = _descriptionController.text;
+      request.fields['schoolName'] = widget.schoolName;
 
-      // Upload Updated Plan (Optional)
-      if (_updatedPlanFile != null) {
-        updatedPlanUrl = await _uploadFile(_updatedPlanFile!, schoolName, 'updated');
+      // --- This block is now cross-platform ---
+      // It uses the methods from XFile to read the data
+      if (kIsWeb) {
+        // WEB UPLOAD
+        var bytes = await _pickedFile!.readAsBytes();
+        var multipartFile = http.MultipartFile.fromBytes(
+          'master_plan_file',
+          bytes,
+          filename: _pickedFile!.name, // Use XFile.name
+        );
+        request.files.add(multipartFile);
+      } else {
+        // MOBILE UPLOAD
+        var stream = _pickedFile!.openRead();
+        var length = await _pickedFile!.length();
+        var multipartFile = http.MultipartFile(
+          'master_plan_file',
+          stream,
+          length,
+          filename: _pickedFile!.name, // Use XFile.name
+        );
+        request.files.add(multipartFile);
       }
+      // --- End of cross-platform block ---
 
-      // Save all data to Cloud Firestore
-      CollectionReference schools = FirebaseFirestore.instance.collection('schools');
+      // Send request and get response
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
 
-      await schools.add({
-        'schoolName': schoolName,
-        'description': _descriptionController.text.trim(),
-        'masterPlanUrl': masterPlanUrl, 
-        'updatedPlanUrl': updatedPlanUrl, // Can be null if not provided
-        'timestamp': FieldValue.serverTimestamp(), 
-      });
+      // Check PHP response
+      if (response.statusCode == 200) {
+        var decodedResponse = jsonDecode(responseBody);
 
-      // Success
-      setState(() {
-        _isLoading = false;
-      });
+        if (decodedResponse['status'] == 'success') {
+          // --- STEP B: Save URL to Firestore ---
+          String imageUrlFromPHP = decodedResponse['masterPlanUrl'];
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('School Plan saved successfully!')),
-      );
-      
-      // Navigate back after success
-      if (mounted) {
-          Navigator.of(context).pop();
+          await FirebaseFirestore.instance.collection('schoolMasterPlans').add({
+            'schoolName': widget.schoolName,
+            'description': _descriptionController.text,
+            'masterPlanUrl': imageUrlFromPHP,
+            'createdAt': Timestamp.now(),
+          });
+
+          _showSuccessSnackBar("Master plan added successfully!");
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        } else {
+          _showErrorSnackBar("Server error: ${decodedResponse['message']}");
+        }
+      } else {
+        _showErrorSnackBar("HTTP Error: ${response.statusCode}");
       }
-
     } catch (e) {
-      // Handle Errors
+      _showErrorSnackBar("An error occurred: $e");
+    } finally {
       setState(() {
         _isLoading = false;
       });
-      _showErrorSnackBar('Failed to save data: $e');
     }
   }
-  
-  // Helper for error messages
+
+  // --- Helper snackbar methods ---
   void _showErrorSnackBar(String message) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
           backgroundColor: Colors.red,
         ),
       );
+    }
   }
 
-  /// 3. Build Method (UI)
+  void _showSuccessSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  // 3. Build the UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
         title: const Text(
-          'Add School Master Plan',
+          "Add School Master Plan",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.blue),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: OutlinedButton(
-              onPressed: _isLoading ? null : _saveToFirebase, // Disable when loading
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: _primaryColor, width: 1.5),
-                foregroundColor: _primaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+          // Save Button
+          _isLoading
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                )
+              : TextButton(
+                  onPressed: _uploadAndSave, // This calls the upload function
+                  child: const Text(
+                    "Save",
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                disabledForegroundColor: Colors.grey,
-              ),
-              child: const Text(
-                'Save',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: _primaryColor),
-                  SizedBox(height: 16),
-                  Text("Uploading data..."),
-                ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- Image Upload Box ---
+              const Text(
+                "Upload Master Plan (JPG/PNG)",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // School Name Field
-                  _buildSectionTitle('School Name'),
-                  _buildTextField(
-                    controller: _schoolNameController,
-                    hintText: 'Enter Your School name',
-                    maxLines: 1,
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 200,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  const SizedBox(height: 30),
-
-                  // Master Plan Upload Section
-                  _buildSectionTitle('Upload Master Plan (JPG/PNG)'),
-                  _buildFileUploadArea(
-                    context,
-                    'Upload school master plan',
-                    _masterPlanFile, // Pass the File
-                    onTap: () => _pickImage('master'), 
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Description Field
-                  _buildSectionTitle('Description'),
-                  _buildTextField(
-                    controller: _descriptionController,
-                    hintText: 'describe about school master plan',
-                    maxLines: 5,
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Updated Master Plan Note
-                  _buildUpdatedPlanNote(),
-                  const SizedBox(height: 10),
-
-                  // Updated Master Plan Upload Section
-                  _buildFileUploadArea(
-                    context,
-                    'Upload updated school master plan',
-                    _updatedPlanFile, // Pass the File
-                    onTap: () => _pickImage('updated'),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                  // Check the new _pickedFile variable
+                  child: _pickedFile == null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image_search,
+                                size: 60,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Upload school master plan",
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          // This logic uses the XFile.path to display
+                          child: kIsWeb
+                              ? Image.network(
+                                  _pickedFile!.path, // Web uses Image.network
+                                  fit: BoxFit.cover,
+                                )
+                              : Image.file(
+                                  File(_pickedFile!
+                                      .path), // Mobile must use Image.file
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                ),
               ),
-            ),
-    );
-  }
+              const SizedBox(height: 24),
 
-  // --- Helper Widgets ---
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hintText,
-    required int maxLines,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          hintText: hintText,
-          contentPadding: const EdgeInsets.all(15),
-          border: InputBorder.none,
-          hintStyle: TextStyle(color: Colors.grey[500]),
-        ),
-      ),
-    );
-  }
-
-  /// MODIFIED: This function now displays a small image preview when a file is selected.
-  Widget _buildFileUploadArea(
-      BuildContext context,
-      String defaultText,
-      File? file, // Changed from String? to File?
-      {required VoidCallback onTap}) {
-    
-    final bool isSelected = file != null; 
-    final String displayText = isSelected 
-        ? file!.path.split('/').last // '!' operator added because isSelected ensures file is not null
-        : defaultText;
-    
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        height: 120,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? _primaryColor : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row( 
-          mainAxisAlignment: isSelected ? MainAxisAlignment.start : MainAxisAlignment.center,
-          children: [
-            // --- IMAGE PREVIEW ADDED HERE ---
-            if (isSelected) 
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: Image.file(
-                    file!, // Use Image.file to display the selected File
-                    width: 70, // Thumbnail width
-                    height: 100, // Thumbnail height
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      // Fallback icon if the image fails to load 
-                      return const Icon(Icons.insert_drive_file, size: 50, color: Colors.grey);
-                    },
+              // --- Description Box ---
+              const Text(
+                "Description",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: "describe about school master plan",
+                  fillColor: Colors.white,
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
-              )
-            else
-              // Default upload icon when no file is selected
-              const Icon(
-                Icons.cloud_upload_outlined,
-                size: 40,
-                color: Colors.grey,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please enter a description";
+                  }
+                  return null;
+                },
               ),
-
-            // --- File Name / Hint Text ---
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: isSelected ? 0.0 : 10.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isSelected ? 'File Selected:' : defaultText,
-                    style: TextStyle(
-                      fontSize: isSelected ? 12 : 16,
-                      color: isSelected ? Colors.grey[600] : Colors.grey[600],
-                    ),
-                  ),
-                  if (isSelected)
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width - 150, // Constrain text width
-                      child: Text(
-                        displayText,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildUpdatedPlanNote() {
-    return const Text(
-      'If newly added building to school, principal should upload their new master plan(JPG/PNG)',
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: Colors.black87,
       ),
     );
   }
