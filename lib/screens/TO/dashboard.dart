@@ -9,11 +9,12 @@ import 'add_school_screen.dart'; // Retained, though not used in the dashboard m
 
 // Issue Reporting Screens
 import 'issue_report_list_screen.dart';
-import 'issue_report_details_screen.dart'; 
+import 'issue_report_details_screen.dart';
 
 // --- NEW IMPORTS ---
 import 'contract_details.dart'; // Import for Contract Details Screen
-import 'contractor_details.dart'; // Import for Contractor Details Screen (New file)
+// --- CHANGED IMPORT ---
+import 'contractor_list_screen.dart'; // Import for Contractor List Screen
 
 // ====================================================================
 // WIDGET
@@ -208,7 +209,7 @@ class _DashboardScreenState extends State<TODashboard> {
             );
           },
         ),
-        // --- Contractor Details Card (NAVIGATES TO ContractorDetailsScreen) ---
+        // --- Contractor Details Card (NAVIGATES TO ContractorListScreen) ---
         _buildMenuCard(
           icon: Icons.business_center,
           title: 'Contractor Details',
@@ -216,7 +217,8 @@ class _DashboardScreenState extends State<TODashboard> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ContractorDetailsScreen(),
+                // --- NAVIGATION CHANGED ---
+                builder: (context) => const ContractorListScreen(),
               ),
             );
           },

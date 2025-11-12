@@ -27,7 +27,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
   final TextEditingController _contractorController = TextEditingController();
   final TextEditingController _typeController = TextEditingController();
   final TextEditingController _valueController = TextEditingController();
-  // Date-picker වල text පෙන්නන්න වෙනම controllers
+  // Date-picker
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
 
@@ -38,14 +38,14 @@ class _AddContractScreenState extends State<AddContractScreen> {
   @override
   void initState() {
     super.initState();
-    // 'Edit' mode එකක්ද කියා පරීක්ෂා කිරීම
+    // Check if we are in 'Edit' mode
     if (widget.contractId != null && widget.initialData != null) {
       _isEditMode = true;
       _populateForm(widget.initialData!);
     }
   }
 
-  // --- Helper: 'Edit' mode වලදී form එක පිරවීම ---
+  // --- Helper: Populate form for 'Edit' mode ---
   void _populateForm(Map<String, dynamic> data) {
     _cidaController.text = data['cidaRegisterNumber']?.toString() ?? '';
     _contractorController.text = data['contractorName']?.toString() ?? '';
@@ -113,7 +113,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
         return;
       }
 
-      // Save/Update කරන data map එක
+      // Data map to be saved/updated
       final Map<String, dynamic> contractData = {
         'cidaRegisterNumber': _cidaController.text.trim(),
         'contractorName': _contractorController.text.trim(),
@@ -136,7 +136,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
             const SnackBar(
                 content: Text('Contract details updated successfully!')),
           );
-          // 'Edit' (this) සහ 'View' (previous) screens දෙකම close කර list එකට යෑම
+          // Close both the 'Edit' (this) and 'View' (previous) screens to return to the list
           Navigator.of(context).pop(); // Close Edit screen
           Navigator.of(context).pop(); // Close View screen
         } else {
@@ -150,7 +150,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
             const SnackBar(
                 content: Text('Contract details saved successfully!')),
           );
-          // 'Add' screen එක close කර list එකට යෑම
+          // Close the 'Add' screen and return to the list
           Navigator.pop(context);
         }
       } catch (e) {
@@ -187,7 +187,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
           ),
           const SizedBox(height: 8),
           TextFormField(
-            controller: controller, // අදාල controller එක pass කිරීම
+            controller: controller, // Pass the respective controller
             readOnly: isDate,
             onTap: isDate ? onTap : null,
             keyboardType: keyboardType,
@@ -227,7 +227,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          // Title එක 'Edit' mode එකට අනුව වෙනස් කිරීම
+          // Change the title based on 'Edit' mode
           _isEditMode ? 'Edit Contract' : 'Add Contract Details',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
@@ -239,7 +239,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
           TextButton(
             onPressed: _saveContractDetails,
             child: Text(
-              // Button text එක 'Edit' mode එකට අනුව වෙනස් කිරීම
+              // Change the button text based on 'Edit' mode
               _isEditMode ? 'Update' : 'Save',
               style: const TextStyle(
                   color: kPrimaryBlue, fontWeight: FontWeight.bold),
@@ -288,7 +288,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
                   hintText: 'Enter Project Start Date',
                   suffixIcon: Icons.calendar_today,
                   controller:
-                      _startDateController, // Date controller එක pass කිරීම
+                      _startDateController, // Pass the date controller
                   isDate: true,
                   onTap: () => _selectDate(context, true),
                 ),
@@ -298,7 +298,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
                   hintText: 'Enter Project End Date',
                   suffixIcon: Icons.calendar_today,
                   controller:
-                      _endDateController, // Date controller එක pass කිරීම
+                      _endDateController, // Pass the date controller
                   isDate: true,
                   onTap: () => _selectDate(context, false),
                 ),

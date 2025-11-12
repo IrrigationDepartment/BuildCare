@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ContractorDetailsScreen extends StatefulWidget {
-  const ContractorDetailsScreen({super.key});
+class AddContractorScreen extends StatefulWidget {
+  // --- Fields for Edit Mode ---
+  final String? contractorId;
+  final Map<String, dynamic>? initialData;
+
+  const AddContractorScreen({
+    super.key,
+    this.contractorId,
+    this.initialData,
+  });
 
   @override
-  State<ContractorDetailsScreen> createState() => _ContractorDetailsScreenState();
+  State<AddContractorScreen> createState() => _AddContractorScreenState();
 }
 
-class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
+class _AddContractorScreenState extends State<AddContractorScreen> {
   // --- Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
@@ -23,6 +31,27 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
   final TextEditingController _nicController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
 
+  bool _isEditMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check if we are in 'Edit' mode
+    if (widget.contractorId != null && widget.initialData != null) {
+      _isEditMode = true;
+      _populateForm(widget.initialData!);
+    }
+  }
+
+  // --- Helper: Populate form for 'Edit' mode ---
+  void _populateForm(Map<String, dynamic> data) {
+    _companyNameController.text = data['companyName']?.toString() ?? '';
+    _cidaController.text = data['cidaRegistrationNumber']?.toString() ?? '';
+    _contractorNameController.text = data['contractorName']?.toString() ?? '';
+    _nicController.text = data['nicNumber']?.toString() ?? '';
+    _contactController.text = data['contactNumber']?.toString() ?? '';
+  }
+
   @override
   void dispose() {
     _companyNameController.dispose();
@@ -33,29 +62,49 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
     super.dispose();
   }
 
-  // --- Firebase Save Logic ---
-  Future<void> _saveContractorDetails() async {
+  // --- Firebase Save / Update Logic ---
+  Future<void> _saveContractor() async {
     // 1. Validate the form fields
     if (_formKey.currentState!.validate()) {
+      // 2. Prepare data
+      final Map<String, dynamic> contractorData = {
+        'companyName': _companyNameController.text.trim(),
+        'cidaRegistrationNumber': _cidaController.text.trim(),
+        'contractorName': _contractorNameController.text.trim(),
+        'nicNumber': _nicController.text.trim(),
+        'contactNumber': _contactController.text.trim(),
+      };
+
       try {
-        // 2. Save data to Firestore
-        await FirebaseFirestore.instance.collection('contractor_details').add({
-          'companyName': _companyNameController.text.trim(),
-          'cidaRegistrationNumber': _cidaController.text.trim(),
-          'contractorName': _contractorNameController.text.trim(),
-          'nicNumber': _nicController.text.trim(),
-          'contactNumber': _contactController.text.trim(),
-          'timestamp': FieldValue.serverTimestamp(),
-        });
+        if (_isEditMode) {
+          // --- UPDATE Logic ---
+          contractorData['lastUpdated'] = FieldValue.serverTimestamp();
+          await FirebaseFirestore.instance
+              .collection('contractor_details')
+              .doc(widget.contractorId!)
+              .update(contractorData);
 
-        // 3. Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Contractor details saved successfully!')),
-        );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Contractor details updated successfully!')),
+          );
+          // Pop twice: Close Edit screen, then close View screen
+          Navigator.of(context).pop();
+          Navigator.of(context).pop();
+        } else {
+          // --- ADD (New) Logic ---
+          contractorData['timestamp'] = FieldValue.serverTimestamp();
+          await FirebaseFirestore.instance
+              .collection('contractor_details')
+              .add(contractorData);
 
-        // 4. Navigate back
-        Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Contractor details saved successfully!')),
+          );
+          // Pop once: Close Add screen
+          Navigator.pop(context);
+        }
       } catch (e) {
         // 5. Show error message
         ScaffoldMessenger.of(context).showSnackBar(
@@ -65,7 +114,7 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
     }
   }
 
-  // --- Custom Text Field Widget (Similar to contract_details.dart) ---
+  // --- Custom Text Field Widget ---
   Widget _buildTextField({
     required String label,
     required String hintText,
@@ -119,7 +168,7 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
-      // --- App Bar (Matches existing screen style) ---
+      // --- App Bar (Adjusts title for Edit/Add) ---
       appBar: AppBar(
         backgroundColor: kBackgroundColor,
         elevation: 0,
@@ -127,9 +176,9 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
           icon: const Icon(Icons.arrow_back, color: kTextColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Contractor Details',
-          style: TextStyle(
+        title: Text(
+          _isEditMode ? 'Edit Contractor' : 'Add Contractor',
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: kTextColor,
           ),
@@ -149,7 +198,7 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
                 const Padding(
                   padding: EdgeInsets.only(bottom: 24.0),
                   child: Text(
-                    'Manage Contractor Information and Documents',
+                    'Manage Contractor Information',
                     style: TextStyle(
                       fontSize: 15,
                       color: kSubTextColor,
@@ -160,21 +209,19 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
                 // 1. Contractor Company Name
                 _buildTextField(
                   label: 'Contractor Company Name',
-                  hintText: 'Enter Your Company Name',
-                  suffixIcon: Icons.business, // Icon matches image
+                  hintText: 'Enter Company Name',
+                  suffixIcon: Icons.business,
                   controller: _companyNameController,
-                  validator: (value) => value!.isEmpty
-                      ? 'Please enter the company name'
-                      : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter company name' : null,
                 ),
 
                 // 2. CIDA Registration Number
                 _buildTextField(
                   label: 'CIDA Registration Number',
-                  hintText: 'Enter Your Registaion Number',
-                  suffixIcon: Icons.badge, // Icon matches image
+                  hintText: 'Enter Registaion Number',
+                  suffixIcon: Icons.badge,
                   controller: _cidaController,
-                  keyboardType: TextInputType.number,
                   validator: (value) =>
                       value!.isEmpty ? 'Please enter CIDA number' : null,
                 ),
@@ -182,8 +229,8 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
                 // 3. Contractor Name
                 _buildTextField(
                   label: 'Contractor Name',
-                  hintText: 'Enter Your Name',
-                  suffixIcon: Icons.person, // Icon matches image
+                  hintText: 'Enter Name',
+                  suffixIcon: Icons.person,
                   controller: _contractorNameController,
                   validator: (value) =>
                       value!.isEmpty ? 'Please enter contractor name' : null,
@@ -192,8 +239,8 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
                 // 4. NIC number
                 _buildTextField(
                   label: 'NIC number',
-                  hintText: 'Enter your NIC number',
-                  suffixIcon: Icons.credit_card, // Icon matches image
+                  hintText: 'Enter NIC number',
+                  suffixIcon: Icons.credit_card,
                   controller: _nicController,
                   validator: (value) =>
                       value!.isEmpty ? 'Please enter NIC number' : null,
@@ -202,8 +249,8 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
                 // 5. Contact Number
                 _buildTextField(
                   label: 'Contact Number',
-                  hintText: 'Enter Your Contact Number',
-                  suffixIcon: Icons.phone, // Icon matches image
+                  hintText: 'Enter Contact Number',
+                  suffixIcon: Icons.phone,
                   controller: _contactController,
                   keyboardType: TextInputType.phone,
                   validator: (value) {
@@ -219,50 +266,26 @@ class _ContractorDetailsScreenState extends State<ContractorDetailsScreen> {
 
                 const SizedBox(height: 32),
 
-                // --- Buttons (Matching style and colors) ---
-                Row(
-                  children: [
-                    // Save Button
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _saveContractorDetails,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryBlue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20), // Rounded corners for button
-                          ),
-                          elevation: 5,
-                        ),
-                        child: const Text(
-                          'Save',
-                          style:
-                              TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
+                // --- Save/Update Button ---
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saveContractor,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
+                      elevation: 5,
                     ),
-                    const SizedBox(width: 20),
-                    // Back Button
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: kPrimaryBlue,
-                          side: const BorderSide(color: kPrimaryBlue, width: 2),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20), // Rounded corners for button
-                          ),
-                        ),
-                        child: const Text(
-                          'Back',
-                          style:
-                              TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                    child: Text(
+                      _isEditMode ? 'Update Details' : 'Save Details',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),

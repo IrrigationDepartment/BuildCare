@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-// --- 1. 'add_contract.dart' IMPORT ---
-import 'add_contract.dart'; 
+// --- 1. 'add_contractor_screen.dart' IMPORT ---
+import 'add_contractor_screen.dart';
 
-class ViewContractDetailsScreen extends StatelessWidget {
-  final String contractId;
+class ViewContractorScreen extends StatelessWidget {
+  final String contractorId;
 
-  const ViewContractDetailsScreen({super.key, required this.contractId});
+  const ViewContractorScreen({super.key, required this.contractorId});
 
   // --- Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
@@ -38,7 +37,7 @@ class ViewContractDetailsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            value,
+            value.isEmpty ? 'N/A' : value, // Handle empty strings
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -51,26 +50,46 @@ class ViewContractDetailsScreen extends StatelessWidget {
     );
   }
 
+  // --- Delete Contractor Logic ---
+  Future<void> _deleteContractor(BuildContext context) async {
+    // Show confirmation dialog
+    bool? confirmDelete = await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Are you sure?'),
+        content: const Text('Do you want to permanently delete this contractor?'),
+        actions: [
+          TextButton(
+            child: const Text('No'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          TextButton(
+            child: const Text('Yes, Delete'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmDelete == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('contractor_details')
+            .doc(contractorId)
+            .delete();
+        // Pop back to the list screen
+        Navigator.of(context).pop();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete contractor: $e')),
+        );
+      }
+    }
+  }
+
   // --- Widget for the main content card ---
   Widget _buildDetailsCard(BuildContext context, Map<String, dynamic> data) {
-    // Helper function to format dates
-    String formatDate(dynamic timestamp) {
-      if (timestamp is Timestamp) {
-        return DateFormat('yyyy-MM-dd').format(timestamp.toDate());
-      } else if (timestamp is DateTime) {
-        return DateFormat('yyyy-MM-dd').format(timestamp);
-      }
-      return 'N/A';
-    }
-
-    // Helper function to format currency
-    String formatCurrency(dynamic value) {
-      if (value is num) {
-        return NumberFormat.currency(locale: 'en_US', symbol: 'LKR').format(value);
-      }
-      return 'N/A';
-    }
-
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Card(
@@ -86,7 +105,7 @@ class ViewContractDetailsScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Contract Details',
+                    'Contractor Profile',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -100,57 +119,53 @@ class ViewContractDetailsScreen extends StatelessWidget {
                 ],
               ),
               const Divider(color: kPrimaryBlue, thickness: 2, height: 20),
-              
-              // Contract Details Fields
+
+              // Contractor Details Fields
               _buildDetailRow(
-                'CIDA Reg. Number', 
-                data['cidaRegisterNumber']?.toString() ?? 'N/A',
+                'Company Name',
+                data['companyName']?.toString() ?? 'N/A',
+                icon: Icons.business,
+              ),
+              _buildDetailRow(
+                'CIDA Reg. Number',
+                data['cidaRegistrationNumber']?.toString() ?? 'N/A',
                 icon: Icons.badge,
               ),
               _buildDetailRow(
-                'Contractor Name', 
+                'Contractor Name',
                 data['contractorName']?.toString() ?? 'N/A',
                 icon: Icons.person,
               ),
               _buildDetailRow(
-                'Type of Contract', 
-                data['typeOfContract']?.toString() ?? 'N/A',
-                icon: Icons.category,
+                'NIC Number',
+                data['nicNumber']?.toString() ?? 'N/A',
+                icon: Icons.credit_card,
               ),
               _buildDetailRow(
-                'Contract Value', 
-                formatCurrency(data['contractValue']),
-                icon: Icons.attach_money,
+                'Contact Number',
+                data['contactNumber']?.toString() ?? 'N/A',
+                icon: Icons.phone,
               ),
-              _buildDetailRow(
-                'Start Date', 
-                formatDate(data['startDate']),
-                icon: Icons.event,
-              ),
-              _buildDetailRow(
-                'End Date', 
-                formatDate(data['endDate']),
-                icon: Icons.event_busy,
-              ),
-              
+
               const SizedBox(height: 20),
-              // --- 2. EDIT BUTTON ACTION change---
+              // --- 2. EDIT BUTTON ACTION ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // 'Edit' screen navigate 
+                    // Navigate to the Add/Edit screen in 'Edit' mode
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => AddContractScreen(
-                          contractId: contractId, // Document ID pass
-                          initialData: data,      // current data  pass 
+                        builder: (context) => AddContractorScreen(
+                          contractorId: contractorId, // Pass the Document ID
+                          initialData: data,         // Pass the current data
                         ),
                       ),
                     );
                   },
                   icon: const Icon(Icons.edit, size: 20),
-                  label: const Text('Edit Details', style: TextStyle(fontSize: 16)),
+                  label:
+                      const Text('Edit Details', style: TextStyle(fontSize: 16)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryBlue,
                     foregroundColor: Colors.white,
@@ -159,6 +174,25 @@ class ViewContractDetailsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     elevation: 5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // --- 3. DELETE BUTTON ---
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _deleteContractor(context),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  label: const Text('Delete Contractor',
+                      style: TextStyle(fontSize: 16)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               )
@@ -181,7 +215,7 @@ class ViewContractDetailsScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'View Contract',
+          'View Contractor',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Color(0xFF333333),
@@ -190,18 +224,22 @@ class ViewContractDetailsScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('contracts').doc(contractId).get(),
+        future: FirebaseFirestore.instance
+            .collection('contractor_details')
+            .doc(contractorId)
+            .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error loading details: ${snapshot.error}'));
+            return Center(
+                child: Text('Error loading details: ${snapshot.error}'));
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Contract details not found.'));
+            return const Center(child: Text('Contractor details not found.'));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -210,7 +248,6 @@ class ViewContractDetailsScreen extends StatelessWidget {
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 600),
-                // context සහ data, _buildDetailsCard එකට pass කිරීම
                 child: _buildDetailsCard(context, data),
               ),
             ),
