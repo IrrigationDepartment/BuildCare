@@ -35,13 +35,17 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with the correct keys from Firestore
+    // Initialize controllers with data.
+    // **IMPORTANT**: If 'principalName', 'phone', or 'mobile' are not the
+    // exact keys in your Firestore document, you must change them here.
+    // I've kept your existing keys and added a safe default ('') using `??`.
     _principalNameController =
         TextEditingController(text: widget.userData['principalName'] ?? '');
     _schoolNameController =
         TextEditingController(text: widget.userData['schoolName'] ?? '');
     _schoolTypeController =
         TextEditingController(text: widget.userData['schoolType'] ?? '');
+    // Assuming 'Title' field in the UI is 'userType' in Firestore
     _titleController =
         TextEditingController(text: widget.userData['userType'] ?? '');
     _emailController =
@@ -93,6 +97,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
+      // Data fields that are editable and need to be updated in Firestore
       final dataToUpdate = {
         'principalName': _principalNameController.text.trim(),
         'email': _emailController.text.trim(),
@@ -152,7 +157,8 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Column(
         children: [
-          _buildTextField(_principalNameController, "Principal Name"),
+          // This field is made editable as it's part of the `dataToUpdate` map.
+          _buildTextField(_principalNameController, "Principal Name", readOnly: false), 
           const SizedBox(height: 10),
           _buildTextField(_schoolNameController, "School Name", readOnly: true),
           const SizedBox(height: 10),
@@ -229,6 +235,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return TextField(
       controller: controller,
       readOnly: readOnly,
+      style: TextStyle(color: readOnly ? Colors.black54 : Colors.black),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(
@@ -304,6 +311,7 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildSectionTitle('Personal Information'),
             _buildPersonalInfoCard(),
             _buildSectionTitle('Contact Information'),
+            // These fields are editable and will be updated
             _buildEditableInfoCard(
                 _emailController, 'Work Email', Icons.email_outlined),
             _buildEditableInfoCard(

@@ -20,7 +20,6 @@ class PrincipalDashboard extends StatelessWidget {
       // Profile - Navigate to ProfilePage
       if (userData != null) {
         // NOTE: The actual userId would come from your authentication process
-        // For demonstration, we use a placeholder or assume a key exists.
         final String principalId = userData!['uid'] ?? 'principal_doc_id_123';
         Navigator.push(
           context,
@@ -56,8 +55,9 @@ class PrincipalDashboard extends StatelessWidget {
               Icon(Icons.error_outline, color: Colors.red, size: 60),
               SizedBox(height: 16),
               Text(
-                'Could not load user data.',
+                'Could not load user data. Please ensure "name" is available.',
                 style: TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -65,6 +65,8 @@ class PrincipalDashboard extends StatelessWidget {
       );
     }
 
+    // ⭐ STEP 1: Extract the principal's name from the user data map.
+    // The key 'name' is assumed to hold the principal's full name from sign-up.
     final String principalName = userData!['name'];
 
     return Scaffold(
@@ -76,7 +78,8 @@ class PrincipalDashboard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              _buildWelcomeHeader(principalName),
+              // ⭐ STEP 2: Pass the extracted name to the header widget.
+              _buildWelcomeHeader(principalName), 
               const SizedBox(height: 30),
 
               // Button 1: Navigate to Add School Details Form
@@ -157,7 +160,11 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- WELCOME HEADER CARD --- (No change)
+  // --------------------------------------------------------------------------
+  // --- WIDGET HELPER FUNCTIONS ---
+  // --------------------------------------------------------------------------
+
+  // ⭐ WELCOME HEADER CARD: This function takes the principal's name as an argument.
   Widget _buildWelcomeHeader(String name) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -192,8 +199,9 @@ class PrincipalDashboard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
+              // ⭐ NAME DISPLAY: This Text widget displays the name passed in the argument.
               Text(
-                name,
+                name, // The principal's name is shown here!
                 style: TextStyle(fontSize: 16, color: Colors.grey[700]),
               ),
             ],
@@ -203,7 +211,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- ACTION BUTTON CARD --- (No change)
+  // --- ACTION BUTTON CARD ---
   Widget _buildActionButton({
     required IconData icon,
     required String text,
@@ -252,7 +260,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- REPORTED ISSUES SECTION --- (No change)
+  // --- REPORTED ISSUES SECTION ---
   Widget _buildReportedIssuesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +291,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- ISSUE CARD --- (Error fixed: removed duplicate 'required')
+  // --- ISSUE CARD ---
   Widget _buildIssueCard({
     required String title,
     required String status,
