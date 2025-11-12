@@ -40,9 +40,9 @@ class ViewDamageDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Damage Reports', style: TextStyle(color: Colors.white)),
-        backgroundColor: _primaryBlue,
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Damage Reports', style: TextStyle(color: Color.fromARGB(255, 5, 5, 5))),
+        backgroundColor: const Color.fromARGB(255, 248, 248, 248),
+        iconTheme: const IconThemeData(color: Color.fromARGB(255, 13, 13, 13)),
       ),
       backgroundColor: _backgroundColor,
       body: ListView.builder(
@@ -65,7 +65,7 @@ class ViewDamageDetailsPage extends StatelessWidget {
             'Damage Details',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: _primaryBlue, // Title color
+              color: const Color.fromARGB(255, 30, 46, 66), // Title color
             ),
           ),
           content: SingleChildScrollView(
@@ -231,7 +231,7 @@ class ViewDamageDetailsPage extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: Colors.white),
+            Icon(icon, size: 16, color: const Color.fromARGB(255, 255, 255, 255)),
             const SizedBox(width: 4),
             Text(
               label,
