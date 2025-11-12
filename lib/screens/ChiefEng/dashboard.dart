@@ -318,7 +318,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => IssueReportScreen()));
+                        builder: (context) => DamageDetailsListScreen()));
               },
             ),
             const SizedBox(height: 12),
@@ -728,7 +728,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
 class SchoolService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Schools collection එකේ මුළු documents ගණන ලබාගන්න
+  
   Future<int> getTotalSchoolsCount() async {
     try {
       QuerySnapshot snapshot = await _firestore.collection('schools').get();
@@ -739,7 +739,7 @@ class SchoolService {
     }
   }
 
-  // Real-time updates අවශ්ය නම්
+  
   Stream<int> getSchoolsCountStream() {
     return _firestore.collection('schools').snapshots().map(
           (snapshot) => snapshot.size,
