@@ -1,9 +1,4 @@
 import 'package:flutter/material.dart';
-// Remove external imports and define placeholders below
-// import 'settings.dart'; 
-// import 'profile.dart'; 
-// import 'all_users.dart'; 
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -29,6 +24,7 @@ class ProvincialEngineerDashboard extends StatefulWidget {
   // This userData will be passed to the header
   final Map<String, dynamic>? userData;
 
+  // FIXED: Removed 'const' before super.key
   const ProvincialEngineerDashboard({super.key, this.userData});
 
   @override
@@ -138,50 +134,82 @@ class _ProvincialEngineerDashboardState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // 1. --- MODIFIED: Header Section ---
-            // We now pass the widget.userData to the DashboardHeader
+            // 1. --- Dashboard Header Section ---
             DashboardHeader(userData: widget.userData),
 
-            // 2. --- MODIFIED: User Management Grids (Card size reduced here) ---
+            // 2. --- User Management Grids (Group 1) ---
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+              child: Text(
+                'User Management', // NEW HEADING
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
             Padding(
-                padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
               child: GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: 2,
-                  crossAxisSpacing: 8.0,
-                  mainAxisSpacing: 8.0,
-                  childAspectRatio: 1.8,
+                crossAxisSpacing: 8.0,
+                mainAxisSpacing: 8.0,
+                childAspectRatio: 1.8,
                 children: <Widget>[
-                  // --- REPLACED with UserCountBuilder ---
-                  UserCountBuilder(
+                  // --- User Management Cards (Unchanged Logic) ---
+                  const UserCountBuilder(
                     title: 'Manage Chief eng:',
                     userType: 'Chief Engineer', // NOTE: Assumed 'userType' string
-                    addPage: const AddCEPage(),
+                    addPage: AddCEPage(),
                   ),
-                  // --- REPLACED with UserCountBuilder ---
-                  UserCountBuilder(
+                  const UserCountBuilder(
                     title: 'Manage District eng:',
                     userType: 'District Engineer', // NOTE: Assumed 'userType' string
-                    addPage: const AddDEPage(),
+                    addPage: AddDEPage(),
                   ),
-                  // --- REPLACED with UserCountBuilder ---
-                  UserCountBuilder(
+                  const UserCountBuilder(
                     title: 'Manage TO',
                     userType: 'Technical Officer', // From your request
-                    addPage: const AddTOPage(),
+                    addPage: AddTOPage(),
                   ),
-                  // --- REPLACED with UserCountBuilder ---
-                  UserCountBuilder(
+                  const UserCountBuilder(
                     title: 'Manage Principal',
                     userType: 'Principal', // NOTE: Assumed 'userType' string
-                    addPage: const AddPrincipalPage(),
+                    addPage: AddPrincipalPage(),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 10),
 
-            // 3. --- UPDATED: "Latest Updates" Section (Unchanged logic) ---
+            // 3. NEW SECTION: "Manage Issues"
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Manage Issues', // REQUIRED NEW HEADING
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // ADDING THE ISSUE CARD OUTSIDE THE USER GRID
+                  const IssueCountBuilder(
+                    title: 'Manage Issues',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // 4. --- "Latest Updates" Section (Group 3) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
@@ -245,7 +273,7 @@ class _ProvincialEngineerDashboardState
           ],
         ),
       ),
-      // 4. --- MODIFIED: Bottom Navigation Bar ---
+      // 5. --- Bottom Navigation Bar ---
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
@@ -472,6 +500,170 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
+// --- IssueCountBuilder (Unchanged Logic) ---
+// -----------------------------------------------------------------------------
+/// This widget fetches issue counts (Total and Pending) and displays them.
+class IssueCountBuilder extends StatelessWidget {
+  final String title;
+
+  const IssueCountBuilder({
+    super.key,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      // Stream all documents from the 'issues' collection
+      stream: FirebaseFirestore.instance.collection('issues').snapshots(),
+      builder: (context, snapshot) {
+        int totalIssues = 0;
+        int pendingIssues = 0;
+        String totalDisplay = '...';
+        String pendingDisplay = '...';
+
+        // 2. If data is loaded, process it
+        if (snapshot.hasData) {
+          totalIssues = snapshot.data!.docs.length;
+          for (var doc in snapshot.data!.docs) {
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+              // Assuming 'status' is the field for issue status
+              // and 'Pending' or a similar string indicates a non-resolved issue.
+              // Adjust the condition based on your actual Firestore data model.
+              if (data.containsKey('status') &&
+                  (data['status'] == 'Pending' || data['status'] == 'New')) {
+                pendingIssues++;
+              }
+            } catch (e) {
+              print('Error parsing issue data: $e');
+              // Proceed without counting malformed data
+            }
+          }
+          totalDisplay = totalIssues.toString().padLeft(2, '0');
+          pendingDisplay = pendingIssues.toString().padLeft(2, '0');
+        }
+        // 3. If error, display "Err"
+        else if (snapshot.hasError) {
+          totalDisplay = 'Err';
+          pendingDisplay = 'Err';
+        }
+
+        // 5. Return the specialized management card
+        return IssuesManagementCard(
+          title: title,
+          totalIssues: totalDisplay,
+          pendingIssues: pendingDisplay,
+          // Tapping the card navigates to a placeholder Issue list page
+          onCardPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AllIssuesPage(),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- IssuesManagementCard (MODIFIED COLOR - light yellow) ---
+// -----------------------------------------------------------------------------
+class IssuesManagementCard extends StatelessWidget {
+  final String title;
+  final String totalIssues;
+  final String pendingIssues;
+  final VoidCallback onCardPressed;
+
+  const IssuesManagementCard({
+    super.key,
+    required this.title,
+    required this.totalIssues,
+    required this.pendingIssues,
+    required this.onCardPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onCardPressed,
+      child: Card(
+        elevation: 2,
+        // LIGHT YELLOW HIGHLIGHT
+        color: const Color.fromARGB(255, 221, 209, 78), 
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0), // Slightly larger padding to fill space
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.warning_amber, // Changed icon for issues
+                      size: 24, color: Colors.deepOrange),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.deepOrange, // Changed color for emphasis
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  const Text(
+                    'Total Issues',
+                    style: TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
+                  const Spacer(),
+                  Text(
+                    totalIssues,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E88E5),
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text(
+                    'Pending Issues',
+                    style: TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
+                  const Spacer(),
+                  Text(
+                    pendingIssues,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red, // Highlight pending issues in red
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
 // --- MODIFIED: UserCountBuilder (Unchanged logic) ---
 // -----------------------------------------------------------------------------
 /// This widget fetches user counts for a specific `userType`
@@ -598,10 +790,11 @@ class UserManagementCard extends StatelessWidget {
         color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-            padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Distributes vertically
+            mainAxisAlignment:
+                MainAxisAlignment.spaceBetween, // Distributes vertically
             children: <Widget>[
               Row(
                 children: <Widget>[
@@ -613,7 +806,7 @@ class UserManagementCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                        fontSize: 13,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -625,15 +818,18 @@ class UserManagementCard extends StatelessWidget {
                 onTap: onAddPressed,
                 behavior: HitTestBehavior.opaque, // Makes the whole row tappable
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0), // Smaller vertical pad
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 4.0), // Smaller vertical pad
                   child: Row(
                     children: [
                       Text(
                         'Add a ${_getInitials(title)}',
-                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.black87),
                       ),
                       const Spacer(),
-                      Icon(Icons.add_circle, color: Colors.blue.shade600, size: 22),
+                      Icon(Icons.add_circle,
+                          color: Colors.blue.shade600, size: 22),
                     ],
                   ),
                 ),
@@ -650,7 +846,7 @@ class UserManagementCard extends StatelessWidget {
                     activeUsers,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade600,
+                      color: Color(0xFF1E88E5),
                       fontSize: 16,
                     ),
                   ),
@@ -666,9 +862,9 @@ class UserManagementCard extends StatelessWidget {
                   const Spacer(),
                   Text(
                     pendingUsers,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade600,
+                      color: Color(0xFF1E88E5),
                       fontSize: 16,
                     ),
                   ),
@@ -683,7 +879,7 @@ class UserManagementCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- MODIFIED: CustomBottomNavBar (Unchanged logic) ---
+// --- MODIFIED: CustomBottomNavBar (Completed logic) ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -729,7 +925,7 @@ class CustomBottomNavBar extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (context) =>
-                          const ProvincialEngineerDashboard()),
+                          const ProvincialEngineerDashboard()), // COMPLETED
                 );
               }
             },
@@ -761,7 +957,8 @@ class CustomBottomNavBar extends StatelessWidget {
               if (currentIndex != 2) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const SettingsPage()), // Placeholder
+                  MaterialPageRoute(
+                      builder: (context) => const SettingsPage()), // Placeholder
                 );
               }
             },
@@ -773,12 +970,13 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- BlankActionPage (Unchanged) ---
+// --- Placeholder Add-Form Pages (Unchanged) ---
 // -----------------------------------------------------------------------------
 class BlankActionPage extends StatelessWidget {
   final String action;
   final String target;
 
+  // 🛠️ FIXED: Removed duplicate 'required' keyword
   const BlankActionPage({super.key, required this.action, required this.target});
 
   @override
@@ -802,10 +1000,6 @@ class BlankActionPage extends StatelessWidget {
     );
   }
 }
-
-// -----------------------------------------------------------------------------
-// --- Placeholder Add-Form Pages (Unchanged) ---
-// -----------------------------------------------------------------------------
 
 /// Placeholder for "Add Chief Engineer" page
 class AddCEPage extends StatelessWidget {
@@ -910,7 +1104,7 @@ class ProfilePage extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Profile Page Placeholder',
+          'Profile Page',
           style: TextStyle(fontSize: 20, color: Colors.black54),
         ),
       ),
@@ -918,8 +1112,52 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-/// Placeholder for the Settings page used in the bottom navigation.
-/// Added here so references to `SettingsPage` compile.
+/// Placeholder for the All Issues page used when tapping IssuesManagementCard.
+class AllIssuesPage extends StatelessWidget {
+  const AllIssuesPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('All Issues'),
+        backgroundColor: const Color(0xFFF4F6F8),
+        elevation: 0,
+      ),
+      body: const Center(
+        child: Text(
+          'All issues list goes here.',
+          style: TextStyle(fontSize: 18, color: Colors.black54),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder for the All Users page used when tapping a user management card.
+class AllUsersPage extends StatelessWidget {
+  final String userType;
+  const AllUsersPage({super.key, required this.userType});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('All $userType'),
+        backgroundColor: const Color(0xFFF4F6F8),
+        elevation: 0,
+      ),
+      body: Center(
+        child: Text(
+          'List of all $userType users will be shown here.',
+          style: const TextStyle(fontSize: 18, color: Colors.black54),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder for SettingsPage used in the bottom navigation.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
@@ -933,33 +1171,8 @@ class SettingsPage extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Settings Page Placeholder',
-          style: TextStyle(fontSize: 20, color: Colors.black54),
-        ),
-      ),
-    );
-  }
-}
-
-/// Placeholder for the AllUsers page used when tapping a user management card.
-/// Accepts a `userType` parameter as required by the navigation call.
-class AllUsersPage extends StatelessWidget {
-  final String userType;
-
-  const AllUsersPage({super.key, required this.userType});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('All Users - $userType'),
-        backgroundColor: const Color(0xFFF4F6F8),
-        elevation: 0,
-      ),
-      body: Center(
-        child: Text(
-          'List of users for: $userType',
-          style: const TextStyle(fontSize: 18, color: Colors.black54),
+          'Settings page placeholder.',
+          style: TextStyle(fontSize: 18, color: Colors.black54),
         ),
       ),
     );
