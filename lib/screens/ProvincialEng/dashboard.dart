@@ -1,17 +1,17 @@
-// lib/provincial_engineer_dashboard.dart
+// lib/provincial_engineer_dashboard.dart (or dashboard.dart)
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
-// NEW IMPORT: Issues View link 
-import 'view_issues.dart'; 
+// NEW IMPORT: Issues View link
+import 'view_issues.dart';
 
 // -----------------------------------------------------------------------------
 // --- HELPER CLASS: ActivityItem ---
 // -----------------------------------------------------------------------------
 class ActivityItem {
   final DocumentSnapshot snapshot;
-  final String itemType; 
+  final String itemType;
   final DateTime timestamp;
 
   ActivityItem({
@@ -63,7 +63,7 @@ class _ProvincialEngineerDashboardState
         .collection('issues')
         .orderBy('timestamp', descending: true)
         .limit(5)
-        .snapshots() 
+        .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
               return ActivityItem(
                 snapshot: doc,
@@ -76,7 +76,7 @@ class _ProvincialEngineerDashboardState
         .collection('schools')
         .orderBy('addedAt', descending: true)
         .limit(5)
-        .snapshots() 
+        .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
               return ActivityItem(
                 snapshot: doc,
@@ -89,7 +89,7 @@ class _ProvincialEngineerDashboardState
         .collection('users')
         .orderBy('createdAt', descending: true)
         .limit(5)
-        .snapshots() 
+        .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
               return ActivityItem(
                 snapshot: doc,
@@ -135,7 +135,7 @@ class _ProvincialEngineerDashboardState
             const Padding(
               padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
               child: Text(
-                'User Management', 
+                'User Management',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -153,27 +153,27 @@ class _ProvincialEngineerDashboardState
                 mainAxisSpacing: 8.0,
                 // 🚨 UPDATED: Changed to 1.3 to give cards MORE height
                 // This makes them square-ish and fixes the internal overflow
-                childAspectRatio: 1.3, 
+                childAspectRatio: 1.3,
                 children: const <Widget>[
                   // --- User Management Cards (Unchanged Logic) ---
                   UserCountBuilder(
                     title: 'Manage Chief eng:',
-                    userType: 'Chief Engineer', 
+                    userType: 'Chief Engineer',
                     addPage: AddCEPage(),
                   ),
                   UserCountBuilder(
                     title: 'Manage District eng:',
-                    userType: 'District Engineer', 
+                    userType: 'District Engineer',
                     addPage: AddDEPage(),
                   ),
                   UserCountBuilder(
                     title: 'Manage TO',
-                    userType: 'Technical Officer', 
+                    userType: 'Technical Officer',
                     addPage: AddTOPage(),
                   ),
                   UserCountBuilder(
                     title: 'Manage Principal',
-                    userType: 'Principal', 
+                    userType: 'Principal',
                     addPage: AddPrincipalPage(),
                   ),
                 ],
@@ -181,14 +181,14 @@ class _ProvincialEngineerDashboardState
             ),
             const SizedBox(height: 10),
 
-            // 3.  MANAGE ISSUES SECTION 
+            // 3.  MANAGE ISSUES SECTION
             Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
                   Text(
-                    'Manage Issues', 
+                    'Manage Issues',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -457,7 +457,7 @@ class DashboardHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'Welcome, $userName!', 
+                'Welcome, $userName!',
                 style: const TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.bold,
@@ -465,7 +465,7 @@ class DashboardHeader extends StatelessWidget {
                 ),
               ),
               Text(
-                userRole, 
+                userRole,
                 style: const TextStyle(
                   fontSize: 18,
                   color: Colors.black54,
@@ -515,8 +515,7 @@ class IssueCountBuilder extends StatelessWidget {
           }
           totalDisplay = totalIssues.toString().padLeft(2, '0');
           pendingDisplay = pendingIssues.toString().padLeft(2, '0');
-        }
-        else if (snapshot.hasError) {
+        } else if (snapshot.hasError) {
           totalDisplay = 'Err';
           pendingDisplay = 'Err';
         }
@@ -563,7 +562,7 @@ class IssuesManagementCard extends StatelessWidget {
       onTap: onCardPressed,
       child: Card(
         elevation: 2,
-        color: const Color(0xFFFFFCDE), 
+        color: const Color(0xFFFFFCDE),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -582,7 +581,7 @@ class IssuesManagementCard extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: Colors.deepOrange, 
+                        color: Colors.deepOrange,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -672,13 +671,12 @@ class UserCountBuilder extends StatelessWidget {
               }
             } catch (e) {
               print('Error parsing user data for $userType: $e');
-              pendingCount++; 
+              pendingCount++;
             }
           }
           activeDisplay = activeCount.toString().padLeft(2, '0');
           pendingDisplay = pendingCount.toString().padLeft(2, '0');
-        }
-        else if (snapshot.hasError) {
+        } else if (snapshot.hasError) {
           activeDisplay = 'Err';
           pendingDisplay = 'Err';
         }
@@ -716,16 +714,16 @@ class UserManagementCard extends StatelessWidget {
   final String title;
   final String activeUsers;
   final String pendingUsers;
-  final VoidCallback onCardPressed; 
-  final VoidCallback onAddPressed; 
+  final VoidCallback onCardPressed;
+  final VoidCallback onAddPressed;
 
   const UserManagementCard({
     super.key,
     required this.title,
     required this.activeUsers,
     required this.pendingUsers,
-    required this.onCardPressed, 
-    required this.onAddPressed, 
+    required this.onCardPressed,
+    required this.onAddPressed,
   });
 
   String _getInitials(String title) {
@@ -750,7 +748,7 @@ class UserManagementCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             // 🚨 UPDATED: Use spaceEvenly to fix internal overflow
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly, 
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               // --- Title Row ---
               Row(
@@ -771,18 +769,19 @@ class UserManagementCard extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               // --- Add Button Row ---
               GestureDetector(
                 onTap: onAddPressed,
-                behavior: HitTestBehavior.opaque, 
+                behavior: HitTestBehavior.opaque,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0), 
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
                   child: Row(
                     children: [
                       Text(
                         'Add a ${_getInitials(title)}',
-                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black87),
                       ),
                       const Spacer(),
                       Icon(Icons.add_circle,
@@ -791,7 +790,7 @@ class UserManagementCard extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               // --- Active Users Row ---
               Row(
                 children: [
@@ -810,7 +809,7 @@ class UserManagementCard extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               // --- Pending Users Row ---
               Row(
                 children: [
@@ -826,7 +825,6 @@ class UserManagementCard extends StatelessWidget {
                       color: Color.fromARGB(255, 92, 172, 241),
                       fontSize: 16,
                     ),
-                    
                   ),
                 ],
               ),
@@ -851,7 +849,7 @@ class CustomBottomNavBar extends StatelessWidget {
     final Color inactiveColor = Colors.blue.shade400;
 
     return Container(
-      height: 60, 
+      height: 60,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
@@ -882,7 +880,7 @@ class CustomBottomNavBar extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (context) =>
-                          const ProvincialEngineerDashboard()), 
+                          const ProvincialEngineerDashboard()),
                 );
               }
             },
@@ -913,7 +911,7 @@ class CustomBottomNavBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const SettingsPage()), 
+                      builder: (context) => const SettingsPage()),
                 );
               }
             },
@@ -925,10 +923,10 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- MODIFIED: Issue Detail Page (Functional Implementation) ---
+// --- 🚨🚨🚨 THIS IS THE FIXED WIDGET 🚨🚨🚨 ---
 // -----------------------------------------------------------------------------
 
-/// The detail page that fetches and displays a single issue's details and image.
+/// The detail page that fetches and displays a single issue's details and images.
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
 
@@ -948,7 +946,8 @@ class IssueDetailPage extends StatelessWidget {
   }
 
   // Helper widget for detail rows
-  Widget _buildDetailRow(String label, String value, {Color valueColor = Colors.black87}) {
+  Widget _buildDetailRow(String label, String value,
+      {Color valueColor = Colors.black87}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -981,7 +980,8 @@ class IssueDetailPage extends StatelessWidget {
       ),
       body: FutureBuilder<DocumentSnapshot>(
         // Fetch the specific document using the issueId
-        future: FirebaseFirestore.instance.collection('issues').doc(issueId).get(),
+        future:
+            FirebaseFirestore.instance.collection('issues').doc(issueId).get(),
         builder: (context, snapshot) {
           // 1. Loading State
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1000,14 +1000,19 @@ class IssueDetailPage extends StatelessWidget {
 
           // 4. Data Loaded State
           final issueData = snapshot.data!.data() as Map<String, dynamic>;
-          
-          final String issueTitle = issueData['issueTitle'] ?? 'No Title Provided';
+
+          final String issueTitle =
+              issueData['issueTitle'] ?? 'No Title Provided';
           final String schoolName = issueData['schoolName'] ?? 'N/A';
           final String status = issueData['status'] ?? 'N/A';
-          final String description = issueData['description'] ?? 'No description available.';
-          // 🚨 Assuming the image URL is stored in a field called 'imageUrl'
-          final String imageUrl = issueData['imageUrl'] ?? ''; 
-          
+          final String description =
+              issueData['description'] ?? 'No description available.';
+              
+          // ⭐️ === FIX: Read the 'imageUrls' list (plural) ===
+          // Get the field as 'imageUrls' and cast it as a List.
+          // Default to an empty list [] if the field is null.
+          final List<dynamic> imageUrls = issueData['imageUrls'] ?? [];
+
           Color statusColor = _getStatusColor(status);
 
           return SingleChildScrollView(
@@ -1015,49 +1020,56 @@ class IssueDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // 🚨 Display the Image
-                if (imageUrl.isNotEmpty) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10.0),
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      height: 250,
-                      width: double.infinity,
-                      // --- Image Loading and Error Handling Logic ---
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
+                
+                // ⭐️ === FIX: Check if the LIST is empty ===
+                if (imageUrls.isNotEmpty) ...[
+                  // If the list has images, build a horizontal scroll view
+                  SizedBox(
+                    height: 250,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: imageUrls.length,
+                      itemBuilder: (context, index) {
+                        // Get the specific URL from the list
+                        final String imageUrl = imageUrls[index] as String;
+                        
                         return Container(
-                          height: 250,
-                          color: Colors.grey[200],
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                  : null,
+                          width: 300, // Width of each image
+                          margin: const EdgeInsets.only(right: 10.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10.0),
+                            child: Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              // --- Image Loading and Error Handling ---
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: Icon(Icons.image_not_supported,
+                                        size: 50, color: Colors.grey),
+                                  ),
+                                );
+                              },
+                              // --- End Image Handling ---
                             ),
                           ),
                         );
                       },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 250,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                             color: Colors.grey[200],
-                             borderRadius: BorderRadius.circular(10.0),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
-                          ),
-                        );
-                      },
-                      // --- End Image Loading/Error Handling ---
                     ),
                   ),
                   const SizedBox(height: 20),
                 ] else ...[
-                  // Placeholder for no image
+                  // This is the original placeholder, shown if the list is empty
                   Container(
                     height: 100,
                     width: double.infinity,
@@ -1069,25 +1081,31 @@ class IssueDetailPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                 ],
-                
-                // --- Details ---
+
+                // --- Details (This part was correct) ---
                 Text(
                   issueTitle,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
-                
-                _buildDetailRow('School Name', schoolName, valueColor: Colors.black54),
-                _buildDetailRow('Issue ID', issueId, valueColor: Colors.black54),
+
+                _buildDetailRow('School Name', schoolName,
+                    valueColor: Colors.black54),
+                _buildDetailRow('Issue ID', issueId,
+                    valueColor: Colors.black54),
                 const SizedBox(height: 10),
-                
+
                 // Status Section
                 Row(
                   children: [
-                    const Text('Status:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('Status:',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(15),
@@ -1104,9 +1122,9 @@ class IssueDetailPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                
+
                 const Divider(height: 30),
-                
+
                 // Description Section
                 const Text(
                   'Description:',
@@ -1115,10 +1133,9 @@ class IssueDetailPage extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   description,
-                  style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.5),
+                  style: const TextStyle(
+                      fontSize: 16, color: Colors.black87, height: 1.5),
                 ),
-                
-                // Add more details here if needed (e.g., reporter, date, location)
               ],
             ),
           );
@@ -1128,6 +1145,9 @@ class IssueDetailPage extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// --- Placeholder Pages (Unchanged) ---
+// -----------------------------------------------------------------------------
 
 class AddCEPage extends StatelessWidget {
   const AddCEPage({super.key});
@@ -1137,7 +1157,7 @@ class AddCEPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Chief Engineer'),
-        backgroundColor: const Color(0xFFF4F6F8), 
+        backgroundColor: const Color(0xFFF4F6F8),
         elevation: 0,
       ),
       body: const Center(
@@ -1158,7 +1178,7 @@ class AddDEPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add District Engineer'),
-        backgroundColor: const Color(0xFFF4F6F8), 
+        backgroundColor: const Color(0xFFF4F6F8),
         elevation: 0,
       ),
       body: const Center(
@@ -1179,7 +1199,7 @@ class AddTOPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Technical Officer'),
-        backgroundColor: const Color(0xFFF4F6F8), 
+        backgroundColor: const Color(0xFFF4F6F8),
         elevation: 0,
       ),
       body: const Center(
@@ -1200,7 +1220,7 @@ class AddPrincipalPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Principal'),
-        backgroundColor: const Color(0xFFF4F6F8), 
+        backgroundColor: const Color(0xFFF4F6F8),
         elevation: 0,
       ),
       body: const Center(
@@ -1230,7 +1250,7 @@ class ProfilePage extends StatelessWidget {
           style: TextStyle(fontSize: 20, color: Colors.black54),
         ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 1), 
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 1),
     );
   }
 }
@@ -1252,7 +1272,7 @@ class SettingsPage extends StatelessWidget {
           style: TextStyle(fontSize: 20, color: Colors.black54),
         ),
       ),
-      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 2), 
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 2),
     );
   }
 }
