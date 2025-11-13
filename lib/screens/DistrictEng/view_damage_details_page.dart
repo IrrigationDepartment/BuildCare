@@ -1,4 +1,6 @@
+// view_damage_details_page.dart
 import 'package:flutter/material.dart';
+import 'damage_details_dialog.dart'; // 1. Import the new dialog file
 
 class ViewDamageDetailsPage extends StatelessWidget {
   const ViewDamageDetailsPage({super.key});
@@ -55,82 +57,16 @@ class ViewDamageDetailsPage extends StatelessWidget {
     );
   }
 
-  // --- NEW FUNCTION: Show Damage Details Dialog ---
+  // Refactored to use the imported DamageDetailsDialog
   void _showDamageDetailsDialog(BuildContext context, Map<String, String> report) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Damage Details',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: const Color.fromARGB(255, 30, 46, 66), // Title color
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // 1. School Name
-                _buildDetailRow('School', report['school']!),
-                const Divider(),
-                // 2. Damage Details
-                _buildDetailRow('Damage Details', report['details']!),
-                const Divider(),
-                // 3. Date
-                _buildDetailRow('Date', report['date']!),
-                const Divider(),
-                // 4. Status
-                _buildDetailRow('Status', report['status']!),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text(
-                'CLOSE',
-                style: TextStyle(color: Colors.black),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-            ),
-          ],
-        );
+        return DamageDetailsDialog(report: report); // Use the imported widget
       },
     );
   }
 
-  // Helper widget to build a consistent row for details in the dialog
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$label:',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Colors.black54, // Label color
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87, // Value color
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
   // Widget to build a single report card
   Widget _buildReportCard(BuildContext context, Map<String, String> report) {
     final String school = report['school'] ?? 'N/A';
@@ -186,15 +122,14 @@ class ViewDamageDetailsPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // 1. VIEW Button (Blue) - ***UPDATED CALL HERE***
+                // 1. VIEW Button (Blue) - Calls the external dialog
                 _buildActionButton(
                   context,
                   'View',
                   Icons.visibility,
                   _primaryBlue,
                   () {
-                    // Call the new function when 'View' is tapped
-                    _showDamageDetailsDialog(context, report);
+                    _showDamageDetailsDialog(context, report); // Call external dialog
                   },
                 ),
                 const SizedBox(width: 8),
