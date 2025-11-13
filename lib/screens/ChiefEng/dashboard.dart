@@ -165,11 +165,13 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       SchoolsDashboardCard(),
+                      TechnicalOfficerDashboardCardStream(),
+
 
                       // _buildOverviewCard(
                       //     'Total Schools', '150', const Color(0xFFB3E5FC)),
-                      _buildOverviewCard(
-                          'Active TOs', '25', const Color(0xFFB3E5FC)),
+                      // _buildOverviewCard(
+                      //     'Active TOs', '25', const Color(0xFFB3E5FC)),
                       _buildOverviewCard(
                           'Active DE', '3', const Color(0xFFB3E5FC)),
                     ],
@@ -846,6 +848,171 @@ class SchoolsDashboardCardStream extends StatelessWidget {
     return Container(
       width: 90,
       padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+//todo:view to
+
+class TechnicalOfficerService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // Total count එක Future වලින්
+  Future<int> getTotalTOCount() async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .where('userType', isEqualTo: 'Technical Officer') // Fixed typo
+          .get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting Technical Officers count: $e');
+      return 0;
+    }
+  }
+  
+  // Real-time count එක Stream වලින්
+  Stream<int> getTOCountStream() {
+    return _firestore
+        .collection('users')
+        .where('userType', isEqualTo: 'Technical Officer')
+        .snapshots()
+        .map((snapshot) => snapshot.size);
+  }
+}
+
+// Dashboard Card - Future version
+class TechnicalOfficerDashboardCard extends StatefulWidget {
+  const TechnicalOfficerDashboardCard({Key? key}) : super(key: key);
+
+  @override
+  State<TechnicalOfficerDashboardCard> createState() => 
+      _TechnicalOfficerDashboardCardState();
+}
+
+class _TechnicalOfficerDashboardCardState 
+    extends State<TechnicalOfficerDashboardCard> {
+  final TechnicalOfficerService _toService = TechnicalOfficerService();
+  int _toCount = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTOCount();
+  }
+
+  Future<void> _loadTOCount() async {
+    try {
+      final count = await _toService.getTotalTOCount();
+      setState(() {
+        _toCount = count;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('Error loading TO count: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildOverviewCard(
+      'Technical Officers',
+      _isLoading ? '...' : _toCount.toString(),
+      const Color(0xFFB3E5FC),
+      // Light yellow color
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String count, Color color) {
+    return Container(
+      width: 90,
+      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Dashboard Card - Stream version (Real-time updates)
+class TechnicalOfficerDashboardCardStream extends StatelessWidget {
+  const TechnicalOfficerDashboardCardStream({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: TechnicalOfficerService().getTOCountStream(),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final count = snapshot.data ?? 0;
+        
+        return _buildOverviewCard(
+          'Technical Officers',
+          isLoading ? '...' : count.toString(),
+          const Color(0xFFB3E5FC),
+
+        );
+      },
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String count, Color color) {
+    return Container(
+      width: 90,
+      padding: const EdgeInsets.symmetric(vertical: 10, 
+      horizontal: 10),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(15),
