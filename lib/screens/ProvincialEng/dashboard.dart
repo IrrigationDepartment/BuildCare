@@ -151,7 +151,9 @@ class _ProvincialEngineerDashboardState
                 crossAxisCount: 2,
                 crossAxisSpacing: 8.0,
                 mainAxisSpacing: 8.0,
-                childAspectRatio: 1.8,
+                // 🚨 UPDATED: Changed to 1.3 to give cards MORE height
+                // This makes them square-ish and fixes the internal overflow
+                childAspectRatio: 1.3, 
                 children: const <Widget>[
                   // --- User Management Cards (Unchanged Logic) ---
                   UserCountBuilder(
@@ -708,7 +710,7 @@ class UserCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserManagementCard (Unchanged logic) ---
+// --- UserManagementCard (UPDATED for better spacing) ---
 // -----------------------------------------------------------------------------
 class UserManagementCard extends StatelessWidget {
   final String title;
@@ -743,12 +745,14 @@ class UserManagementCard extends StatelessWidget {
         color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          // 🚨 UPDATED: Padding increased to 12.0 for a cleaner look
+          padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment:
-                MainAxisAlignment.spaceBetween, 
+            // 🚨 UPDATED: Use spaceEvenly to fix internal overflow
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly, 
             children: <Widget>[
+              // --- Title Row ---
               Row(
                 children: <Widget>[
                   const Icon(Icons.person_outline,
@@ -759,25 +763,26 @@ class UserManagementCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        // 🚨 UPDATED: Font size increased for clarity
+                        fontSize: 14,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
+              
+              // --- Add Button Row ---
               GestureDetector(
                 onTap: onAddPressed,
                 behavior: HitTestBehavior.opaque, 
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 4.0), 
+                  padding: const EdgeInsets.symmetric(vertical: 4.0), 
                   child: Row(
                     children: [
                       Text(
                         'Add a ${_getInitials(title)}',
-                        style:
-                            const TextStyle(fontSize: 13, color: Colors.black87),
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
                       ),
                       const Spacer(),
                       Icon(Icons.add_circle,
@@ -786,7 +791,8 @@ class UserManagementCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 5), 
+              
+              // --- Active Users Row ---
               Row(
                 children: [
                   const Text(
@@ -804,7 +810,8 @@ class UserManagementCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 5),
+              
+              // --- Pending Users Row ---
               Row(
                 children: [
                   const Text(
@@ -941,14 +948,14 @@ class IssueDetailPage extends StatelessWidget {
   }
 
   // Helper widget for detail rows
-  Widget _buildDetailRow(String label, String value, Color valueColor) {
+  Widget _buildDetailRow(String label, String value, {Color valueColor = Colors.black87}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            label,
+            "$label: ",
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: 8),
@@ -998,7 +1005,7 @@ class IssueDetailPage extends StatelessWidget {
           final String schoolName = issueData['schoolName'] ?? 'N/A';
           final String status = issueData['status'] ?? 'N/A';
           final String description = issueData['description'] ?? 'No description available.';
-          // Assuming the image URL is stored in a field called 'imageUrl'
+          // 🚨 Assuming the image URL is stored in a field called 'imageUrl'
           final String imageUrl = issueData['imageUrl'] ?? ''; 
           
           Color statusColor = _getStatusColor(status);
@@ -1008,7 +1015,7 @@ class IssueDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // Display the Image
+                // 🚨 Display the Image
                 if (imageUrl.isNotEmpty) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10.0),
@@ -1070,8 +1077,8 @@ class IssueDetailPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 
-                _buildDetailRow('School Name:', schoolName, Colors.black54),
-                _buildDetailRow('Issue ID:', issueId, Colors.black54),
+                _buildDetailRow('School Name', schoolName, valueColor: Colors.black54),
+                _buildDetailRow('Issue ID', issueId, valueColor: Colors.black54),
                 const SizedBox(height: 10),
                 
                 // Status Section

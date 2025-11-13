@@ -2,11 +2,29 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Importing the main file as IssueDetailPage is defined there
+// Importing IssueDetailPage from dashboard.dart
 import 'dashboard.dart'; 
 
 class ViewIssuesPage extends StatelessWidget {
   const ViewIssuesPage({super.key});
+
+  // Helper function to determine status color (Duplicated for simplicity, 
+  // better to move to a common utility file in a real app)
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'New':
+      case 'Pending':
+        return Colors.orange.shade700;
+      case 'In Progress':
+        return Colors.blue.shade700;
+      case 'Resolved':
+        return Colors.green.shade700;
+      case 'Closed':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade600;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,40 +74,24 @@ class ViewIssuesPage extends StatelessWidget {
             itemBuilder: (context, index) {
               final issueDoc = issues[index];
               final issueData = issueDoc.data() as Map<String, dynamic>;
-              final issueId = issueDoc.id; // 🚨 Get the Issue ID
+              final issueId = issueDoc.id; // Get the Issue ID
               
-              final schoolName = issueData['schoolName'] ?? 'Unknown School';
               final issueTitle = issueData['issueTitle'] ?? 'No Title';
+              final schoolName = issueData['schoolName'] ?? 'Unknown School';
               final status = issueData['status'] ?? 'N/A';
-              
-              Color statusColor;
-              IconData statusIcon;
-              
-              // Determine icon and color based on status
-              if (status == 'Resolved' || status == 'Completed') {
-                statusColor = Colors.green.shade600;
-                statusIcon = Icons.check_circle;
-              } else if (status == 'Pending' || status == 'New') {
-                statusColor = Colors.red.shade700;
-                statusIcon = Icons.error;
-              } else if (status == 'Ongoing' || status == 'In Progress') {
-                statusColor = Colors.orange.shade600;
-                statusIcon = Icons.pending_actions;
-              } else {
-                statusColor = Colors.grey.shade600;
-                statusIcon = Icons.info_outline;
-              }
+              Color statusColor = _getStatusColor(status);
 
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                color: Colors.white,
                 elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: statusColor.withOpacity(0.4), width: 1),
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 child: ListTile(
-                  leading: Icon(statusIcon, color: statusColor, size: 28),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  leading: Icon(
+                    Icons.warning_amber,
+                    color: statusColor,
+                    size: 30,
+                  ),
                   title: Text(
                     issueTitle,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -113,10 +115,10 @@ class ViewIssuesPage extends StatelessWidget {
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black54),
                   // 🚨 Updated Navigation Logic to IssueDetailPage
                   onTap: () {
+                    // Pass the Issue ID to the Detail Page
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        // Pass the Issue ID to the Detail Page
                         builder: (context) => IssueDetailPage(issueId: issueId),
                       ),
                     );
