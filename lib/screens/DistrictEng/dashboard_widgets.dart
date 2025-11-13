@@ -1,7 +1,6 @@
 
-//
-// 📁 FILENAME: dashboard_widgets.dart
-//
+//  FILENAME: dashboard_widgets.dart
+
 import 'package:flutter/material.dart';
 
 // Import the pages you need to navigate to

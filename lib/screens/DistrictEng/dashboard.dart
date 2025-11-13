@@ -1,6 +1,5 @@
-//
-// 📁 FILENAME: district_eng_dashboard.dart
-//
+// Main dashboard screen for District Engineer
+
 import 'package:flutter/material.dart';
 
 // Import the two files we just created
