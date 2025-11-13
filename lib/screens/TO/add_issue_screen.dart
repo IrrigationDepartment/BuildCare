@@ -104,7 +104,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     }
 
     // --- USING THE NEW LINK ---
-    var uri = Uri.parse("http://buildcare.atwebpages.com/index.php");
+    var uri = Uri.parse("https://buildcare.atigalle.x10.mx/");
     var request = http.MultipartRequest("POST", uri);
 
     for (var imageFile in _selectedImages) {
