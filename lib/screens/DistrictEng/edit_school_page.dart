@@ -1,5 +1,3 @@
-// edit_school_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +6,13 @@ import '../../models/school.dart';
 // --- NEW: Edit School Page ---
 class EditSchoolPage extends StatefulWidget {
   final School school;
-  const EditSchoolPage({Key? key, required this.school}) : super(key: key);
+  final String userNic; // <-- MODIFIED: Accept the user's NIC
+
+  const EditSchoolPage({
+    Key? key, 
+    required this.school,
+    required this.userNic, // <-- MODIFIED: Add to constructor
+  }) : super(key: key);
 
   @override
   _EditSchoolPageState createState() => _EditSchoolPageState();
@@ -91,8 +95,9 @@ class _EditSchoolPageState extends State<EditSchoolPage> {
     });
 
     try {
-      // TODO: Get the real NIC of the logged-in user
-      const String currentUserNic = "admin_nic_001_edited";
+      
+      // <-- MODIFIED: Use the NIC passed to this widget
+      final String currentUserNic = widget.userNic;
 
       // Prepare the data to be updated
       final Map<String, dynamic> updateData = {
@@ -107,7 +112,7 @@ class _EditSchoolPageState extends State<EditSchoolPage> {
 
         // --- Add the "Edit Record" fields ---
         'lastEditedAt': Timestamp.now(),
-        'lastEditedByNic': currentUserNic,
+        'lastEditedByNic': currentUserNic, // Save the real NIC
       };
 
       // Update the document in Firestore

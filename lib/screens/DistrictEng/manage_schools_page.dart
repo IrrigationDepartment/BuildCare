@@ -1,5 +1,3 @@
-// main_manage_schools_page.dart 
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
@@ -128,7 +126,13 @@ class SchoolDetailsDialog extends StatelessWidget {
 
 // --- Main Page (Converted to StatefulWidget) ---
 class ManageSchoolsPage extends StatefulWidget {
-  const ManageSchoolsPage({Key? key}) : super(key: key);
+  // <-- MODIFIED: Add this to accept the logged-in user's NIC
+  final String userNic;
+
+  const ManageSchoolsPage({
+    Key? key,
+    required this.userNic, // <-- MODIFIED: Make it required
+  }) : super(key: key);
 
   @override
   State<ManageSchoolsPage> createState() => _ManageSchoolsPageState();
@@ -176,7 +180,11 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => EditSchoolPage(school: school),
+        // <-- MODIFIED: This is the fix for line 179
+        builder: (context) => EditSchoolPage(
+          school: school,
+          userNic: widget.userNic, // <-- Pass the user's NIC
+        ),
       ),
     );
   }
@@ -184,9 +192,8 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
   // Function to update the school's activation status in Firestore
   Future<void> _updateSchoolStatus(School school, bool newStatus) async {
     try {
-      // NEW: Also update the edit record when activating/deactivating
-      // TODO: Replace 'admin_nic_001' with the actual logged-in user's NIC
-      final String currentUserNic = "admin_nic_001";
+      // <-- MODIFIED: Use the real user's NIC, not a hardcoded value
+      final String currentUserNic = widget.userNic;
 
       await FirebaseFirestore.instance
           .collection('schools')
@@ -278,7 +285,7 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
                   return const Center(
                       child: Text('No schools match your search.'));
                 } else if (filteredSchools.isEmpty) {
-                   return const Center(child: Text('No schools found.'));
+                  return const Center(child: Text('No schools found.'));
                 }
 
 

@@ -1,5 +1,4 @@
-
-//  FILENAME: dashboard_widgets.dart
+// FILENAME: dashboard_widgets.dart
 
 import 'package:flutter/material.dart';
 
@@ -63,6 +62,7 @@ class DashboardOverview extends StatelessWidget {
   final int totalSchools;
   final int activeTOs;
   final int pendingRequests;
+  final String userNic; // <-- MODIFIED: Add this field
 
   const DashboardOverview({
     super.key,
@@ -70,6 +70,7 @@ class DashboardOverview extends StatelessWidget {
     required this.totalSchools,
     required this.activeTOs,
     required this.pendingRequests,
+    required this.userNic, // <-- MODIFIED: Add to constructor
   });
 
   @override
@@ -105,9 +106,10 @@ class DashboardOverview extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _ManageButton('Manage Schools'),
-              _ManageButton('Manage TOs'),
-              _ManageButton('Manage Principals'),
+              // <-- MODIFIED: Pass the userNic to the buttons -->
+              _ManageButton('Manage Schools', userNic: userNic),
+              _ManageButton('Manage TOs', userNic: userNic),
+              _ManageButton('Manage Principals', userNic: userNic),
             ],
           ),
         ],
@@ -254,7 +256,9 @@ class _OverviewCard extends StatelessWidget {
 // This was _buildManageButton
 class _ManageButton extends StatelessWidget {
   final String label;
-  const _ManageButton(this.label);
+  final String userNic; // <-- MODIFIED: Add this field
+
+  const _ManageButton(this.label, {required this.userNic}); // <-- MODIFIED: Update constructor
 
   @override
   Widget build(BuildContext context) {
@@ -267,13 +271,15 @@ class _ManageButton extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ManageSchoolsPage(),
+                  // <-- MODIFIED: This is the FIX for the error
+                  builder: (context) => ManageSchoolsPage(userNic: userNic),
                 ),
               );
             } else if (label == 'Manage TOs') {
               Navigator.push(
                 context,
                 MaterialPageRoute(
+                  // TODO: This page will also need the 'userNic'
                   builder: (context) => const ManageTechnicalOfficersPage(),
                 ),
               );
@@ -281,6 +287,7 @@ class _ManageButton extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
+                  // TODO: This page will also need the 'userNic'
                   builder: (context) => const ManagePrincipalsPage(),
                 ),
               );

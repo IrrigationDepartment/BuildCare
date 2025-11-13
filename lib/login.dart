@@ -85,19 +85,24 @@ class _LoginPageState extends State<LoginPage> {
           Widget destination;
           switch (userType) {
             case 'Provincial Engineer':
+              // ⭐ You are correctly passing all data (including NIC) here
               destination = ProvincialEngDashboard(userData: userData);
               break;
             case 'Chief Engineer':
+              // ⭐ You are correctly passing all data (including NIC) here
               destination = ChiefEngDashboard(userData: userData);
               break;
             case 'District Engineer':
+              // ⭐ You are correctly passing all data (including NIC) here
               destination = DistrictEngDashboard(userData: userData);
               break;
             case 'Principal':
+              // ⭐ You are correctly passing all data (including NIC) here
               destination = PrincipalDashboard(userData: userData);
               break;
             case 'Technical Officer':
-              destination = TODashboard(userData: userData); 
+              // ⭐ You are correctly passing all data (including NIC) here
+              destination = TODashboard(userData: userData);
               break;
             default:
               _showMessage('Login Error',
@@ -188,7 +193,7 @@ class _LoginPageState extends State<LoginPage> {
                 _buildPasswordField(),
                 const SizedBox(height: 12),
 
-                // [----- ADD THIS WIDGET -----]
+                // [----- FORGOT PASSWORD WIDGET -----]
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
