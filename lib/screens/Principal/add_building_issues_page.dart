@@ -13,8 +13,16 @@ import 'package:flutter/services.dart'; // For Uint8List, though imported via fo
 class AddBuildingIssuesPage extends StatefulWidget {
   // Added userNic parameter, consistent with add_issue_screen.dart
   final String userNic;
+  // Optional parameters for editing
+  final String? issueId;
+  final Map<String, dynamic>? issueData;
 
-  const AddBuildingIssuesPage({super.key, required this.userNic});
+  const AddBuildingIssuesPage({
+    super.key,
+    required this.userNic,
+    this.issueId,
+    this.issueData,
+  });
 
   @override
   State<AddBuildingIssuesPage> createState() => _AddBuildingIssuesPageState();
@@ -69,6 +77,27 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     'Windows/Doors Frame Damage',
     'Staircase & Corridor Damage'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // If editing, populate the fields with existing data
+    if (widget.issueId != null && widget.issueData != null) {
+  _schoolNameController.text = widget.issueData!['schoolName'] ?? '';
+  _floorsController.text = (widget.issueData!['numFloors'] ?? 0).toString();
+  _classroomsController.text = (widget.issueData!['numClassrooms'] ?? 0).toString();
+  _descriptionController.text = widget.issueData!['description'] ?? '';
+      _selectedBuilding = widget.issueData!['buildingName'];
+      _selectedDamageType = widget.issueData!['damageType'];
+      
+      // Handle date
+      if (widget.issueData!['dateOfOccurance'] != null) {
+        final Timestamp timestamp = widget.issueData!['dateOfOccurance'];
+        _selectedDate = timestamp.toDate();
+        _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -143,7 +172,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  // --- 2. Main Save Function (NEW) ---
+  // --- 2. Main Save Function (UPDATED to support editing) ---
   Future<void> _saveIssue() async {
     // 1. Validation
     if (!_formKey.currentState!.validate()) {
@@ -161,11 +190,13 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Step 1: Upload images
-      List<String> uploadedImageUrls = await _uploadImages();
-
-      if (_selectedImages.isNotEmpty && uploadedImageUrls.isEmpty) {
-        throw Exception('Failed to upload images. Please check server connection.');
+      // Step 1: Upload images (only if new images are selected)
+      List<String> uploadedImageUrls = [];
+      if (_selectedImages.isNotEmpty) {
+        uploadedImageUrls = await _uploadImages();
+        if (uploadedImageUrls.isEmpty) {
+          throw Exception('Failed to upload images. Please check server connection.');
+        }
       }
 
       // Step 2: Prepare Data
@@ -173,37 +204,57 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding, // From Dropdown
         'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
-        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
-        'damageType': _selectedDamageType, // From Dropdown
+  'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
+  'damageType': _selectedDamageType, // From Dropdown
         'issueTitle': '$_selectedBuilding - $_selectedDamageType', // Generated Title
         'description': _descriptionController.text.trim(),
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
-        'imageUrls': uploadedImageUrls,
-        'status': 'Pending', // Default status
-        // ⭐ NIC IS SAVED HERE
         'addedByNic': widget.userNic,
         'timestamp': FieldValue.serverTimestamp(),
       };
 
-      // Step 3: Save to 'issues' collection
-      await FirebaseFirestore.instance.collection('issues').add(issueData);
+      // If new images were uploaded, update the imageUrls field
+      if (uploadedImageUrls.isNotEmpty) {
+        issueData['imageUrls'] = uploadedImageUrls;
+      }
+
+      // If editing, preserve status; if creating new, set to Pending
+      if (widget.issueId == null) {
+        issueData['status'] = 'Pending'; // Default status for new issues
+      }
+
+      // Step 3: Save or Update to 'issues' collection
+      if (widget.issueId != null) {
+        // UPDATE existing issue
+        await FirebaseFirestore.instance
+            .collection('issues')
+            .doc(widget.issueId)
+            .update(issueData);
+      } else {
+        // CREATE new issue
+        await FirebaseFirestore.instance.collection('issues').add(issueData);
+      }
 
       // Step 4: Success
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Building Issue Reported Successfully!'),
+          SnackBar(
+            content: Text(widget.issueId != null
+                ? 'Issue Updated Successfully!'
+                : 'Building Issue Reported Successfully!'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true); // Return true to refresh dashboard
       }
     } catch (e) {
       // Step 5: Error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to report issue: $e'),
+            content: Text(widget.issueId != null
+                ? 'Failed to update issue: $e'
+                : 'Failed to report issue: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -246,6 +297,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isEditing = widget.issueId != null;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -255,8 +308,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Add your school building Issues",
+        title: Text(
+          isEditing ? "Edit Building Issue" : "Add your school building Issues",
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
         ),
         actions: [

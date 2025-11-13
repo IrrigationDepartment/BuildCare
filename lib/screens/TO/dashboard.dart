@@ -4,8 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Import the new Manage Schools Screen
 import 'manage_schools_screen.dart'; // <-- Correct import
-// Import the Add School Screen (can be used by other parts, good to keep)
-import 'add_school_screen.dart';
 
 // --- 1. IMPORT THE NEW ISSUE REPORT SCREEN ---
 import 'issue_report_list_screen.dart';

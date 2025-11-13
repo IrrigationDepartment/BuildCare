@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
 // This import is correct, it imports the file containing 'AddMasterPlanScreen'
@@ -6,10 +7,13 @@ import 'add_school_master_plan_page.dart';
 import 'profile.dart';
 import 'settings_page.dart';
 
-// 🚀 NEW IMPORTS
+// NEW IMPORTS
 // Add these two lines to import Firestore and date formatting tools
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
+//  IMPORT THE NEW SCREEN HERE (Ensure this file exists in your project!)
+import 'IssueDetailScreen.dart'; 
 
 class PrincipalDashboard extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -73,9 +77,10 @@ class PrincipalDashboard extends StatelessWidget {
       );
     }
 
-    // ⭐ EXTRACTED NIC: This line correctly extracts the NIC.
+    //  EXTRACTED DATA
     final String userNic = userData!['nic'];
     final String principalName = userData!['name'];
+    final String schoolName = userData!['schoolName'];
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -86,7 +91,8 @@ class PrincipalDashboard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              _buildWelcomeHeader(principalName),
+              // Calling the updated header function
+              _buildWelcomeHeader(principalName, schoolName), 
               const SizedBox(height: 30),
 
               // Button 1: Add School Details
@@ -116,7 +122,7 @@ class PrincipalDashboard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => AddBuildingIssuesPage(
-                        // ⭐ NIC IS ALREADY BEING PASSED HERE
+                        // NIC IS ALREADY BEING PASSED HERE
                         userNic: userNic,
                       ),
                     ),
@@ -146,7 +152,7 @@ class PrincipalDashboard extends StatelessWidget {
               ),
 
               const SizedBox(height: 30),
-              // 🚀 MODIFIED: Pass the userNic to the function
+              // MODIFIED: Pass the userNic to the function
               _buildReportedIssuesSection(userNic),
             ],
           ),
@@ -174,9 +180,10 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- WIDGET HELPER FUNCTIONS (kept as provided) ---
+  // --- WIDGET HELPER FUNCTIONS ---
 
-  Widget _buildWelcomeHeader(String name) {
+  // FINAL MODIFIED HEADER: Only displays "Welcome Back!" and "Principal" in bold.
+  Widget _buildWelcomeHeader(String name, String schoolName) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -210,9 +217,14 @@ class PrincipalDashboard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
+              // Line 2: The word "Principal" in bold (as requested)
               Text(
-                name,
-                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                'Principal',
+                style: TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold,
+                  color: _primaryColor,
+                ),
               ),
             ],
           ),
@@ -270,7 +282,84 @@ class PrincipalDashboard extends StatelessWidget {
   }
 
   //
-  // 🚀 MODIFIED: This entire function is replaced with a StreamBuilder
+  // 🚀 MODIFIED _buildIssueCard: Now accepts required parameters for navigation.
+  //
+  Widget _buildIssueCard({
+    required BuildContext context, // Added for navigation
+    required String issueId,      // Added for navigation
+    required Map<String, dynamic> issueData, // Added for navigation
+    required String userNic,      // Added for navigation
+    required String title,
+    required String status,
+    required String date,
+  }) {
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 15),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      shadowColor: Colors.grey.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.home_work_outlined, size: 40, color: Colors.grey[700]),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(status,
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey[600])),
+                  Text(date,
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: () {
+                if (kDebugMode) {
+                  debugPrint('Navigating to issue details: $issueId');
+                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => IssueDetailScreen(
+                      issueData: issueData,
+                      issueId: issueId,
+                      userNic: userNic,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child:
+                  const Text('View Details', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  //
+  // 🚀 MODIFIED _buildReportedIssuesSection: Extracts and passes issue data.
   //
   Widget _buildReportedIssuesSection(String userNic) {
     return Column(
@@ -292,8 +381,6 @@ class PrincipalDashboard extends StatelessWidget {
         // Use StreamBuilder to listen for data from Firestore
         StreamBuilder<QuerySnapshot>(
           // Create the query:
-          // 1. Go to the 'issues' collection
-          // 2. Filter where 'addedByNic' is equal to the logged-in user's NIC
           stream: FirebaseFirestore.instance
               .collection('issues')
               .where('addedByNic', isEqualTo: userNic)
@@ -334,6 +421,10 @@ class PrincipalDashboard extends StatelessWidget {
                 final issueDoc = issues[index];
                 final data = issueDoc.data() as Map<String, dynamic>;
 
+                //  NEW: Extract ID and full data map
+                final String issueId = issueDoc.id;
+                final Map<String, dynamic> issueData = data; 
+                
                 // Extract fields from the document (based on your screenshot)
                 final String title = data['issueTitle'] ?? 'No Title';
                 final String building = data['buildingName'] ?? 'N/A';
@@ -347,76 +438,22 @@ class PrincipalDashboard extends StatelessWidget {
                   formattedDate = DateFormat('yyyy-MM-dd').format(timestamp.toDate());
                 }
 
-                // Call the existing card widget with the live data
+                // Call the existing card widget with the live data and new parameters
                 return _buildIssueCard(
                   title: title,
                   status: '$building • $status', // Combine building and status
                   date: formattedDate,
+                  //  PASSING NEW PARAMETERS TO THE CARD
+                  context: context, 
+                  issueId: issueId,
+                  issueData: issueData,
+                  userNic: userNic,
                 );
               },
             );
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildIssueCard({
-    required String title,
-    required String status,
-    required String date,
-  }) {
-    // This widget is unchanged, as it's perfect for displaying the data
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      shadowColor: Colors.grey.withOpacity(0.1),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Icon(Icons.home_work_outlined, size: 40, color: Colors.grey[700]),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(status,
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey[600])),
-                  Text(date,
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey[600])),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            OutlinedButton(
-              onPressed: () {
-                // TODO: Add navigation to a details page
-              },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: _primaryColor),
-                foregroundColor: _primaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child:
-                  const Text('View Details', style: TextStyle(fontSize: 12)),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

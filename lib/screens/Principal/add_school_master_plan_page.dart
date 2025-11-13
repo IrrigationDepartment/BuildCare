@@ -207,6 +207,11 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
           .delete();
 
       _showSuccessSnackBar("Master plan deleted successfully!");
+      
+      // Navigate back after deletion
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
 
     } catch (e) {
       _showErrorSnackBar("Error deleting plan: $e");
@@ -418,7 +423,8 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.blue),
+          // 🔄 CHANGE 1: Changed icon from Icons.arrow_back_ios to standard Icons.arrow_back
+          icon: const Icon(Icons.arrow_back, color: Colors.blue),
           onPressed: () => Navigator.pop(context, true), // Pop and signal refresh
         ),
         actions: [
@@ -431,14 +437,24 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2)),
                 )
-              : TextButton(
-                  onPressed: _uploadAndSave,
-                  child: Text(
-                    buttonText,
-                    style: const TextStyle(
-                      color: Colors.blue,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              // 🔄 CHANGE 2: Changed from TextButton to OutlinedButton for blue outline effect
+              : Padding(
+                  padding: const EdgeInsets.only(right: 12.0, top: 8.0, bottom: 8.0),
+                  child: OutlinedButton(
+                    onPressed: _uploadAndSave,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue, width: 2), // Blue outline
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -450,9 +466,9 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Record Submission Form ---
-            Text(
+            const Text(
               "Master Plan Details",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
             Form(

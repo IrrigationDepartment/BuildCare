@@ -75,7 +75,6 @@ class _LoginPageState extends State<LoginPage> {
         // --- FIX: Get the document itself to access both data and ID ---
         final userDoc = querySnapshot.docs.first;
         final userData = userDoc.data();
-        final userId = userDoc.id; // Get the document ID
         final userType = userData['userType'] as String?;
 
         // ⭐ START MODIFICATION: Capture the NIC and prepare data for dashboard
