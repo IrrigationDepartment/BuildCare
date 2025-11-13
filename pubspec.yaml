@@ -40,6 +40,7 @@ dependencies:
   http: ^1.2.1             
   image_picker: ^1.0.7  # For picking images
   foundation: ^0.0.5
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:
