@@ -1,4 +1,3 @@
-// add_building_issues.dart 
 import 'dart:convert'; // For jsonDecode
 import 'package:flutter/foundation.dart'; // For debugPrint, Uint8List
 import 'package:flutter/material.dart';
@@ -42,7 +41,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   DateTime? _selectedDate;
 
   // Switched to XFile for cross-platform image handling
-  final List<XFile> _selectedImages = [];
+  final List<XFile> _selectedNewImages = []; // ⭐ Renamed for clarity: new images picked
+  final List<String> _existingImageUrls = []; // ⭐ NEW: For images already in Firebase
   final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false; // Added loading state
@@ -83,10 +83,10 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     super.initState();
     // If editing, populate the fields with existing data
     if (widget.issueId != null && widget.issueData != null) {
-  _schoolNameController.text = widget.issueData!['schoolName'] ?? '';
-  _floorsController.text = (widget.issueData!['numFloors'] ?? 0).toString();
-  _classroomsController.text = (widget.issueData!['numClassrooms'] ?? 0).toString();
-  _descriptionController.text = widget.issueData!['description'] ?? '';
+      _schoolNameController.text = widget.issueData!['schoolName'] ?? '';
+      _floorsController.text = (widget.issueData!['numFloors'] ?? 0).toString();
+      _classroomsController.text = (widget.issueData!['numClassrooms'] ?? 0).toString();
+      _descriptionController.text = widget.issueData!['description'] ?? '';
       _selectedBuilding = widget.issueData!['buildingName'];
       _selectedDamageType = widget.issueData!['damageType'];
       
@@ -95,6 +95,11 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         final Timestamp timestamp = widget.issueData!['dateOfOccurance'];
         _selectedDate = timestamp.toDate();
         _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+      }
+
+      // ⭐ Populate existing image URLs
+      if (widget.issueData!['imageUrls'] is List) {
+        _existingImageUrls.addAll(List<String>.from(widget.issueData!['imageUrls']));
       }
     }
   }
@@ -115,21 +120,31 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 70);
     if (pickedFiles.isNotEmpty) {
       setState(() {
-        _selectedImages.addAll(pickedFiles);
+        _selectedNewImages.addAll(pickedFiles); // Add to new images list
       });
     }
   }
 
-  // --- Image Remover Function ---
-  void _removeImage(int index) {
+  // --- Image Remover Function for NEWLY selected images ---
+  void _removeNewImage(int index) {
     setState(() {
-      _selectedImages.removeAt(index);
+      _selectedNewImages.removeAt(index);
     });
   }
 
+  // ⭐ NEW: Image Remover Function for EXISTING network images ---
+  void _removeExistingImage(int index) {
+    setState(() {
+      _existingImageUrls.removeAt(index);
+    });
+    // NOTE: The actual deletion from storage (e.g., Firebase Storage)
+    // would typically happen when you save/update the issue, not immediately here,
+    // to allow the user to cancel changes. For now, it just removes from the list.
+  }
+
   // --- 1. Upload Images to Server Function (Copied from add_issue_screen.dart) ---
-  Future<List<String>> _uploadImages() async {
-    if (_selectedImages.isEmpty) {
+  Future<List<String>> _uploadNewImages() async { // ⭐ Renamed to reflect it uploads NEW images
+    if (_selectedNewImages.isEmpty) {
       return [];
     }
 
@@ -137,7 +152,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     var uri = Uri.parse("http://buildcare.atwebpages.com/index.php");
     var request = http.MultipartRequest("POST", uri);
 
-    for (var imageFile in _selectedImages) {
+    for (var imageFile in _selectedNewImages) {
       var fileBytes = await imageFile.readAsBytes();
       var file = http.MultipartFile.fromBytes(
         'images[]', // This key 'images[]' MUST match the PHP script
@@ -190,37 +205,41 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Step 1: Upload images (only if new images are selected)
-      List<String> uploadedImageUrls = [];
-      if (_selectedImages.isNotEmpty) {
-        uploadedImageUrls = await _uploadImages();
-        if (uploadedImageUrls.isEmpty) {
-          throw Exception('Failed to upload images. Please check server connection.');
+      // Step 1: Upload NEW images (only if new images are selected)
+      List<String> newlyUploadedImageUrls = [];
+      if (_selectedNewImages.isNotEmpty) {
+        newlyUploadedImageUrls = await _uploadNewImages();
+        if (newlyUploadedImageUrls.isEmpty && _selectedNewImages.isNotEmpty) {
+          // Only throw if there were new images but none uploaded successfully
+          throw Exception('Failed to upload new images. Please check server connection.');
         }
       }
+
+      // ⭐ Combine existing and newly uploaded image URLs
+      List<String> allImageUrls = List.from(_existingImageUrls); // Start with existing
+      allImageUrls.addAll(newlyUploadedImageUrls); // Add newly uploaded
 
       // Step 2: Prepare Data
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding, // From Dropdown
         'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
-  'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
-  'damageType': _selectedDamageType, // From Dropdown
+        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
+        'damageType': _selectedDamageType, // From Dropdown
         'issueTitle': '$_selectedBuilding - $_selectedDamageType', // Generated Title
         'description': _descriptionController.text.trim(),
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
         'addedByNic': widget.userNic,
-        'timestamp': FieldValue.serverTimestamp(),
+        'timestamp': FieldValue.serverTimestamp(), // Update timestamp on save
+        'imageUrls': allImageUrls, // ⭐ Save ALL current image URLs
       };
-
-      // If new images were uploaded, update the imageUrls field
-      if (uploadedImageUrls.isNotEmpty) {
-        issueData['imageUrls'] = uploadedImageUrls;
-      }
 
       // If editing, preserve status; if creating new, set to Pending
       if (widget.issueId == null) {
         issueData['status'] = 'Pending'; // Default status for new issues
+      } else {
+        // When editing, keep the original status unless changed by an admin later
+        issueData['status'] = widget.issueData!['status'] ?? 'Pending';
       }
 
       // Step 3: Save or Update to 'issues' collection
@@ -245,7 +264,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop(true); // Return true to refresh dashboard
+        // ⭐ Pass true back to indicate a change, prompting dashboard to refresh
+        Navigator.of(context).pop(true); 
       }
     } catch (e) {
       // Step 5: Error
@@ -324,8 +344,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     ),
-                    child: const Text(
-                      "Save",
+                    child: Text(
+                      isEditing ? "Update" : "Save", // ⭐ Text changes based on mode
                       style: TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -394,6 +414,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           TextFormField(
             controller: controller,
             keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+            inputFormatters: isNumber ? [FilteringTextInputFormatter.digitsOnly] : null, // ⭐ Only allow digits for number fields
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[600]),
@@ -406,7 +427,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             ),
             validator: (value) {
-              if (value!.isEmpty) {
+              if (value == null || value.isEmpty) { // ⭐ Handle null value
                 return 'Please enter $label';
               }
               if (isNumber && int.tryParse(value) == null) {
@@ -491,7 +512,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
               ),
               contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             ),
-            validator: (value) => value!.isEmpty ? 'Please enter $label' : null,
+            validator: (value) => value == null || value.isEmpty ? 'Please enter $label' : null, // ⭐ Handle null value
           ),
         ],
       ),
@@ -527,15 +548,18 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
               // Calendar icon at the end
               suffixIcon: const Icon(Icons.calendar_today_outlined, color: Colors.grey),
             ),
-            validator: (value) => value!.isEmpty ? 'Please select $label' : null,
+            validator: (value) => value == null || value.isEmpty ? 'Please select $label' : null, // ⭐ Handle null value
           ),
         ],
       ),
     );
   }
 
-  /// MODIFIED Builder for the Upload Images section (Uses XFile and Image.memory).
+  /// ⭐ MODIFIED: Builder for the Upload Images section. Displays existing and new images.
   Widget _buildUploadImagesSection() {
+    // Combine both lists for display purposes
+    final List<dynamic> allImagesForDisplay = [..._existingImageUrls, ..._selectedNewImages];
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -547,63 +571,93 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           ),
           const SizedBox(height: 8),
 
-          // --- Image Preview Grid (Uses FutureBuilder/Image.memory for XFile) ---
-          if (_selectedImages.isNotEmpty)
+          // --- Image Preview Grid (Displays existing network images AND newly picked local images) ---
+          if (allImagesForDisplay.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: SizedBox(
                 height: 100, // Fixed height for the horizontal list
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _selectedImages.length,
+                  itemCount: allImagesForDisplay.length,
                   itemBuilder: (context, index) {
-                    // Use FutureBuilder to read the image bytes asynchronously
+                    final item = allImagesForDisplay[index];
+
+                    Widget imageWidget;
+                    VoidCallback? removeAction;
+
+                    if (item is String) {
+                      // This is an existing network image URL
+                      imageWidget = Image.network(
+                        item,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (c, w, p) => p == null
+                            ? w
+                            : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        errorBuilder: (c, o, s) =>
+                            const Icon(Icons.broken_image, size: 60, color: Colors.grey),
+                      );
+                      removeAction = () => _removeExistingImage(index);
+                    } else if (item is XFile) {
+                      // This is a newly selected local image (XFile)
+                      // Use FutureBuilder to read the image bytes asynchronously
+                      imageWidget = FutureBuilder<Uint8List>(
+                        future: item.readAsBytes(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                            // Display the image from memory
+                            return Image.memory(
+                              snapshot.data!,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            );
+                          }
+                          // Show a loading spinner while reading the file
+                          return const SizedBox(
+                            width: 100,
+                            height: 100,
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          );
+                        },
+                      );
+                      // Calculate index relative to _selectedNewImages
+                      final newImageIndex = index - _existingImageUrls.length;
+                      removeAction = () => _removeNewImage(newImageIndex);
+                    } else {
+                      imageWidget = const Icon(Icons.error, size: 60, color: Colors.red);
+                    }
+
                     return Padding(
                       padding: const EdgeInsets.only(right: 10),
                       child: Stack(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: FutureBuilder<Uint8List>(
-                              future: _selectedImages[index].readAsBytes(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
-                                  // Display the image from memory
-                                  return Image.memory(
-                                    snapshot.data!,
-                                    width: 100,
-                                    height: 100,
-                                    fit: BoxFit.cover,
-                                  );
-                                }
-                                // Show a loading spinner while reading the file
-                                return const SizedBox(
-                                  width: 100,
-                                  height: 100,
-                                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                );
-                              },
-                            ),
+                            child: imageWidget,
                           ),
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: () => _removeImage(index),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 18,
-                                  color: Colors.white,
+                          if (removeAction != null) // Only show remove button if action exists
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: removeAction,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     );
@@ -621,20 +675,20 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 color: _textFieldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: _selectedImages.isEmpty ? Colors.transparent : _primaryColor,
+                  color: (allImagesForDisplay.isEmpty) ? Colors.transparent : _primaryColor, // ⭐ Border logic
                   width: 1.5,
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.cloud_upload_outlined, size: 28, color: _selectedImages.isEmpty ? Colors.grey : _primaryColor),
+                  Icon(Icons.cloud_upload_outlined, size: 28, color: allImagesForDisplay.isEmpty ? Colors.grey : _primaryColor),
                   const SizedBox(width: 10),
                   Text(
-                    _selectedImages.isEmpty
+                    allImagesForDisplay.isEmpty
                         ? 'Tap to Upload Building Damage Photos'
-                        : 'Tap to Add More Photos (${_selectedImages.length} selected)',
-                    style: TextStyle(color: _selectedImages.isEmpty ? Colors.grey : Colors.black87, fontSize: 16),
+                        : 'Tap to Add More Photos (${allImagesForDisplay.length} selected)',
+                    style: TextStyle(color: allImagesForDisplay.isEmpty ? Colors.grey : Colors.black87, fontSize: 16),
                   ),
                 ],
               ),

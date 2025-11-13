@@ -25,12 +25,50 @@ class IssueDetailScreen extends StatefulWidget {
 class _IssueDetailScreenState extends State<IssueDetailScreen> {
   static const Color _primaryColor = Color(0xFF53BDFF);
   bool _isDeleting = false;
+  List<String> _imageUrlsState = []; // holds current image urls for display
 
   // --- Utility Functions ---
 
   String _formatDate(Timestamp? timestamp) {
     if (timestamp == null) return 'Date N/A';
     return DateFormat('yyyy-MM-dd').format(timestamp.toDate());
+  }
+
+  // Fetch latest imageUrls from Firestore for this issue (useful after upload)
+  Future<void> _refreshImages() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('issues').doc(widget.issueId).get();
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null) {
+          final List<String> fresh = [];
+          if (data['imageUrls'] is List) {
+            for (var it in List.from(data['imageUrls'])) {
+              if (it != null) {
+                final s = it.toString();
+                if (s.isNotEmpty) fresh.add(s);
+              }
+            }
+          } else if (data['imageUrls'] is String) {
+            // comma separated
+            final raw = (data['imageUrls'] as String).split(',');
+            for (var s in raw) {
+              final t = s.trim();
+              if (t.isNotEmpty) fresh.add(t);
+            }
+          }
+          final single = data['imageUrl'] ?? '';
+          if (single is String && single.isNotEmpty && !fresh.contains(single)) fresh.insert(0, single);
+          setState(() {
+            _imageUrlsState = fresh;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to refresh images: $e')));
+      }
+    }
   }
 
   // --- DELETE FUNCTION ---
@@ -98,17 +136,72 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     );
   }
 
+  // --- Image viewer ---
+  void _openImageViewer(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(8),
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: InteractiveViewer(
+              child: Center(
+                child: Image.network(
+                  imageUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (c, w, p) => p == null
+                      ? w
+                      : const SizedBox(
+                          width: 60,
+                          height: 60,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                  errorBuilder: (c, o, s) => const Icon(Icons.broken_image, size: 60, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // --- Widget Build ---
+
+  @override
+  void initState() {
+    super.initState();
+    // initialize local image list from passed issueData
+    final List<String> initial = [];
+    final raw = widget.issueData['imageUrls'];
+    if (raw is List) {
+      for (var it in List.from(raw)) {
+        if (it != null) {
+          final s = it.toString();
+          if (s.isNotEmpty) initial.add(s);
+        }
+      }
+    } else if (raw is String) {
+      for (var s in raw.split(',')) {
+        final t = s.trim();
+        if (t.isNotEmpty) initial.add(t);
+      }
+    }
+    final single = widget.issueData['imageUrl'] ?? '';
+    if (single is String && single.isNotEmpty && !initial.contains(single)) initial.insert(0, single);
+    _imageUrlsState = initial;
+  }
 
   @override
   Widget build(BuildContext context) {
     // Safely extract data from the map
-  final String title = widget.issueData['issueTitle'] ?? 'No Title';
-  final String schoolName = widget.issueData['schoolName'] ?? 'N/A';
-  final String building = widget.issueData['buildingName'] ?? 'N/A';
-  final String description = widget.issueData['description'] ?? 'No description provided.';
+    final String title = widget.issueData['issueTitle'] ?? 'No Title';
+    final String schoolName = widget.issueData['schoolName'] ?? 'N/A';
+    final String building = widget.issueData['buildingName'] ?? 'N/A';
+    final String description = widget.issueData['description'] ?? 'No description provided.';
     final String status = widget.issueData['status'] ?? 'Pending';
-    final String imageUrl = widget.issueData['imageUrl'] ?? '';
     final String date = _formatDate(widget.issueData['dateOfOccurance'] as Timestamp?);
 
 
@@ -118,26 +211,55 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: _primaryColor),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh images',
+            onPressed: _refreshImages,
+            icon: const Icon(Icons.refresh, color: _primaryColor),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Display
-            if (imageUrl.isNotEmpty) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (c, w, p) => p == null
-                      ? w
-                      : const Center(child: CircularProgressIndicator()),
-                  errorBuilder: (c, o, s) =>
-                      const Icon(Icons.broken_image, size: 60, color: Colors.grey),
+            // Image Display: show a gallery (thumbnails) if images exist
+            if (_imageUrlsState.isNotEmpty) ...[
+              SizedBox(
+                height: 200,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _imageUrlsState.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final url = _imageUrlsState[index];
+                    return GestureDetector(
+                      onTap: () => _openImageViewer(url),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          url,
+                          width: 320,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (c, w, p) => p == null
+                              ? w
+                              : const SizedBox(
+                                  width: 320,
+                                  height: 200,
+                                  child: Center(child: CircularProgressIndicator()),
+                                ),
+                          errorBuilder: (c, o, s) => Container(
+                            width: 320,
+                            height: 200,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.broken_image, size: 60, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 20),
@@ -194,9 +316,12 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                     ),
                   ),
                 ).then((result) {
-                  // Refresh the data if editing was successful
+                  // If editing changed the document, re-fetch images so user can see uploads immediately
                   if (result == true) {
-                    Navigator.pop(context, true); 
+                    _refreshImages();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Issue updated — images refreshed')),
+                    );
                   }
                 });
               },
