@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-// Import the new contract details form screen
 import 'add_contract.dart';
-// --- 1. IMPORT THE VIEW DETAILS SCREEN ---
 import 'view_details.dart';
 
-// --- Data Model for Contract Details ---
+// --- Data Model ---
 class Contract {
   final String id;
   final String cidaRegisterNumber;
@@ -18,93 +15,136 @@ class Contract {
     required this.contractorName,
   });
 
-  // Factory constructor to create a Contract from a Firestore Document
   factory Contract.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Contract(
       id: doc.id,
-      // Field name must match what is stored in Firestore
       cidaRegisterNumber: data['cidaRegisterNumber'] ?? 'N/A',
       contractorName: data['contractorName'] ?? 'Unknown Contractor',
     );
   }
 }
 
-// --- Manage Contracts List Screen Widget ---
-class ContractDetailsScreen extends StatelessWidget {
+// --- UPDATED: Changed to StatefulWidget ---
+class ContractDetailsScreen extends StatefulWidget {
   const ContractDetailsScreen({super.key});
+
+  @override
+  State<ContractDetailsScreen> createState() => _ContractDetailsScreenState();
+}
+
+class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
+  // 1. Variables to hold search text
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manage Contracts'),
-        backgroundColor:
-            const Color(0xFFF5F7FA), // Use the light background color
+        backgroundColor: const Color(0xFFF5F7FA),
         elevation: 1,
       ),
-      // The StreamBuilder listens to the 'contracts' collection in Firestore
-      body: StreamBuilder<QuerySnapshot>(
-        // Ensure this collection name matches the one used in the form (add_contract.dart)
-        stream: FirebaseFirestore.instance.collection('contracts').snapshots(),
-        builder: (context, snapshot) {
-          // Display a loading indicator while data is being fetched
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          // Display an error if the connection fails
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          // Display a message if no data is found
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text(
-                  'No contracts found. Tap "Add Contract" to begin.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+      body: Column(
+        children: [
+          // --- 2. Search Bar (Placed outside StreamBuilder for better performance) ---
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by CIDA No. or Name...',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                // Clear button
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = "";
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: const BorderSide(color: Color(0xFF42A5F5)),
                 ),
               ),
-            );
-          }
+              onChanged: (value) {
+                // 3. Update state when user types
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
 
-          // --- Data Loaded Successfully: Build the List ---
-          final List<Contract> contracts = snapshot.data!.docs
-              .map((doc) => Contract.fromFirestore(doc))
-              .toList();
+          // --- 3. The List (Wrapped in Expanded) ---
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('contracts') // Ensure collection name is correct
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          return Column(
-            children: [
-              // Search Bar (Mimicking the structure of the school list)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search by CIDA No. or Contractor Name...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10.0),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[200],
-                  ),
-                  onChanged: (value) {
-                    // TODO: Implement search/filtering logic here
-                  },
-                ),
-              ),
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
 
-              // Contract List
-              Expanded(
-                child: ListView.builder(
-                  itemCount: contracts.length,
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text('No contracts found.'),
+                  );
+                }
+
+                // Convert all docs to Contract objects
+                final List<Contract> allContracts = snapshot.data!.docs
+                    .map((doc) => Contract.fromFirestore(doc))
+                    .toList();
+
+                // --- 4. Filtering Logic ---
+                final List<Contract> filteredContracts = allContracts.where((contract) {
+                  final nameLower = contract.contractorName.toLowerCase();
+                  final cidaLower = contract.cidaRegisterNumber.toLowerCase();
+                  
+                  return nameLower.contains(_searchQuery) || 
+                         cidaLower.contains(_searchQuery);
+                }).toList();
+
+                if (filteredContracts.isEmpty) {
+                  return Center(
+                    child: Text('No results found for "$_searchQuery"'),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredContracts.length,
                   itemBuilder: (context, index) {
-                    final contract = contracts[index];
+                    final contract = filteredContracts[index];
                     return Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -113,8 +153,7 @@ class ContractDetailsScreen extends StatelessWidget {
                           vertical: 6.0, horizontal: 10.0),
                       child: ListTile(
                         leading: const Icon(
-                          Icons
-                              .engineering, // A more specific icon for contractors/projects
+                          Icons.engineering,
                           color: Color(0xFF42A5F5),
                           size: 30,
                         ),
@@ -129,7 +168,6 @@ class ContractDetailsScreen extends StatelessWidget {
                         ),
                         trailing: TextButton.icon(
                           onPressed: () {
-                            // --- 2. NAVIGATION TO VIEW DETAILS ---
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) => ViewContractDetailsScreen(
@@ -143,7 +181,6 @@ class ContractDetailsScreen extends StatelessWidget {
                               style: TextStyle(color: Colors.blue)),
                         ),
                         onTap: () {
-                          // --- 2. NAVIGATION TO VIEW DETAILS (also on tap) ---
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (context) => ViewContractDetailsScreen(
@@ -154,24 +191,22 @@ class ContractDetailsScreen extends StatelessWidget {
                       ),
                     );
                   },
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
 
-      // Floating Action Button for "Add Contract"
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // *** NAVIGATION TO ADD CONTRACT SCREEN ***
           Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => AddContractScreen()),
           );
         },
         icon: const Icon(Icons.add),
         label: const Text('Add Contract'),
-        backgroundColor: const Color(0xFF42A5F5), // Primary Blue
+        backgroundColor: const Color(0xFF42A5F5),
         foregroundColor: Colors.white,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

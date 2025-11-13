@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Import the new Add/Edit screen
 import 'add_contractor_screen.dart';
-// Import the new View Details screen
 import 'view_contractor_screen.dart';
 
-// --- Data Model for a Contractor ---
+// --- Data Model (No changes needed here) ---
 class Contractor {
   final String id;
   final String companyName;
@@ -19,7 +17,6 @@ class Contractor {
     required this.cidaRegistrationNumber,
   });
 
-  // Factory constructor to create a Contractor from a Firestore Document
   factory Contractor.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Contractor(
@@ -31,68 +28,125 @@ class Contractor {
   }
 }
 
-// --- Manage Contractors List Screen Widget ---
-class ContractorListScreen extends StatelessWidget {
+// --- UPDATED: Changed to StatefulWidget to handle Search State ---
+class ContractorListScreen extends StatefulWidget {
   const ContractorListScreen({super.key});
+
+  @override
+  State<ContractorListScreen> createState() => _ContractorListScreenState();
+}
+
+class _ContractorListScreenState extends State<ContractorListScreen> {
+  // Controller to handle the text input
+  final TextEditingController _searchController = TextEditingController();
+  // String to store what the user is typing
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Contractors'),
-        backgroundColor:
-            const Color(0xFFF5F7FA), // Use the light background color
+        backgroundColor: const Color(0xFFF5F7FA),
         elevation: 1,
+        // --- SEARCH BAR UI IN APP BAR ---
+        title: Container(
+          height: 45,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search Name or CIDA No...',
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              // Add a clear button when text exists
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = "";
+                        });
+                      },
+                    )
+                  : null,
+            ),
+            // Update the state whenever the user types
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+              });
+            },
+          ),
+        ),
       ),
-      // The StreamBuilder listens to the 'contractor_details' collection
+      
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('contractor_details')
-            .orderBy('companyName') // Sort by company name
+            .orderBy('companyName')
             .snapshots(),
         builder: (context, snapshot) {
-          // Display a loading indicator while data is being fetched
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Display an error if the connection fails
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          // Display a message if no data is found
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text(
-                  'No contractors found. Tap "Add Contractor" to begin.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ),
-            );
+            return const Center(child: Text('No contractors found.'));
           }
 
-          // --- Data Loaded Successfully: Build the List ---
-          final List<Contractor> contractors = snapshot.data!.docs
+          // 1. Convert all Firestore documents to Contractor objects
+          final List<Contractor> allContractors = snapshot.data!.docs
               .map((doc) => Contractor.fromFirestore(doc))
               .toList();
 
+          // 2. --- FILTERING LOGIC ---
+          // If search query is empty, show all. Otherwise, filter the list.
+          final List<Contractor> filteredContractors = allContractors.where((contractor) {
+            final nameLower = contractor.contractorName.toLowerCase();
+            final cidaLower = contractor.cidaRegistrationNumber.toLowerCase();
+            final companyLower = contractor.companyName.toLowerCase();
+            
+            // Check if the query matches Name OR CIDA OR Company
+            return nameLower.contains(_searchQuery) || 
+                   cidaLower.contains(_searchQuery) ||
+                   companyLower.contains(_searchQuery);
+          }).toList();
+
+          // 3. Check if search result is empty
+          if (filteredContractors.isEmpty) {
+             return Center(
+               child: Text('No results found for "$_searchQuery"'),
+             );
+          }
+
           return ListView.builder(
-            itemCount: contractors.length,
+            itemCount: filteredContractors.length,
             itemBuilder: (context, index) {
-              final contractor = contractors[index];
+              final contractor = filteredContractors[index];
               return Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
-                margin:
-                    const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
+                margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
                 child: ListTile(
                   leading: const Icon(
-                    Icons.business, // Icon for 'company'
+                    Icons.business,
                     color: Color(0xFF42A5F5),
                     size: 30,
                   ),
@@ -101,13 +155,17 @@ class ContractorListScreen extends StatelessWidget {
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  subtitle: Text(
-                    'Contractor: ${contractor.contractorName}',
-                    style: const TextStyle(color: Colors.grey),
+                  // Displaying both Name and CIDA so user sees what they searched for
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Name: ${contractor.contractorName}'),
+                      Text('CIDA: ${contractor.cidaRegistrationNumber}', 
+                           style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                    ],
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    // --- NAVIGATION TO VIEW DETAILS ---
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => ViewContractorScreen(
@@ -122,17 +180,15 @@ class ContractorListScreen extends StatelessWidget {
         },
       ),
 
-      // Floating Action Button for "Add Contractor"
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // *** NAVIGATION TO ADD CONTRACTOR SCREEN ***
           Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => AddContractorScreen()),
           );
         },
         icon: const Icon(Icons.add),
         label: const Text('Add Contractor'),
-        backgroundColor: const Color(0xFF42A5F5), // Primary Blue
+        backgroundColor: const Color(0xFF42A5F5),
         foregroundColor: Colors.white,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
