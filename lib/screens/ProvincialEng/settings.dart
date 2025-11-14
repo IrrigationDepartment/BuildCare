@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 
-// 🚀 NEW AND CORRECT IMPORT: To navigate to LoginPage located in the login.dart file
+//  NEW AND CORRECT IMPORT: To navigate to LoginPage located in the login.dart file
 import 'package:buildcare/login.dart'; 
 
 // ----------------------------------------------------------------------------
@@ -14,7 +14,7 @@ class SettingsPage extends StatelessWidget {
   // Helper function for the Log Out action
   void _performLogout(BuildContext context) {
     // 1. (Optional) Perform Firebase/backend sign out here 
-    // Example: await FirebaseAuth.instance.signOut();
+   
 
     // 2. Navigate to the main LoginPage and clear the navigation stack
     Navigator.pushAndRemoveUntil(
@@ -101,7 +101,7 @@ class SettingsPage extends StatelessWidget {
           
           const SizedBox(height: 30),
           
-          // 🚀 LOG OUT BUTTON (Updated Navigation to login.dart)
+          // LOG OUT BUTTON (Updated Navigation to login.dart)
           _SettingsItem(
             title: 'Log Out',
             icon: Icons.logout,
@@ -153,7 +153,7 @@ class _SettingsItem extends StatelessWidget {
   final Color? iconColor;
   final Color? textColor;
 
-  // ✅ Constructor now includes the optional parameters to match usage above.
+  // Constructor now includes the optional parameters to match usage above.
   const _SettingsItem({
     super.key, 
     required this.title, 
