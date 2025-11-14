@@ -27,8 +27,13 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   // NEW: State for the 'isActive' flag
   final bool _initialIsActiveStatus = false; // User starts as deactivated
 
-  // NEW: FocusNode to detect when the password field is active
+  // --- ADDED: Default Profile Image URL ---
+  final String _defaultProfileImageUrl =
+      'https://t4.ftcdn.net/jpg/00/64/67/63/360_F_64676383_Ldbm8TwlbnL43PId23vLdI3MgqhaNYf5.jpg';
+
+  // NEW: FocusNodes
   final _passwordFocusNode = FocusNode();
+  final _nicFocusNode = FocusNode(); // <-- For NIC check
 
   String? _selectedOffice;
   final List<String> _offices = ['Galle', 'Matara', 'Hambantota'];
@@ -45,21 +50,28 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
 
-  // NEW: initState to set up listeners
+  // --- NEW: State variables for NIC check ---
+  bool _isCheckingNic = false;
+  bool _isNicDuplicate = false;
+
   @override
   void initState() {
     super.initState();
+    // Password listener
     _passwordController.addListener(_validatePassword);
     _passwordFocusNode.addListener(() {
       setState(() {
         _isPasswordFocused = _passwordFocusNode.hasFocus;
       });
     });
+
+    // --- ADDED: NIC Focus listener ---
+    _nicFocusNode.addListener(_onNicFocusChange);
   }
 
   @override
   void dispose() {
-    // Dispose all controllers to free up resources
+    // Dispose all controllers
     _userTypeController.dispose();
     _nameController.dispose();
     _nicController.dispose();
@@ -71,10 +83,65 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
 
-    // NEW: Dispose listener and FocusNode
+    // Dispose listeners and FocusNodes
     _passwordController.removeListener(_validatePassword);
     _passwordFocusNode.dispose();
+
+    // --- ADDED: Dispose NIC listener and node ---
+    _nicFocusNode.removeListener(_onNicFocusChange);
+    _nicFocusNode.dispose();
+
     super.dispose();
+  }
+
+  // --- ADDED: Function to check NIC when focus is lost ---
+  void _onNicFocusChange() {
+    // If the user is no longer focused on the NIC field, check the value
+    if (!_nicFocusNode.hasFocus) {
+      _checkNicDuplication();
+    }
+  }
+
+  // --- ADDED: The database check logic ---
+  Future<void> _checkNicDuplication() async {
+    final nic = _nicController.text.trim().toUpperCase();
+
+    // Don't check if empty or invalid format
+    if (nic.isEmpty) return;
+    final nicRegex = RegExp(r'^(\d{9}[vVxX]|\d{12})$');
+    if (!nicRegex.hasMatch(nic)) return;
+
+    setState(() {
+      _isCheckingNic = true;
+      _isNicDuplicate = false; // Reset status
+    });
+
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('nic', isEqualTo: nic)
+          .limit(1)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _isNicDuplicate = query.docs.isNotEmpty;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error checking NIC: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingNic = false;
+        });
+      }
+    }
   }
 
   // NEW: Function to validate password in real-time
@@ -93,7 +160,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
-      // Perform password validation check before proceeding
+      // Perform password validation check
       if (!_has8Chars ||
           !_hasLowercase ||
           !_hasUppercase ||
@@ -102,11 +169,26 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               backgroundColor: Colors.orange,
-              content: Text('Please ensure the password meets all security requirements.')));
+              content: Text(
+                  'Please ensure the password meets all security requirements.')));
         }
         return;
       }
-      
+
+      // --- ADDED: Final NIC check before submit ---
+      // Run the check one last time in case the user didn't lose focus
+      await _checkNicDuplication();
+      if (_isNicDuplicate) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('This NIC is already registered.'),
+          ));
+        }
+        return; // Stop submission
+      }
+      // --- END ---
+
       setState(() => _isLoading = true);
       try {
         await FirebaseFirestore.instance.collection('users').add({
@@ -119,17 +201,22 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
           'password': _passwordController.text.trim(), // Consider hashing this!
-          'userType': 'Technical Officer', // MODIFIED
+          'userType': 'Technical Officer',
           'createdAt': Timestamp.now(),
-          // *** NEW FIELD ADDED HERE ***
-          'isActive': _initialIsActiveStatus, // Automatically set to false (deactivated)
+
+          // *** MODIFICATION 1: User is automatically deactivated ***
+          'isActive': _initialIsActiveStatus, // Automatically set to false
+
+          // *** MODIFICATION 2: Add the default profile image URL ***
+          'profile_image': _defaultProfileImageUrl,
         });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 backgroundColor: Colors.green,
-                content: Text('Registration successful! Your account is currently deactivated.')), // Modified success message
+                content: Text(
+                    'Registration successful! Your account is currently deactivated.')),
           );
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
@@ -162,7 +249,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text('Signup (TO)', // MODIFIED
+                const Text('Signup (TO)',
                     style: TextStyle(
                         color: Color.fromARGB(255, 0, 0, 0),
                         fontSize: 24,
@@ -185,24 +272,35 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                             controller: _userTypeController,
                             validator: (value) => null),
                         _buildLabeledTextField(
-                            label: 'Technical Officer Name', // MODIFIED
+                            label: 'Technical Officer Name',
                             hint: 'Enter Your Name',
                             controller: _nameController,
                             icon: Icons.person_outline),
+
+                        // --- MODIFIED: NIC Field ---
                         _buildLabeledTextField(
                             label: 'NIC Number',
                             hint: 'e.g., 123456789V or 199012345678',
                             controller: _nicController,
                             icon: Icons.credit_card,
+                            focusNode: _nicFocusNode, // <-- Added FocusNode
+                            isChecking: _isCheckingNic, // <-- Added check state
+                            errorText: _isNicDuplicate // <-- Added error
+                                ? 'This NIC is already registered'
+                                : null,
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return 'NIC cannot be empty';
+                              }
                               final nicRegex =
                                   RegExp(r'^(\d{9}[vVxX]|\d{12})$');
-                              if (!nicRegex.hasMatch(value))
+                              if (!nicRegex.hasMatch(value)) {
                                 return 'Invalid Sri Lankan NIC format';
+                              }
                               return null;
                             }),
+                        // --- END MODIFICATION ---
+
                         _buildLabeledDropdown(
                             label: 'Select Your Office',
                             hint: 'Select an Office',
@@ -217,11 +315,13 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return 'Email cannot be empty';
+                              }
                               if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                                  .hasMatch(value))
+                                  .hasMatch(value)) {
                                 return 'Please enter a valid email';
+                              }
                               return null;
                             }),
                         _buildLabeledTextField(
@@ -231,11 +331,13 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                             icon: Icons.phone_in_talk_outlined,
                             keyboardType: TextInputType.phone,
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return 'Office number cannot be empty';
+                              }
                               final phoneRegex = RegExp(r'^\d{10}$');
-                              if (!phoneRegex.hasMatch(value))
+                              if (!phoneRegex.hasMatch(value)) {
                                 return 'Office number must be 10 digits';
+                              }
                               return null;
                             }),
                         _buildLabeledTextField(
@@ -245,11 +347,13 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                             icon: Icons.phone_iphone,
                             keyboardType: TextInputType.phone,
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return 'Mobile number cannot be empty';
+                              }
                               final phoneRegex = RegExp(r'^\d{10}$');
-                              if (!phoneRegex.hasMatch(value))
+                              if (!phoneRegex.hasMatch(value)) {
                                 return 'Mobile number must be 10 digits';
+                              }
                               return null;
                             }),
                         _buildLabeledTextField(
@@ -268,14 +372,13 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                             controller: _passwordController,
                             isPassword: true,
                             isPasswordVisible: _isPasswordVisible,
-                            focusNode: _passwordFocusNode, // NEW: Assign FocusNode
+                            focusNode: _passwordFocusNode,
                             onVisibilityToggle: () => setState(
                                 () => _isPasswordVisible = !_isPasswordVisible),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Password cannot be empty';
                               }
-                              // NEW: Updated validation logic
                               if (!_has8Chars ||
                                   !_hasLowercase ||
                                   !_hasUppercase ||
@@ -286,7 +389,6 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                               return null;
                             }),
 
-                        // NEW: Show validation UI only when password field is focused
                         if (_isPasswordFocused)
                           Padding(
                             padding: const EdgeInsets.only(
@@ -322,9 +424,8 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             const Color(0xFF53BDFF),
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 16),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(30))),
@@ -338,7 +439,6 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                     ),
                   ),
                 ),
-                // Removed the extra closing bracket that was misplaced
               ],
             ),
           ),
@@ -348,7 +448,6 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   }
 
   // --- Helper method to show info dialog ---
-  // (Note: This is not used by the password checklist, but was in your original code)
   void _showInfoDialog(BuildContext context, String title, String content) {
     showDialog(
       context: context,
@@ -408,6 +507,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   }
 
   // --- Helper Widgets for Form Fields ---
+  // --- MODIFIED: Added FocusNode, errorText, and isChecking ---
   Widget _buildLabeledTextField({
     required String label,
     required TextEditingController controller,
@@ -420,7 +520,9 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     TextInputType? keyboardType,
     String? infoMessage,
     String? Function(String?)? validator,
-    FocusNode? focusNode, // NEW: Added FocusNode parameter
+    FocusNode? focusNode,
+    String? errorText, // <-- For NIC error
+    bool isChecking = false, // <-- For NIC spinner
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -447,23 +549,35 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
           const SizedBox(height: 8),
           TextFormField(
               controller: controller,
-              focusNode: focusNode, // NEW: Use the FocusNode here
+              focusNode: focusNode, // <-- Use the FocusNode
               readOnly: isReadOnly,
               obscureText: isPassword && !isPasswordVisible,
               keyboardType: keyboardType,
               style: const TextStyle(color: Color.fromARGB(221, 58, 58, 58)),
               decoration: _inputDecoration(
-                  hint,
-                  icon,
-                  isPassword
-                      ? IconButton(
-                          icon: Icon(
-                            isPasswordVisible
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                            color: const Color(0xFF53BDFF)),
-                          onPressed: onVisibilityToggle)
-                      : null),
+                hint,
+                isChecking ? null : icon, // <-- Hide icon if checking
+                isChecking
+                    ? const Padding(
+                        // <-- Show spinner if checking
+                        padding: EdgeInsets.all(12.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.0),
+                        ),
+                      )
+                    : (isPassword // <-- Show password toggle
+                        ? IconButton(
+                            icon: Icon(
+                                isPasswordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: const Color(0xFF53BDFF)),
+                            onPressed: onVisibilityToggle)
+                        : null),
+                errorText, // <-- Pass error text
+              ),
               validator: validator ??
                   (value) => value!.isEmpty ? '$label cannot be empty' : null)
         ],
@@ -492,14 +606,15 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                   .toList(),
               onChanged: onChanged,
               style: const TextStyle(color: Colors.black87, fontSize: 16),
-              decoration: _inputDecoration(hint, null, null),
+              decoration: _inputDecoration(hint, null, null, null),
               validator: (value) =>
                   value == null ? 'Please select an option' : null)
         ]));
   }
 
+  // --- MODIFIED: Added errorText parameter ---
   InputDecoration _inputDecoration(
-      String hintText, IconData? icon, Widget? suffixIcon) {
+      String hintText, IconData? icon, Widget? suffixIcon, String? errorText) {
     return InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(color: Colors.grey.shade500),
@@ -515,18 +630,21 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
             borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
-            borderSide:
-                const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
+            borderSide: const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
         errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
             borderSide: const BorderSide(color: Colors.red, width: 1.0)),
         focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
             borderSide: const BorderSide(color: Colors.red, width: 2.0)),
-        suffixIcon: icon != null
-            ? Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: Icon(icon, color: const Color(0xFF53BDFF)))
-            : suffixIcon);
+
+        // --- MODIFIED: Pass the errorText ---
+        errorText: errorText,
+        suffixIcon: suffixIcon ?? // <-- Use the custom suffix first
+            (icon != null // <-- Otherwise, use the default icon
+                ? Padding(
+                    padding: const EdgeInsets.only(right: 12.0),
+                    child: Icon(icon, color: const Color(0xFF53BDFF)))
+                : null));
   }
 }
