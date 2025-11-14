@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
 
+// Main dashboard screen for District Engineer
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
 
@@ -108,16 +109,18 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                 const SizedBox(height: 24),
 
                 // 3. Recent Issues Section
-                const SectionTitle('Recent Issues Reported'),
                 const RecentIssuesSection(),
                 const SizedBox(height: 24), 
 
-                // 4. Recent Users Section
-                const SectionTitle('Recent User Signups'),
+                // 4. Recent Schools Section (FIXED: Uses 'addDate' for correct sorting)
+                const RecentSchoolsSection(),
+                const SizedBox(height: 24), 
+
+                // 5. Recent Users Section
                 const RecentUsersSection(),
                 const SizedBox(height: 24), 
 
-                // 5. Approval Request
+                // 6. Approval Request
                 const SectionTitle('Approval Request'),
                 const ApprovalRequestSection(),
               ],
