@@ -89,7 +89,7 @@ class ContractDetailsListScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
-              
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(
@@ -166,9 +166,7 @@ class ContractDetailsListScreen extends StatelessWidget {
   }
 }
 
-
 // screens/contract_details/contract_details_view_screen.dart
-
 
 class ContractDetailsViewScreen extends StatelessWidget {
   final String contractId;
@@ -212,7 +210,8 @@ class ContractDetailCard extends StatelessWidget {
     required this.contractId,
   });
 
-  Widget _buildDetailRow(String label, String value, {bool isImportant = false}) {
+  Widget _buildDetailRow(String label, String value,
+      {bool isImportant = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
@@ -245,7 +244,8 @@ class ContractDetailCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16.0,
                     color: isImportant ? Colors.blue : Colors.black54,
-                    fontWeight: isImportant ? FontWeight.w500 : FontWeight.normal,
+                    fontWeight:
+                        isImportant ? FontWeight.w500 : FontWeight.normal,
                   ),
                   softWrap: true,
                 ),
@@ -392,11 +392,11 @@ class ContractDetailCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
                   const Divider(thickness: 1),
                   const SizedBox(height: 16),
-                  
+
                   // Contract Details
                   const Text(
                     'Contract Information',
@@ -406,43 +406,43 @@ class ContractDetailCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   _buildDetailRow(
                     'CIDA Registration Number',
                     data['cidaRegistrationNumber']?.toString() ?? 'N/A',
                   ),
-                  
+
                   _buildDetailRow(
                     'Contractor Name',
                     data['contractorName'] ?? 'N/A',
                   ),
-                  
+
                   _buildDetailRow(
                     'Type of Contract',
                     data['typeOfContract'] ?? 'N/A',
                   ),
-                  
+
                   _buildDetailRow(
                     'Contract Value',
                     _formatCurrency(data['contractValue']),
                     isImportant: true,
                   ),
-                  
+
                   _buildDetailRow(
                     'Start Date',
                     _formatDate(data['startDate']),
                   ),
-                  
+
                   _buildDetailRow(
                     'End Date',
                     _formatDate(data['endDate']),
                   ),
-                  
+
                   _buildDetailRow(
                     'Submitted By',
                     data['submitBy']?.toString() ?? 'N/A',
                   ),
-                  
+
                   // Timestamp
                   if (data['timestamp'] != null) ...[
                     _buildDetailRow(
@@ -450,7 +450,7 @@ class ContractDetailCard extends StatelessWidget {
                       _formatDate(data['timestamp']),
                     ),
                   ],
-                  
+
                   // Status & Actions
                   const SizedBox(height: 24),
                   Container(
@@ -461,7 +461,8 @@ class ContractDetailCard extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                        const Icon(Icons.info_outline,
+                            color: Colors.blue, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -486,12 +487,12 @@ class ContractDetailCard extends StatelessWidget {
 
   String _getContractStatus(dynamic startDate, dynamic endDate) {
     if (startDate == null || endDate == null) return 'Unknown';
-    
+
     try {
       final DateTime now = DateTime.now();
       final DateTime start = (startDate as Timestamp).toDate();
       final DateTime end = (endDate as Timestamp).toDate();
-      
+
       if (now.isBefore(start)) {
         return 'Upcoming';
       } else if (now.isAfter(end)) {

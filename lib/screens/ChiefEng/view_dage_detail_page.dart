@@ -41,9 +41,7 @@ class DamageDetailsListScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('issues')
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('issues').snapshots(),
         builder: (context, snapshot) {
           // Loading state
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -107,7 +105,7 @@ class DamageDetailsListScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
-              
+
               return IssueCard(
                 title: data['issueTitle'] ?? 'N/A',
                 location: data['schoolName'] ?? 'N/A',
@@ -170,7 +168,7 @@ class IssueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusStyle = _getStatusStyle(status);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -292,7 +290,7 @@ class IssueCard extends StatelessWidget {
 
 class DamageDetailsPage extends StatefulWidget {
   final String? issueId;
-  
+
   const DamageDetailsPage({
     Key? key,
     this.issueId,
@@ -331,7 +329,7 @@ class _DamageDetailsPageState extends State<DamageDetailsPage> {
 
 class DamageDetailCard extends StatelessWidget {
   final String? issueId;
-  
+
   const DamageDetailCard({
     super.key,
     this.issueId,
@@ -513,22 +511,33 @@ class DamageDetailCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  
+
                   const Divider(thickness: 1, height: 15),
-                  
+
                   // Issue Details Section
-                  _buildDetailRow('Issue Title  ', data['issueTitle'] ?? 'N/A'),
-                  _buildDetailRow('School Name', data['schoolName'] ?? 'N/A'),
-                  _buildDetailRow('Building Name', data['buildingName'] ?? 'N/A'),
-                  _buildDetailRow('Building Area', data['buildingArea']?.toString() ?? 'N/A'),
-                  _buildDetailRow('Damage Type', data['damageType'] ?? 'N/A'),
-                  _buildDetailRow('Number of Floors', data['numFloors']?.toString() ?? 'N/A'),
-                  _buildDetailRow('Number of Classrooms', data['numClassrooms']?.toString() ?? 'N/A'),
-                  _buildDetailRow('Date of Occurrence', _formatDate(data['dateOfOccurance'])),
-                  _buildDetailRow('Description', data['description'] ?? 'N/A'),
-                  _buildDetailRow('Status', data['status'] ?? 'N/A'),
-                  _buildDetailRow('Added By NIC', data['addedByNic'] ?? 'N/A'),
-                  
+                  _buildDetailRow(
+                      'Issue Title          ', data['issueTitle'] ?? 'N/A'),
+                  _buildDetailRow(
+                      'School Name      ', data['schoolName'] ?? 'N/A'),
+                  _buildDetailRow(
+                      'Building Name    ', data['buildingName'] ?? 'N/A'),
+                  _buildDetailRow('Building Area      ',
+                      data['buildingArea']?.toString() ?? 'N/A'),
+                  _buildDetailRow(
+                      'Damage Type      ', data['damageType'] ?? 'N/A'),
+                  _buildDetailRow('Number of Floors ',
+                      data['numFloors']?.toString() ?? 'N/A'),
+                  _buildDetailRow('Number of Classrooms',
+                      data['numClassrooms']?.toString() ?? 'N/A'),
+                  _buildDetailRow('Date of Occurrence',
+                      _formatDate(data['dateOfOccurance'])),
+                  _buildDetailRow(
+                      'Description           ', data['description'] ?? 'N/A'),
+                  _buildDetailRow(
+                      'Status                    ', data['status'] ?? 'N/A'),
+                  _buildDetailRow(
+                      'Added By NIC        ', data['addedByNic'] ?? 'N/A'),
+
                   // Images Section
                   if (imageUrls.isNotEmpty) ..._buildImagesSection(imageUrls),
                 ],
