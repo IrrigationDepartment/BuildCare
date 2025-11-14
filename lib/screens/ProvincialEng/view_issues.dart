@@ -113,7 +113,7 @@ class ViewIssuesPage extends StatelessWidget {
                     ],
                   ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black54),
-                  // 🚨 Updated Navigation Logic to IssueDetailPage
+                  // Updated Navigation Logic to IssueDetailPage
                   onTap: () {
                     // Pass the Issue ID to the Detail Page
                     Navigator.push(

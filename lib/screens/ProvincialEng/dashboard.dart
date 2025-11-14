@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
 // NEW IMPORT: Issues View link
 import 'view_issues.dart';
+// ADDED IMPORT FOR DATE FORMATTING
+import 'package:intl/intl.dart'; 
 
 // -----------------------------------------------------------------------------
 // --- HELPER CLASS: ActivityItem ---
@@ -151,7 +153,7 @@ class _ProvincialEngineerDashboardState
                 crossAxisCount: 2,
                 crossAxisSpacing: 8.0,
                 mainAxisSpacing: 8.0,
-                // 🚨 UPDATED: Changed to 1.3 to give cards MORE height
+                // UPDATED: Changed to 1.3 to give cards MORE height
                 // This makes them square-ish and fixes the internal overflow
                 childAspectRatio: 1.3,
                 children: const <Widget>[
@@ -743,11 +745,11 @@ class UserManagementCard extends StatelessWidget {
         color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          // 🚨 UPDATED: Padding increased to 12.0 for a cleaner look
+          // UPDATED: Padding increased to 12.0 for a cleaner look
           padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            // 🚨 UPDATED: Use spaceEvenly to fix internal overflow
+            // UPDATED: Use spaceEvenly to fix internal overflow
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               // --- Title Row ---
@@ -761,7 +763,7 @@ class UserManagementCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        // 🚨 UPDATED: Font size increased for clarity
+                        //  UPDATED: Font size increased for clarity
                         fontSize: 14,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -923,7 +925,7 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- 🚨🚨🚨 THIS IS THE FIXED WIDGET 🚨🚨🚨 ---
+// --- IssueDetailPage (Date Fix Applied)  ---
 // -----------------------------------------------------------------------------
 
 /// The detail page that fetches and displays a single issue's details and images.
@@ -945,11 +947,52 @@ class IssueDetailPage extends StatelessWidget {
     }
   }
 
-  // Helper widget for detail rows
+  // New Helper: To build styled read-only fields (mimicking the form UI)
+  Widget _buildReadOnlyField({
+    required String label,
+    required String value,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label:',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[100], // Background color for the field
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Text(
+            value,
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  // Old Helper: Kept for Status/ID if needed, but primary details use _buildReadOnlyField
   Widget _buildDetailRow(String label, String value,
       {Color valueColor = Colors.black87}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.only(top: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -973,10 +1016,22 @@ class IssueDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Issue Details'),
-        backgroundColor: const Color(0xFFE8F2FF),
+        title: const Text('Edit Repair Report'), // Using title from image
+        backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black87),
         elevation: 1,
+        // Optional: Add Save button placeholder if needed, though it's read-only now
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Placeholder for potential future edit/save functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('This is the Detail View')),
+              );
+            },
+            child: const Text('View Only', style: TextStyle(color: Colors.blue)),
+          ),
+        ],
       ),
       body: FutureBuilder<DocumentSnapshot>(
         // Fetch the specific document using the issueId
@@ -1001,17 +1056,32 @@ class IssueDetailPage extends StatelessWidget {
           // 4. Data Loaded State
           final issueData = snapshot.data!.data() as Map<String, dynamic>;
 
-          final String issueTitle =
-              issueData['issueTitle'] ?? 'No Title Provided';
-          final String schoolName = issueData['schoolName'] ?? 'N/A';
+          // Extract Data Fields
+          final String issueTitle = issueData['issueTitle'] ?? 'No Title';
+          // Assuming 'damageType' is the field
+          final String damageType = issueData['damageType'] ?? 'N/A';
+          final String description = issueData['description'] ?? 'N/A';
           final String status = issueData['status'] ?? 'N/A';
-          final String description =
-              issueData['description'] ?? 'No description available.';
-              
-          // ⭐️ === FIX: Read the 'imageUrls' list (plural) ===
-          // Get the field as 'imageUrls' and cast it as a List.
-          // Default to an empty list [] if the field is null.
           final List<dynamic> imageUrls = issueData['imageUrls'] ?? [];
+          
+          // FIX APPLIED HERE:
+          String damageDateStr = 'N/A';
+          Timestamp? dateTimestamp;
+
+          // 1. Try to get the specific damage date ('damageDate' assumed)
+          if (issueData.containsKey('damageDate') && issueData['damageDate'] is Timestamp) {
+              dateTimestamp = issueData['damageDate'] as Timestamp;
+          } 
+          // 2. Fallback: Use the general issue timestamp ('timestamp') if the specific one is missing
+          else if (issueData.containsKey('timestamp') && issueData['timestamp'] is Timestamp) {
+              dateTimestamp = issueData['timestamp'] as Timestamp;
+          }
+
+          // Format the date if a valid Timestamp was found
+          if (dateTimestamp != null) {
+              damageDateStr = DateFormat('yyyy/MM/dd').format(dateTimestamp.toDate());
+          }
+          // --- END FIX ---
 
           Color statusColor = _getStatusColor(status);
 
@@ -1021,82 +1091,40 @@ class IssueDetailPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 
-                // ⭐️ === FIX: Check if the LIST is empty ===
-                if (imageUrls.isNotEmpty) ...[
-                  // If the list has images, build a horizontal scroll view
-                  SizedBox(
-                    height: 250,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: imageUrls.length,
-                      itemBuilder: (context, index) {
-                        // Get the specific URL from the list
-                        final String imageUrl = imageUrls[index] as String;
-                        
-                        return Container(
-                          width: 300, // Width of each image
-                          margin: const EdgeInsets.only(right: 10.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10.0),
-                            child: Image.network(
-                              imageUrl,
-                              fit: BoxFit.cover,
-                              // --- Image Loading and Error Handling ---
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: Icon(Icons.image_not_supported,
-                                        size: 50, color: Colors.grey),
-                                  ),
-                                );
-                              },
-                              // --- End Image Handling ---
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ] else ...[
-                  // This is the original placeholder, shown if the list is empty
-                  Container(
-                    height: 100,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                    child: const Center(child: Text('No Image Attached')),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // --- Details (This part was correct) ---
-                Text(
-                  issueTitle,
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold),
+                // 1. Issue Title Field (Top Field)
+                _buildReadOnlyField(
+                  label: 'Report Title/ID',
+                  value: issueTitle,
                 ),
-                const SizedBox(height: 10),
 
-                _buildDetailRow('School Name', schoolName,
+                // 2. Type of Damage
+                _buildReadOnlyField(
+                  label: 'Type Of Damage',
+                  value: damageType,
+                ),
+
+                // 3. Description of Issue (Multilinie)
+                _buildReadOnlyField(
+                  label: 'Description of Issue',
+                  value: description,
+                  maxLines: 5,
+                ),
+
+                // 4. Date of Damage Occurance
+                _buildReadOnlyField(
+                  label: 'Date of Damage Occurance',
+                  value: damageDateStr,
+                ),
+
+                // --- Other Details (Not Form-like, placed lower) ---
+                const SizedBox(height: 10),
+                _buildDetailRow('School Name', issueData['schoolName'] ?? 'N/A',
                     valueColor: Colors.black54),
                 _buildDetailRow('Issue ID', issueId,
                     valueColor: Colors.black54),
-                const SizedBox(height: 10),
-
+                
                 // Status Section
+                const SizedBox(height: 15),
                 Row(
                   children: [
                     const Text('Status:',
@@ -1122,20 +1150,74 @@ class IssueDetailPage extends StatelessWidget {
                     ),
                   ],
                 ),
-
+                
                 const Divider(height: 30),
 
-                // Description Section
+                // 5. Uploaded Images (Vertical Display)
                 const Text(
-                  'Description:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  'Uploaded Images (JPG/PNG):',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: const TextStyle(
-                      fontSize: 16, color: Colors.black87, height: 1.5),
-                ),
+                const SizedBox(height: 10),
+                
+                if (imageUrls.isNotEmpty)
+                  // MODIFIED: Changed from horizontal list to a vertical column for smaller images
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: imageUrls.map((url) {
+                      final String imageUrl = url as String;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.0),
+                          child: Image.network(
+                            imageUrl,
+                            width: 250, // Reduced width
+                            height: 200, // Reduced height
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                width: 250, 
+                                height: 200,
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 250, 
+                                height: 200,
+                                color: Colors.red[100],
+                                child: const Center(
+                                  child: Text('Image Load Failed', textAlign: TextAlign.center),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  )
+                else
+                  // Placeholder if no images are present
+                  Container(
+                    height: 100,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: const Center(child: Text('No Image Attached')),
+                  ),
+                
+                const SizedBox(height: 20),
+
               ],
             ),
           );
