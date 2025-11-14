@@ -1,16 +1,17 @@
-// FILENAME: dashboard_widgets.dart
-
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-// Import the pages you need to navigate to
+// NOTE: You must have these pages in your project for navigation to work.
 import 'manage_to_page.dart';
 import 'manage_principals_page.dart';
 import 'manage_schools_page.dart';
 import 'pending_approvals_page.dart';
 
-// --- MAIN WIDGETS ---
+// -----------------------------------------------------------------------------
+//                                MAIN WIDGETS
+// -----------------------------------------------------------------------------
 
-// This was _buildHeader
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic> userData;
 
@@ -56,13 +57,12 @@ class DashboardHeader extends StatelessWidget {
   }
 }
 
-// This was _buildOverviewSection
 class DashboardOverview extends StatelessWidget {
   final bool isLoading;
   final int totalSchools;
   final int activeTOs;
   final int pendingRequests;
-  final String userNic; // <-- MODIFIED: Add this field
+  final String userNic;
 
   const DashboardOverview({
     super.key,
@@ -70,7 +70,7 @@ class DashboardOverview extends StatelessWidget {
     required this.totalSchools,
     required this.activeTOs,
     required this.pendingRequests,
-    required this.userNic, // <-- MODIFIED: Add to constructor
+    required this.userNic,
   });
 
   @override
@@ -96,8 +96,7 @@ class DashboardOverview extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _OverviewCard(
-                  'Total Schools', totalSchools.toString()),
+              _OverviewCard('Total Schools', totalSchools.toString()),
               _OverviewCard('Active TOs', activeTOs.toString()),
               _OverviewCard('Pending', pendingRequests.toString()),
             ],
@@ -106,7 +105,6 @@ class DashboardOverview extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // <-- MODIFIED: Pass the userNic to the buttons -->
               _ManageButton('Manage Schools', userNic: userNic),
               _ManageButton('Manage TOs', userNic: userNic),
               _ManageButton('Manage Principals', userNic: userNic),
@@ -118,34 +116,171 @@ class DashboardOverview extends StatelessWidget {
   }
 }
 
-// This was _buildRecentActivitySection
-class RecentActivitySection extends StatelessWidget {
-  const RecentActivitySection({super.key});
+// 🔥 SECTION: Recent Issues (MODIFIED FOR FIXED SCROLLABLE HEIGHT)
+class RecentIssuesSection extends StatelessWidget {
+  const RecentIssuesSection({super.key});
+
+  // Approximate height of one list item including padding/dividers
+  static const double _itemHeight = 80.0; 
+  // Maximum items to display (3) * item height = 240.0
+  static const double _maxDisplayHeight = _itemHeight * 3; 
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Replace with a StreamBuilder or FutureBuilder from Firestore
     return DashboardCard(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ActivityItem('Thurstan College - Damaged Roof',
-              'Colombo - Status, Pending Review'),
-          const Divider(),
-          _ActivityItem('Royal College - New Building',
-              'Colombo - Status, Approved'),
+          // The title is placed here, outside the fixed-height scroll area
+          const SectionTitle('Recent Issues Reported'), 
+          const SizedBox(height: 8),
+
+          // 1. Set a fixed height for the scrollable area
+          SizedBox(
+            height: _maxDisplayHeight, 
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('issues')
+                  .orderBy('timestamp', descending: true) 
+                  // Do NOT limit the query here, ListView handles scroll limit
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error loading issues: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No recent issues found.'));
+                }
+
+                final issueDocs = snapshot.data!.docs;
+                
+                // 2. Use ListView.builder to handle the potentially long list and scrolling
+                return ListView.builder(
+                  // physics: const ClampingScrollPhysics(), // Optional: use to prevent "bouncing" 
+                  itemCount: issueDocs.length,
+                  itemBuilder: (context, index) {
+                    final issue = issueDocs[index].data() as Map<String, dynamic>;
+                    final docId = issueDocs[index].id;
+
+                    // Extract Issue details
+                    final issueTitle = issue['issueTitle'] ?? 'No Title';
+                    final damageType = issue['damageType'] ?? 'Unknown Damage';
+                    final schoolName = issue['schoolName'] ?? 'Unknown School';
+                    final status = issue['status'] ?? 'Pending';
+                    
+                    String formattedDate = 'No Date/Time';
+                    if (issue['timestamp'] is Timestamp) {
+                      final timestamp = issue['timestamp'] as Timestamp;
+                      final dateTime = timestamp.toDate();
+                      formattedDate = DateFormat('MMM d, yyyy h:mm a').format(dateTime);
+                    }
+
+                    final title = issueTitle;
+                    final subtitle = '$damageType at $schoolName - $status';
+                    
+                    // 3. Render the item and a divider
+                    return Column(
+                      children: [
+                        _IssueActivityItem(
+                          title: title,
+                          subtitle: subtitle,
+                          status: status,
+                          timestamp: formattedDate,
+                          docId: docId,
+                        ),
+                        if (index < issueDocs.length - 1)
+                          const Divider(height: 1, thickness: 1),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// This was _buildApprovalRequestSection
+// 🔥 SECTION: Recent Users
+class RecentUsersSection extends StatelessWidget {
+  const RecentUsersSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return DashboardCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle('Recent User Signups'),
+          const SizedBox(height: 8),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .orderBy('createdAt', descending: true)
+                .limit(5) // Limiting this section to 5 items
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error loading users: ${snapshot.error}'));
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: Text('No recent users found.'));
+              }
+
+              final userDocs = snapshot.data!.docs;
+
+              return Column(
+                children: List.generate(userDocs.length, (index) {
+                  final user = userDocs[index].data() as Map<String, dynamic>;
+                  final docId = userDocs[index].id;
+
+                  final name = user['name'] ?? 'No Name';
+                  final userType = user['userType'] ?? 'No Role';
+                  
+                  String formattedDate = 'No Date';
+                  if (user['createdAt'] is Timestamp) {
+                    final timestamp = user['createdAt'] as Timestamp;
+                    final dateTime = timestamp.toDate();
+                    formattedDate = DateFormat('MMM d, yyyy').format(dateTime);
+                  }
+
+                  final title = 'New User: $name';
+                  final subtitle = '$userType - Joined: $formattedDate';
+
+                  return Column(
+                    children: [
+                      _UserActivityItem(
+                        title: title,
+                        subtitle: subtitle,
+                        docId: docId,
+                      ),
+                      if (index < userDocs.length - 1)
+                        const Divider(),
+                    ],
+                  );
+                }),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ApprovalRequestSection extends StatelessWidget {
   const ApprovalRequestSection({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Replace with a StreamBuilder or FutureBuilder from Firestore
     return DashboardCard(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -174,9 +309,10 @@ class ApprovalRequestSection extends StatelessWidget {
   }
 }
 
-// --- HELPER WIDGETS (Used only within this file) ---
+// -----------------------------------------------------------------------------
+//                                HELPER WIDGETS
+// -----------------------------------------------------------------------------
 
-// This was _buildCard
 class DashboardCard extends StatelessWidget {
   final Widget child;
   const DashboardCard({super.key, required this.child});
@@ -202,7 +338,6 @@ class DashboardCard extends StatelessWidget {
   }
 }
 
-// This was _buildSectionTitle
 class SectionTitle extends StatelessWidget {
   final String title;
   const SectionTitle(this.title, {super.key});
@@ -219,7 +354,6 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
-// This was _buildOverviewCard
 class _OverviewCard extends StatelessWidget {
   final String title;
   final String count;
@@ -253,12 +387,11 @@ class _OverviewCard extends StatelessWidget {
   }
 }
 
-// This was _buildManageButton
 class _ManageButton extends StatelessWidget {
   final String label;
-  final String userNic; // <-- MODIFIED: Add this field
+  final String userNic;
 
-  const _ManageButton(this.label, {required this.userNic}); // <-- MODIFIED: Update constructor
+  const _ManageButton(this.label, {required this.userNic});
 
   @override
   Widget build(BuildContext context) {
@@ -271,7 +404,6 @@ class _ManageButton extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // <-- MODIFIED: This is the FIX for the error
                   builder: (context) => ManageSchoolsPage(userNic: userNic),
                 ),
               );
@@ -279,7 +411,6 @@ class _ManageButton extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // TODO: This page will also need the 'userNic'
                   builder: (context) => const ManageTechnicalOfficersPage(),
                 ),
               );
@@ -287,7 +418,6 @@ class _ManageButton extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // TODO: This page will also need the 'userNic'
                   builder: (context) => const ManagePrincipalsPage(),
                 ),
               );
@@ -308,11 +438,89 @@ class _ManageButton extends StatelessWidget {
   }
 }
 
-// This was _buildActivityItem
-class _ActivityItem extends StatelessWidget {
+// Helper widget to display recent issue activity
+class _IssueActivityItem extends StatelessWidget {
   final String title;
   final String subtitle;
-  const _ActivityItem(this.title, this.subtitle);
+  final String status;
+  final String timestamp;
+  final String docId;
+
+  const _IssueActivityItem({
+    required this.title,
+    required this.subtitle,
+    required this.status,
+    required this.timestamp,
+    required this.docId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Determine the color and icon for the status
+    Color statusColor;
+    IconData statusIcon;
+    switch (status.toLowerCase()) {
+      case 'pending':
+        statusColor = Colors.orange;
+        statusIcon = Icons.pending_actions;
+        break;
+      case 'approved':
+      case 'resolved':
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusColor = Colors.blueGrey;
+        statusIcon = Icons.build;
+        break;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(statusIcon, color: statusColor, size: 30),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(subtitle,
+                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(timestamp,
+                    style: const TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              // TODO: Implement navigation to a specific issue details page using docId
+              print('View details for issue: $docId');
+            },
+            child: const Text('View Issue'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Helper widget to display recent user sign-ups
+class _UserActivityItem extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String docId; 
+
+  const _UserActivityItem({
+    required this.title,
+    required this.subtitle,
+    required this.docId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +528,8 @@ class _ActivityItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          const Icon(Icons.home_work_outlined, color: Colors.teal, size: 30),
+          // Icon representing a person
+          const Icon(Icons.person_add_alt_1_outlined, color: Colors.teal, size: 30),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -333,8 +542,11 @@ class _ActivityItem extends StatelessWidget {
             ),
           ),
           TextButton(
-            onPressed: () {},
-            child: const Text('View Details'),
+            onPressed: () {
+              // TODO: Implement navigation to a user details page
+              print('View details for user: $docId');
+            },
+            child: const Text('View User'),
           ),
         ],
       ),

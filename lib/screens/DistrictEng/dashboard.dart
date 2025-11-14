@@ -1,5 +1,3 @@
-// Main dashboard screen for District Engineer
-
 import 'package:flutter/material.dart';
 
 // Import the two files we just created
@@ -35,10 +33,8 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     super.initState();
     
     // --- 2. GET THE NIC FROM THE 'userData' MAP ---
-    // 'widget.userData' accesses the data passed from the LoginPage
     userNic = widget.userData['nic'] ?? 'No NIC Found';
 
-    // You can now use 'userNic' anywhere in this file
     print('--- District Engineer Dashboard ---');
     print('Logged in User NIC: $userNic');
     print('Full User Data: ${widget.userData}');
@@ -49,9 +45,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   // New method to call the service and handle state
   Future<void> _fetchData() async {
     try {
-      // You can also pass the NIC to your service if needed
-      // final counts = await _service.fetchOverviewCounts(nic: userNic);
-      
       final counts = await _service.fetchOverviewCounts();
       
       if (mounted) {
@@ -99,9 +92,8 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- THIS IS YOUR NEW, CLEAN UI ---
                 
-                // 1. The Header (It receives all userData, including NIC)
+                // 1. The Header
                 DashboardHeader(userData: widget.userData),
                 const SizedBox(height: 24),
 
@@ -111,16 +103,21 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                   totalSchools: _totalSchools,
                   activeTOs: _activeTOs,
                   pendingRequests: _pendingRequests,
-                  userNic: userNic, // ⭐ FIX: Passing the required userNic
+                  userNic: userNic, // Passing the required userNic
                 ),
                 const SizedBox(height: 24),
 
-                // 3. Recent Activity
-                const SectionTitle('Recent Activity'),
-                const RecentActivitySection(),
-                const SizedBox(height: 24),
+                // 3. Recent Issues Section
+                const SectionTitle('Recent Issues Reported'),
+                const RecentIssuesSection(),
+                const SizedBox(height: 24), 
 
-                // 4. Approval Request
+                // 4. Recent Users Section
+                const SectionTitle('Recent User Signups'),
+                const RecentUsersSection(),
+                const SizedBox(height: 24), 
+
+                // 5. Approval Request
                 const SectionTitle('Approval Request'),
                 const ApprovalRequestSection(),
               ],
