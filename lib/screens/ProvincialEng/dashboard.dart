@@ -747,11 +747,11 @@ class UserManagementCard extends StatelessWidget {
         color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          // 🚨 UPDATED: Padding increased to 12.0 for a cleaner look
+          // UPDATED: Padding increased to 12.0 for a cleaner look
           padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            // 🚨 UPDATED: Use spaceEvenly to fix internal overflow
+            // UPDATED: Use spaceEvenly to fix internal overflow
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               // --- Title Row ---
@@ -765,7 +765,7 @@ class UserManagementCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        // 🚨 UPDATED: Font size increased for clarity
+                        //  UPDATED: Font size increased for clarity
                         fontSize: 14,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -905,7 +905,7 @@ class CustomBottomNavBar extends StatelessWidget {
               }
             },
           ),
-          // 💡 FIXED: Now navigates to the imported SettingsPage
+          //FIXED: Now navigates to the imported SettingsPage
           IconButton(
             icon: Icon(
               Icons.settings,
@@ -1063,13 +1063,13 @@ class IssueDetailPage extends StatelessWidget {
 
           // Extract Data Fields
           final String issueTitle = issueData['issueTitle'] ?? 'No Title';
-          // ⚠️ Assuming 'damageType' is the field
+          // Assuming 'damageType' is the field
           final String damageType = issueData['damageType'] ?? 'N/A';
           final String description = issueData['description'] ?? 'N/A';
           final String status = issueData['status'] ?? 'N/A';
           final List<dynamic> imageUrls = issueData['imageUrls'] ?? [];
           
-          // 💡 FIX APPLIED HERE:
+          // FIX APPLIED HERE:
           String damageDateStr = 'N/A';
           Timestamp? dateTimestamp;
 
@@ -1342,7 +1342,7 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-// ❌ REMOVED: Placeholder SettingsPage class to use the one from settings.dart
+// REMOVED: Placeholder SettingsPage class to use the one from settings.dart
 
 class AllUsersPage extends StatelessWidget {
   final String userType;
