@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class DamageDetailsListScreen extends StatelessWidget {
   const DamageDetailsListScreen({Key? key}) : super(key: key);
 
@@ -265,7 +264,7 @@ class IssueCard extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    
+                    // Edit functionality
                   },
                   icon: const Icon(Icons.edit, size: 16),
                   label: const Text(
@@ -291,7 +290,6 @@ class IssueCard extends StatelessWidget {
   }
 }
 
-
 class DamageDetailsPage extends StatefulWidget {
   final String? issueId;
   
@@ -308,17 +306,28 @@ class _DamageDetailsPageState extends State<DamageDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(137, 106, 101, 101),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
-          child: DamageDetailCard(issueId: widget.issueId),
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
+        title: const Text(
+          'Issue Details',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        centerTitle: true,
       ),
+      body: DamageDetailCard(issueId: widget.issueId),
     );
   }
 }
-
 
 class DamageDetailCard extends StatelessWidget {
   final String? issueId;
@@ -363,13 +372,72 @@ class DamageDetailCard extends StatelessWidget {
     return date.toString();
   }
 
+  List<Widget> _buildImagesSection(List<dynamic> imageUrls) {
+    return [
+      const SizedBox(height: 10),
+      const Text(
+        '• Images:',
+        style: TextStyle(
+          fontSize: 14.0,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 8),
+      SizedBox(
+        height: 100,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: imageUrls.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  imageUrls[index],
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 100,
+                      height: 100,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.error),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      width: 100,
+                      height: 100,
+                      color: Colors.grey[300],
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     if (issueId == null || issueId!.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(20.0),
-          child: Center(
+      return const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
             child: Text('No issue ID provided'),
           ),
         ),
@@ -383,21 +451,16 @@ class DamageDetailCard extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(50.0),
-                child: CircularProgressIndicator(),
-              ),
-            ),
+          return const Center(
+            child: CircularProgressIndicator(),
           );
         }
 
         if (snapshot.hasError) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Center(
+          return Center(
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
                 child: Text(
                   'Error: ${snapshot.error}',
                   style: const TextStyle(color: Colors.red),
@@ -408,10 +471,10 @@ class DamageDetailCard extends StatelessWidget {
         }
 
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Card(
-            child: Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Center(
+          return const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
                 child: Text('Issue details not found'),
               ),
             ),
@@ -421,17 +484,19 @@ class DamageDetailCard extends StatelessWidget {
         final data = snapshot.data!.data() as Map<String, dynamic>;
         List<dynamic> imageUrls = data['imageUrls'] ?? [];
 
-        return Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10.0),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(15.0),
-            child: SingleChildScrollView(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10.0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(15.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
+                  // Header Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: <Widget>[
@@ -444,96 +509,28 @@ class DamageDetailCard extends StatelessWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, size: 20),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
+                        onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
-                  const Divider(thickness: 1, height: 15),
-                  _buildDetailRow(
-                    'Issue Title',
-                    data['issueTitle'] ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'School Name',
-                    data['schoolName'] ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Building Name',
-                    data['buildingName'] ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Building Area',
-                    data['buildingArea']?.toString() ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Damage Type',
-                    data['damageType'] ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Number of Floors',
-                    data['numFloors']?.toString() ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Number of Classrooms',
-                    data['numClassrooms']?.toString() ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Date of Occurrence',
-                    _formatDate(data['dateOfOccurance']),
-                  ),
-                  _buildDetailRow(
-                    'Description',
-                    data['description'] ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Status',
-                    data['status'] ?? 'N/A',
-                  ),
-                  _buildDetailRow(
-                    'Added By NIC',
-                    data['addedByNic'] ?? 'N/A',
-                  ),
                   
-                  // Image section
-                  if (imageUrls.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    const Text(
-                      '• Images:',
-                      style: TextStyle(fontSize: 14.0, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: imageUrls.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                imageUrls[index],
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 100,
-                                    height: 100,
-                                    color: Colors.grey[300],
-                                    child: const Icon(Icons.error),
-                                  );
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                  const Divider(thickness: 1, height: 15),
+                  
+                  // Issue Details Section
+                  _buildDetailRow('Issue Title  ', data['issueTitle'] ?? 'N/A'),
+                  _buildDetailRow('School Name', data['schoolName'] ?? 'N/A'),
+                  _buildDetailRow('Building Name', data['buildingName'] ?? 'N/A'),
+                  _buildDetailRow('Building Area', data['buildingArea']?.toString() ?? 'N/A'),
+                  _buildDetailRow('Damage Type', data['damageType'] ?? 'N/A'),
+                  _buildDetailRow('Number of Floors', data['numFloors']?.toString() ?? 'N/A'),
+                  _buildDetailRow('Number of Classrooms', data['numClassrooms']?.toString() ?? 'N/A'),
+                  _buildDetailRow('Date of Occurrence', _formatDate(data['dateOfOccurance'])),
+                  _buildDetailRow('Description', data['description'] ?? 'N/A'),
+                  _buildDetailRow('Status', data['status'] ?? 'N/A'),
+                  _buildDetailRow('Added By NIC', data['addedByNic'] ?? 'N/A'),
+                  
+                  // Images Section
+                  if (imageUrls.isNotEmpty) ..._buildImagesSection(imageUrls),
                 ],
               ),
             ),
