@@ -2,8 +2,11 @@
 
 import 'package:flutter/material.dart';
 
-//  NEW AND CORRECT IMPORT: To navigate to LoginPage located in the login.dart file
+// NEW IMPORT: To navigate to LoginPage located in the login.dart file
 import 'package:buildcare/login.dart'; 
+
+// 🚀 NEW IMPORT: To use CustomBottomNavBar from dashboard.dart
+import 'dashboard.dart'; 
 
 // ----------------------------------------------------------------------------
 // --- Settings Page Screen ---
@@ -14,16 +17,16 @@ class SettingsPage extends StatelessWidget {
   // Helper function for the Log Out action
   void _performLogout(BuildContext context) {
     // 1. (Optional) Perform Firebase/backend sign out here 
-   
+    // Example: await FirebaseAuth.instance.signOut();
 
     // 2. Navigate to the main LoginPage and clear the navigation stack
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        // Assuming 'LoginPage' is the name of the main class located in the login.dart file
+        // 'LoginPage' යනු login.dart file එකේ ඇති ප්‍රධාන class එකේ නම යැයි උපකල්පනය කෙරේ
         builder: (context) => const LoginPage(), 
       ),
-      (Route<dynamic> route) => false, // Clears all previous screens from the navigation stack
+      (Route<dynamic> route) => false, // සියලුම පෙර screens navigation stack එකෙන් ඉවත් කරයි
     );
   }
 
@@ -101,7 +104,7 @@ class SettingsPage extends StatelessWidget {
           
           const SizedBox(height: 30),
           
-          // LOG OUT BUTTON (Updated Navigation to login.dart)
+          // --- LOG OUT BUTTON ---
           _SettingsItem(
             title: 'Log Out',
             icon: Icons.logout,
@@ -115,6 +118,10 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 20),
         ],
       ),
+      
+      // 🚀 ADDED: Custom Bottom Navigation Bar
+      // Index 2 (Settings) is set as active
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 2), 
     );
   }
 }
@@ -144,7 +151,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ----------------------------------------------------------------------------
-// --- Helper Widget: _SettingsItem (Fixed to support icon and color parameters) ---
+// --- Helper Widget: _SettingsItem (Used in SettingsPage) ---
 // ----------------------------------------------------------------------------
 class _SettingsItem extends StatelessWidget {
   final String title;
@@ -153,7 +160,6 @@ class _SettingsItem extends StatelessWidget {
   final Color? iconColor;
   final Color? textColor;
 
-  // Constructor now includes the optional parameters to match usage above.
   const _SettingsItem({
     super.key, 
     required this.title, 
