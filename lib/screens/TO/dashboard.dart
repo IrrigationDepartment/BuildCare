@@ -53,8 +53,10 @@ class TODashboard extends StatefulWidget {
 class _DashboardScreenState extends State<TODashboard> {
   // --- Style & Color Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5); // Blue for icons/buttons
-  static const Color kLightBlue = Color(0xFFE3F2FD); // Light blue for button border
-  static const Color kBackgroundColor = Color(0xFFF5F7FA); // Light grey background
+  static const Color kLightBlue =
+      Color(0xFFE3F2FD); // Light blue for button border
+  static const Color kBackgroundColor =
+      Color(0xFFF5F7FA); // Light grey background
   static const Color kCardColor = Colors.white;
   static const Color kHeaderGrey = Color(0xFFF0F2F5); // Header card background
   static const Color kTextColor = Color(0xFF333333);
@@ -98,8 +100,10 @@ class _DashboardScreenState extends State<TODashboard> {
         var data = doc.data();
         allActivities.add(RecentActivityItem(
           id: doc.id,
-          title: "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
-          subtitle: "${data['location'] ?? 'No Location'} - Status: ${data['status'] ?? 'No Status'}",
+          title:
+              "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
+          subtitle:
+              "${data['location'] ?? 'No Location'} - Status: ${data['status'] ?? 'No Status'}",
           icon: Icons.home_work_outlined, // Icon from your image
           timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
           type: 'issue',
@@ -202,8 +206,10 @@ class _DashboardScreenState extends State<TODashboard> {
       case 'school':
         // Placeholder: Navigates to the school list.
         // Replace with 'ViewSchoolScreen(schoolId: id)' when you build it.
-        page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? 'UNKNOWN_NIC');
-        debugPrint("Navigate to school details for ID: $id (showing list as placeholder)");
+        page = ManageSchoolsScreen(
+            userNic: widget.userData['nic'] ?? 'UNKNOWN_NIC');
+        debugPrint(
+            "Navigate to school details for ID: $id (showing list as placeholder)");
         break;
       default:
         debugPrint("Unknown activity type: $type");
@@ -229,7 +235,8 @@ class _DashboardScreenState extends State<TODashboard> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Settings'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: kPrimaryBlue,
@@ -437,7 +444,8 @@ class _DashboardScreenState extends State<TODashboard> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Error loading activity: ${snapshot.error}'));
+          return Center(
+              child: Text('Error loading activity: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(

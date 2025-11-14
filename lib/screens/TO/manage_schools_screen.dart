@@ -160,12 +160,22 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     );
   }
 
-  // --- This is the MODIFIED school card with the Ad Button ---
+  // --- MODIFIED school card: Only the trailing button navigates ---
   Widget _buildSchoolCard(DocumentSnapshot schoolDoc) {
     final schoolData = schoolDoc.data() as Map<String, dynamic>;
     final String schoolId = schoolDoc.id;
     final String schoolName = schoolData['schoolName'] ?? 'Unnamed School';
     final String schoolAddress = schoolData['schoolAddress'] ?? 'No Address';
+
+    // Helper function for navigation
+    void navigateToDetails() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SchoolDetailsPage(schoolId: schoolId),
+        ),
+      );
+    }
 
     return Card(
       elevation: 2,
@@ -188,39 +198,23 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           style: const TextStyle(color: kSubTextColor),
         ),
 
-        // --- NEW TRAILING AD BUTTON ---
+        // --- TRAILING BUTTON: Only this navigates ---
         trailing: TextButton.icon(
-          icon: const Icon(Icons.ads_click, size: 18), // Ad icon
+          icon: const Icon(Icons.info_outline, size: 18),
           label: const Text('View Details'),
           style: TextButton.styleFrom(
-            foregroundColor: kPrimaryBlue, // Use your app's theme color
+            foregroundColor: kPrimaryBlue,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          onPressed: () {
-            // --- TODO: Add your ad logic here ---
-            // For example, load a full-screen ad
-            print('Ad button pressed for school $schoolId');
-            
-            // You can show a dialog, navigate to an ad page, etc.
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Showing Ad... (placeholder)')),
-            );
-          },
+          onPressed: navigateToDetails, // This button navigates
         ),
         // ---------------------------------
         
-        // --- Tapping the card still opens the details page ---
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SchoolDetailsPage(schoolId: schoolId),
-            ),
-          );
-        },
+        // --- IMPORTANT: Set onTap to null so the full card does not navigate ---
+        onTap: null, 
       ),
     );
   }
