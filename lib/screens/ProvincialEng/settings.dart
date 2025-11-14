@@ -1,5 +1,7 @@
 // settings.dart
 import 'package:flutter/material.dart';
+// 💡 අලුතින් එකතු කළ import එක (signup.dart file එකේ ඇති class එක භාවිත කිරීමට)
+import 'signup.dart'; 
 
 // -----------------------------------------------------------------------------
 // --- Settings Page Screen ---
@@ -33,6 +35,9 @@ class SettingsPage extends StatelessWidget {
           TextButton(
             onPressed: () {
               // Action when the Save button is clicked
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Settings Saved (Placeholder)')),
+              );
             },
             child: const Text(
               'Save',
@@ -79,13 +84,22 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 40),
 
-          // --- Log out Button ---
+          // 🚀 --- Log out Button (UPDATED LOGIC) --- 🚀
           SizedBox(
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
               onPressed: () {
-                // Action when "Log out" is clicked
+                // Log out logic: Navigate to ProvincialEngRegistrationPage 
+                // and remove all previous routes (Dashboard, etc.)
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    // 🚨 Note: The Sign Up class in your file is ProvincialEngRegistrationPage
+                    builder: (context) => const ProvincialEngRegistrationPage(), 
+                  ),
+                  (Route<dynamic> route) => false, // Remove all previous screens from the stack
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE53935), // Red color
@@ -100,43 +114,40 @@ class SettingsPage extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 20), // Added some spacing
         ],
       ),
-
-      // 3. Bottom Navigation Bar
-      // Settings icon is active (blue) for the Settings page
-      // currentIndex: 2 indicates Settings is the active tab.
-      bottomNavigationBar: const SettingsBottomNavBar(currentIndex: 2),
     );
   }
 }
 
 // -----------------------------------------------------------------------------
-// --- Helper Widgets for Settings Page ---
+// --- Helper Widget: _SectionHeader (Used in SettingsPage) ---
 // -----------------------------------------------------------------------------
-
-// Widget for section headers like "Account" or "Support"
 class _SectionHeader extends StatelessWidget {
   final String title;
+
   const _SectionHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
+      padding: const EdgeInsets.only(top: 10.0, bottom: 8.0),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Colors.black54,
+          color: Colors.blue.shade700,
         ),
       ),
     );
   }
 }
 
-// Widget for list items like "Change Password"
+// -----------------------------------------------------------------------------
+// --- Helper Widget: _SettingsItem (Used in SettingsPage) ---
+// -----------------------------------------------------------------------------
 class _SettingsItem extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
@@ -150,76 +161,19 @@ class _SettingsItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: ListTile(
         title: Text(title),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         onTap: onTap,
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// --- SettingsBottomNavBar (Specific to the Settings Page) ---
-// -----------------------------------------------------------------------------
-class SettingsBottomNavBar extends StatelessWidget {
-  // currentIndex = 2: Settings
-  final int currentIndex;
-  const SettingsBottomNavBar({super.key, required this.currentIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, -1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: <Widget>[
-          // Home icon (Tapping navigates back to Dashboard)
-          IconButton(
-            icon: Icon(
-              Icons.home_outlined, 
-              color: currentIndex == 0 ? Colors.blue : Colors.black54, 
-              size: 30
-            ),
-            onPressed: () {
-              Navigator.pop(context); // Navigates back to the Dashboard
-            },
-          ),
-          // Profile icon
-          IconButton(
-            icon: Icon(
-              Icons.person, 
-              color: currentIndex == 1 ? Colors.blue : Colors.black54, 
-              size: 30
-            ),
-            onPressed: () {
-              // Profile Page navigation logic goes here
-            },
-          ),
-          // Settings icon (Active on this page)
-          IconButton(
-            icon: Icon(
-              Icons.settings, 
-              color: currentIndex == 2 ? Colors.blue : Colors.black54, // Active (Blue) on Settings page
-              size: 30
-            ),
-            onPressed: () {
-              // No action is taken as we are already on the Settings page
-            },
-          ),
-        ],
       ),
     );
   }

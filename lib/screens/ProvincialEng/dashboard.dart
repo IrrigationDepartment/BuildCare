@@ -7,6 +7,8 @@ import 'package:rxdart/rxdart.dart';
 import 'view_issues.dart';
 // ADDED IMPORT FOR DATE FORMATTING
 import 'package:intl/intl.dart'; 
+// 💡 ADDED IMPORT FOR SETTINGS PAGE
+import 'settings.dart'; 
 
 // -----------------------------------------------------------------------------
 // --- HELPER CLASS: ActivityItem ---
@@ -745,11 +747,11 @@ class UserManagementCard extends StatelessWidget {
         color: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
-          // UPDATED: Padding increased to 12.0 for a cleaner look
+          // 🚨 UPDATED: Padding increased to 12.0 for a cleaner look
           padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            // UPDATED: Use spaceEvenly to fix internal overflow
+            // 🚨 UPDATED: Use spaceEvenly to fix internal overflow
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               // --- Title Row ---
@@ -763,7 +765,7 @@ class UserManagementCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        //  UPDATED: Font size increased for clarity
+                        // 🚨 UPDATED: Font size increased for clarity
                         fontSize: 14,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -895,6 +897,7 @@ class CustomBottomNavBar extends StatelessWidget {
             ),
             onPressed: () {
               if (currentIndex != 1) {
+                // Assuming ProfilePage is defined or imported elsewhere if not in this file
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ProfilePage()),
@@ -902,6 +905,7 @@ class CustomBottomNavBar extends StatelessWidget {
               }
             },
           ),
+          // 💡 FIXED: Now navigates to the imported SettingsPage
           IconButton(
             icon: Icon(
               Icons.settings,
@@ -913,7 +917,8 @@ class CustomBottomNavBar extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const SettingsPage()),
+                      // Uses the SettingsPage imported from settings.dart
+                      builder: (context) => const SettingsPage()), 
                 );
               }
             },
@@ -925,7 +930,7 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- IssueDetailPage (Date Fix Applied)  ---
+// --- IssueDetailPage (Date Fix Applied) ---
 // -----------------------------------------------------------------------------
 
 /// The detail page that fetches and displays a single issue's details and images.
@@ -1058,13 +1063,13 @@ class IssueDetailPage extends StatelessWidget {
 
           // Extract Data Fields
           final String issueTitle = issueData['issueTitle'] ?? 'No Title';
-          // Assuming 'damageType' is the field
+          // ⚠️ Assuming 'damageType' is the field
           final String damageType = issueData['damageType'] ?? 'N/A';
           final String description = issueData['description'] ?? 'N/A';
           final String status = issueData['status'] ?? 'N/A';
           final List<dynamic> imageUrls = issueData['imageUrls'] ?? [];
           
-          // FIX APPLIED HERE:
+          // 💡 FIX APPLIED HERE:
           String damageDateStr = 'N/A';
           Timestamp? dateTimestamp;
 
@@ -1337,27 +1342,7 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: const Color(0xFFF4F6F8),
-        elevation: 0,
-      ),
-      body: const Center(
-        child: Text(
-          'Settings Page Placeholder',
-          style: TextStyle(fontSize: 20, color: Colors.black54),
-        ),
-      ),
-      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 2),
-    );
-  }
-}
+// ❌ REMOVED: Placeholder SettingsPage class to use the one from settings.dart
 
 class AllUsersPage extends StatelessWidget {
   final String userType;
