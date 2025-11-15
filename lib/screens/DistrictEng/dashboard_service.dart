@@ -1,12 +1,15 @@
+
+//  FILENAME: dashboard_service.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Data model for the overview counts
-class OverviewCounts {
+// A class to hold the fetched data counts
+class DashboardCounts {
   final int totalSchools;
   final int activeTOs;
   final int pendingRequests;
 
-  const OverviewCounts({
+  DashboardCounts({
     required this.totalSchools,
     required this.activeTOs,
     required this.pendingRequests,
@@ -14,18 +17,38 @@ class OverviewCounts {
 }
 
 class DashboardService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Placeholder function to fetch overview counts
-  Future<OverviewCounts> fetchOverviewCounts() async {
-    // Simulate a network delay
-    await Future.delayed(const Duration(seconds: 1));
+  // This method fetches all counts and returns them in a single object
+  Future<DashboardCounts> fetchOverviewCounts() async {
+    try {
+      // 1. Total Schools Count
+      final schoolsSnapshot = await _db.collection('schools').get();
+      
+      // 2. Active TOs Count
+      final tosSnapshot = await _db
+          .collection('users')
+          .where('userType', isEqualTo: 'Technical Officer')
+          .where('status', isEqualTo: 'active')
+          .get();
+          
+      // 3. Pending Approvals Count
+      final pendingSnapshot = await _db
+          .collection('approvals')
+          .where('status', isEqualTo: 'pending')
+          .get();
 
-    // Hardcoded placeholder data (REPLACE with actual Firestore aggregation)
-    return const OverviewCounts(
-      totalSchools: 45,
-      activeTOs: 12,
-      pendingRequests: 3,
-    );
+      // Return all counts in one object
+      return DashboardCounts(
+        totalSchools: schoolsSnapshot.docs.length,
+        activeTOs: tosSnapshot.docs.length,
+        pendingRequests: pendingSnapshot.docs.length,
+      );
+      
+    } catch (e) {
+      // Log the error and re-throw it so the UI can handle it
+      print("Error fetching overview counts: $e");
+      throw Exception('Failed to load dashboard data: $e');
+    }
   }
 }
