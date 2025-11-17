@@ -1,8 +1,10 @@
 // manage_users.dart
 import 'package:flutter/material.dart';
+// Import Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // -----------------------------------------------------------------------------
-// --- ManageUsersPage (New UI) ---
+// --- ManageUsersPage (Updated with Firestore StreamBuilder) ---
 // -----------------------------------------------------------------------------
 class ManageUsersPage extends StatefulWidget {
   final String roleTitle;
@@ -17,51 +19,9 @@ class ManageUsersPage extends StatefulWidget {
 }
 
 class _ManageUsersPageState extends State<ManageUsersPage> {
-  // --- Dummy Data for Pending Approvals Section (Top List) ---
-  
-  final List<Map<String, String>> pendingUsers = [
-    {
-      "name": "Pasidu Rajapaksha",
-      "email": "pasi@email.com",
-      "phone": "+ 71 59 59 479",
-      "role": "Chief Engineer",
-      "district": "Matara",
-    },
-    {
-      "name": "Madushan Gunawardana",
-      "email": "madush.19@gmail.com",
-      "phone": "+ 76 58 25 479",
-      "role": "Chief Engineer",
-      "district": "Galle",
-    },
-    {
-      "name": "Pasidu Rajapaksha",
-      "email": "pasi@email.com",
-      "phone": "+ 71 59 59 479",
-      "role": "Chief Engineer",
-      "district": "Hambanthota",
-    },
-  ];
-
-  // --- Dummy Data for Lower Approvals Section (UserCard List) ---
- 
-  final List<Map<String, dynamic>> lowerApprovalUsers = [
-    {
-      "name": "Nimal Bandara",
-      "role": "District Engineer - Colombo",
-      "isApproved": false,
-    },
-    {
-      "name": "Kamani Perera",
-      "role": "Technical Officer - Galle",
-      "isApproved": false,
-    },
-    {
-      "name": "Jayantha Sirisena",
-      "role": "Principal - Kandy",
-      "isApproved": true,
-    },
-  ];
+  // --- Dummy Data (Removed) ---
+  // The dummy 'pendingUsers' and 'lowerApprovalUsers' lists have been removed.
+  // We will now fetch live data from Firestore.
 
   @override
   Widget build(BuildContext context) {
@@ -101,50 +61,6 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       /* ------------------------------------------------------------------
-                       * --- COMMENTED OUT: Role Specific Approvals (Chief Engineer, etc.)
-                       * ------------------------------------------------------------------ */
-                      // // --- 2.1. "Pending Approvals" Header with Back Button (Top List) ---
-                      // Padding(
-                      //   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-                      //   child: Row(
-                      //     children: [
-                      //       // Back button
-                      //       IconButton(
-                      //         icon: const Icon(Icons.arrow_back, color: Colors.black),
-                      //         onPressed: () => Navigator.pop(context),
-                      //       ),
-                      //       const SizedBox(width: 10),
-                      //       Text(
-                      //         '${widget.roleTitle.split(' ').last} Approvals', // E.g., 'Engineer Approvals'
-                      //         style: const TextStyle(
-                      //           color: Colors.black,
-                      //           fontSize: 20,
-                      //           fontWeight: FontWeight.bold,
-                      //         ),
-                      //       ),
-                      //     ],
-                      //   ),
-                      // ),
-
-                      // // --- 2.2. User Cards List (Top List) ---
-                      // Padding(
-                      //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      //   child: ListView.builder(
-                      //     physics: const NeverScrollableScrollPhysics(), 
-                      //     shrinkWrap: true,
-                      //     itemCount: pendingUsers.length,
-                      //     itemBuilder: (context, index) {
-                      //       final user = pendingUsers[index];
-                      //       return _buildUserCard(user);
-                      //     },
-                      //   ),
-                      // ),
-
-                      // const SizedBox(height: 20),
-                      // const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16),
-                      // const SizedBox(height: 20),
-                      
-                      /* ------------------------------------------------------------------
                        * --- START: General Pending User Approvals Section
                        * ------------------------------------------------------------------ */
                       
@@ -170,12 +86,72 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                         ),
                       ),
                       
-                      // UserCard Widgets (Bottom List)
-                      ...lowerApprovalUsers.map((user) => UserCard(
-                            userName: user['name'],
-                            userRole: user['role'],
-                            isApproved: user['isApproved'],
-                          )),
+                      // --- Firestore StreamBuilder for Pending Users ---
+                      StreamBuilder<QuerySnapshot>(
+                        // Query: Get users where 'status' is 'Pending'
+                        stream: FirebaseFirestore.instance
+                            .collection('users') // <-- !! COLLECTION NAME !!
+                            .where('status', isEqualTo: 'Pending')
+                            .snapshots(),
+                        
+                        builder: (context, snapshot) {
+                          // 1. Loading State
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+                      
+                          // 2. Error State
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text('Error loading users: ${snapshot.error}'),
+                              ),
+                            );
+                          }
+                      
+                          // 3. No Data State
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32.0),
+                                child: Text(
+                                  'No pending user approvals.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 18, color: Colors.black54),
+                                ),
+                              ),
+                            );
+                          }
+                      
+                          final users = snapshot.data!.docs;
+                      
+                          // 4. Data Loaded State (Display List)
+                          return ListView.builder(
+                            itemCount: users.length,
+                            physics: const NeverScrollableScrollPhysics(),
+                            shrinkWrap: true,
+                            itemBuilder: (context, index) {
+                              final userDoc = users[index];
+                              final userData = userDoc.data() as Map<String, dynamic>;
+                              final userId = userDoc.id;
+                      
+                              return UserCard(
+                                userId: userId, // Pass the Document ID
+                                userName: userData['name'] ?? 'No Name',
+                                userRole: userData['role'] ?? 'No Role',
+                                // We know isApproved is false because we filtered for 'Pending'
+                                isApproved: false, 
+                              );
+                            },
+                          );
+                        },
+                      ),
                       
                       const SizedBox(height: 20),
                       /* ------------------------------------------------------------------
@@ -195,11 +171,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
     );
   }
 
-  // --- Helper Widgets (Kept as is) ---
-  
-  // The previous _buildUserCard helper was removed because it's currently unused.
-  // Re-add this helper (or uncomment its usages above) if you need the top pending list again.
-
+  // --- Helper Widgets ---
 
   // Bottom Nav Bar Helper
   Widget _buildBottomNavBar() {
@@ -241,27 +213,55 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserCard (General Approval List Item) ---
+// --- UserCard (Updated with Firestore Actions) ---
 // -----------------------------------------------------------------------------
 class UserCard extends StatelessWidget {
+  final String userId; // <-- Added to know which document to update
   final String userName;
   final String userRole;
   final bool isApproved;
 
   const UserCard({
     super.key,
+    required this.userId, // <-- Added
     required this.userName,
     required this.userRole,
     required this.isApproved,
   });
 
-  // Common navigation function for buttons
-  void _navigateToBlankPage(BuildContext context, String action) {
+  // --- Action Helper Functions ---
+
+  // 1. Update User Status (Approve or Reject)
+  Future<void> _updateUserStatus(BuildContext context, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users') // <-- !! COLLECTION NAME !!
+          .doc(userId)
+          .update({'status': newStatus});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('User $userName ${newStatus.toLowerCase()}.'),
+          backgroundColor: newStatus == 'Approved' ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update user: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // 2. View User Details (Keeps old logic)
+  void _viewUserDetails(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => BlankActionPage(
-          action: action,
+          action: 'View Details',
           target: userName,
         ),
       ),
@@ -308,24 +308,27 @@ class UserCard extends StatelessWidget {
                 ],
               ),
               const Divider(height: 20),
+              // --- Updated Action Buttons ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _ActionButton(
                     text: 'View',
                     color: Colors.blue,
-                    onPressed: () => _navigateToBlankPage(context, 'View Details'),
+                    onPressed: () => _viewUserDetails(context),
                   ),
+                  // 'Reject' button (Replaced 'Edit')
                   _ActionButton(
-                    text: 'Edit',
-                    color: Colors.deepOrange,
-                    onPressed: () => _navigateToBlankPage(context, 'Edit User'),
+                    text: 'Reject',
+                    color: Colors.red.shade700,
+                    onPressed: () => _updateUserStatus(context, 'Rejected'),
                   ),
+                  // 'Approve' button (Now functional)
                   if (!isApproved)
                     _ActionButton(
                       text: 'Approve',
                       color: Colors.green,
-                      onPressed: () => _navigateToBlankPage(context, 'Approve User'),
+                      onPressed: () => _updateUserStatus(context, 'Approved'),
                     ),
                 ],
               ),
@@ -372,7 +375,7 @@ class _ActionButton extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- Blank Action Page (for button clicks on UserCard) ---
+// --- Blank Action Page (No changes needed) ---
 // -----------------------------------------------------------------------------
 class BlankActionPage extends StatelessWidget {
   final String action;
