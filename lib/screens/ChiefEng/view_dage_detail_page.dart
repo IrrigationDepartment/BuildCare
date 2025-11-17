@@ -337,7 +337,9 @@ class DamageDetailCard extends StatelessWidget {
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 13.0),
+      padding: const EdgeInsets.all(8),
+
+
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
