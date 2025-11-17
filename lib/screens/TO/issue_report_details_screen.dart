@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // For formatting the date
+import 'package:intl/intl.dart';
 
 class IssueReportDetailsScreen extends StatefulWidget {
   final String issueId;
@@ -16,53 +16,19 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
   static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
+  static const Color kCardColor = Colors.white;
+  static const Color kIconColor = Color(0xFF9E9E9E);
 
   // --- State Variables ---
-  final _formKey = GlobalKey<FormState>();
   bool _isPageLoading = true;
-  bool _isSaving = false;
-
-  // --- Controllers for each field ---
-  late TextEditingController _schoolNameController;
-  late TextEditingController _buildingNameController;
-  late TextEditingController _buildingAreaController;
-  late TextEditingController _numFloorsController;
-  late TextEditingController _numClassroomsController;
-  late TextEditingController _damageTypeController;
-  late TextEditingController _descriptionController;
-  
-  // --- Variables for Date and Images ---
-  DateTime? _selectedDate;
-  String _formattedDate = 'Select Date';
+  Map<String, dynamic>? _issueData;
+  String _formattedDate = 'N/A';
   List<dynamic> _images = [];
 
   @override
   void initState() {
     super.initState();
-    // Initialize empty controllers first
-    _schoolNameController = TextEditingController();
-    _buildingNameController = TextEditingController();
-    _buildingAreaController = TextEditingController();
-    _numFloorsController = TextEditingController();
-    _numClassroomsController = TextEditingController();
-    _damageTypeController = TextEditingController();
-    _descriptionController = TextEditingController();
-
-    // Fetch data and populate controllers
     _fetchIssueDetails();
-  }
-
-  @override
-  void dispose() {
-    // Dispose all controllers to prevent memory leaks
-    _schoolNameController.dispose();
-    _buildingNameController.dispose();
-    _buildingAreaController.dispose();
-    _numFloorsController.dispose();
-    _numClassroomsController.dispose();
-    _damageTypeController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
   }
 
   // --- Data Fetching ---
@@ -74,25 +40,17 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
           .get();
 
       if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Populate controllers with existing data
-        _schoolNameController.text = data['schoolName'] ?? '';
-        _buildingNameController.text = data['buildingName'] ?? '';
-        _buildingAreaController.text = data['buildingArea'] ?? '';
-        _numFloorsController.text = data['numFloors']?.toString() ?? '';
-        _numClassroomsController.text = data['numClassrooms']?.toString() ?? '';
-        _damageTypeController.text = data['damageType'] ?? '';
-        _descriptionController.text = data['description'] ?? '';
+        _issueData = doc.data() as Map<String, dynamic>;
 
         // Handle date
-        if (data['dateOfOccurance'] != null) {
-          _selectedDate = (data['dateOfOccurance'] as Timestamp).toDate();
-          _formattedDate = DateFormat('yyyy/MM/dd').format(_selectedDate!);
+        if (_issueData!['dateOfOccurance'] != null) {
+          final DateTime selectedDate =
+              (_issueData!['dateOfOccurance'] as Timestamp).toDate();
+          _formattedDate = DateFormat('MMM dd, yyyy').format(selectedDate);
         }
 
         // Load images
-        _images = data['imageUrls'] ?? [];
+        _images = _issueData!['imageUrls'] ?? [];
 
         setState(() {
           _isPageLoading = false;
@@ -126,273 +84,221 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     }
   }
 
-  // --- Save Changes ---
-  Future<void> _saveChanges() async {
-    // 1. Validate the form
-    if (!_formKey.currentState!.validate()) {
-      return; // Don't save if validation fails
-    }
-
-    // 2. Set loading state
-    setState(() {
-      _isSaving = true;
-    });
-
-    try {
-      // 3. Prepare data map
-      final Map<String, dynamic> updatedData = {
-        'schoolName': _schoolNameController.text.trim(),
-        'buildingName': _buildingNameController.text.trim(),
-        'buildingArea': _buildingAreaController.text.trim(),
-        'numFloors': int.tryParse(_numFloorsController.text.trim()),
-        'numClassrooms': int.tryParse(_numClassroomsController.text.trim()),
-        'damageType': _damageTypeController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'dateOfOccurance':
-            _selectedDate != null ? Timestamp.fromDate(_selectedDate!) : null,
-        // Note: We are not editing 'imageUrls' here.
-        // That would require a much more complex UI (add/remove buttons).
-      };
-
-      // 4. Update Firestore
-      await FirebaseFirestore.instance
-          .collection('issues')
-          .doc(widget.issueId)
-          .update(updatedData);
-
-      // 5. Show success and pop
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Details saved successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop(); // Go back after saving
-      }
-    } catch (e) {
-      // 6. Handle error
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save details: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      // 7. Unset loading state
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
-    }
-  }
-
-  // --- Date Picker Dialog ---
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(), // User cannot pick a future date
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _formattedDate = DateFormat('yyyy/MM/dd').format(_selectedDate!);
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text('Edit Repair Report',
+        title: const Text('Repair Report Details',
             style: TextStyle(color: kTextColor)),
-        backgroundColor: Colors.white,
+        backgroundColor: kCardColor,
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
+        // OPTIONAL: Add an "Edit" button to navigate to your editing screen
         actions: [
-          // Updated "Save" button
-          TextButton(
-            onPressed: _isSaving ? null : _saveChanges,
-            child: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
-          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Report',
+            onPressed: () {
+              // TODO: Navigate to your IssueReportDetailsScreen (the editable one)
+              // Example:
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => IssueReportDetailsScreen(issueId: widget.issueId),
+              //   ),
+              // );
+            },
+          )
         ],
       ),
       body: _isPageLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Container(
-                padding: const EdgeInsets.all(20.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                // --- Form Widget ---
-                child: Form(
-                  key: _formKey,
+          : _issueData == null
+              ? const Center(child: Text('Issue not found.'))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- Replaced _buildDetailRow with _buildTextFormField ---
-                      _buildTextFormField(
-                        controller: _schoolNameController,
-                        label: 'School Name:',
-                      ),
-                      _buildTextFormField(
-                        controller: _buildingNameController,
-                        label: 'Select Damage Building:',
-                      ),
-                      _buildTextFormField(
-                        controller: _buildingAreaController,
-                        label: 'Building Area (sq. ft/m²):',
-                      ),
-                      _buildTextFormField(
-                        controller: _numFloorsController,
-                        label: 'Number of Floors:',
-                        keyboardType: TextInputType.number,
-                      ),
-                      _buildTextFormField(
-                        controller: _numClassroomsController,
-                        label: 'Number of Classrooms:',
-                        keyboardType: TextInputType.number,
-                      ),
-                      _buildTextFormField(
-                        controller: _damageTypeController,
-                        label: 'Type Of Damage:',
-                      ),
-                      _buildTextFormField(
-                        controller: _descriptionController,
-                        label: 'Description of Issue:',
-                        maxLines: 4,
-                      ),
-                      // --- Date Picker Widget ---
-                      _buildDatePicker(context),
-                      
-                      const SizedBox(height: 16),
+                      // --- SECTION 1: IMAGES ---
                       const Text(
-                        'Uploaded Images(JPG/PNG)',
+                        'Uploaded Images',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: kTextColor,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // This widget just displays images, it doesn't edit them
                       _buildImageGallery(_images),
+                      const SizedBox(height: 24),
+
+                      // --- SECTION 2: ISSUE DETAILS CARD ---
+                      _buildSectionCard(
+                        title: 'Issue Details',
+                        children: [
+                          _buildDetailRow(
+                            icon: Icons.category_outlined,
+                            label: 'Type of Damage',
+                            value: _issueData!['damageType'] ?? 'N/A',
+                          ),
+                          _buildDetailRow(
+                            icon: Icons.calendar_today_outlined,
+                            label: 'Date of Occurance',
+                            value: _formattedDate,
+                          ),
+                        ],
+                      ),
+
+                      // --- SECTION 3: DESCRIPTION CARD ---
+                      _buildSectionCard(
+                        title: 'Description',
+                        children: [
+                          Text(
+                            _issueData!['description'] ??
+                                'No description provided.',
+                            style: const TextStyle(
+                                fontSize: 15,
+                                color: kSubTextColor,
+                                height: 1.4),
+                          ),
+                        ],
+                      ),
+
+                      // --- SECTION 4: BUILDING SPECS CARD ---
+                      _buildSectionCard(
+                        title: 'Building Specifications',
+                        children: [
+                          _buildDetailRow(
+                            icon: Icons.square_foot_outlined,
+                            label: 'Building Area',
+                            value: _issueData!['buildingArea'] ?? 'N/A',
+                          ),
+                          _buildDetailRow(
+                            icon: Icons.layers_outlined,
+                            label: 'Number of Floors',
+                            value:
+                                _issueData!['numFloors']?.toString() ?? 'N/A',
+                          ),
+                          _buildDetailRow(
+                            icon: Icons.chair_outlined,
+                            label: 'Number of Classrooms',
+                            value: _issueData!['numClassrooms']?.toString() ??
+                                'N/A',
+                          ),
+                        ],
+                      ),
+
+                      // --- SECTION 5: LOCATION CARD ---
+                      _buildSectionCard(
+                        title: 'Location',
+                        children: [
+                          _buildLocationRow(
+                            label: 'School',
+                            value: _issueData!['schoolName'] ?? 'N/A',
+                          ),
+                          _buildLocationRow(
+                            label: 'Building',
+                            value: _issueData!['buildingName'] ?? 'N/A',
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
-            ),
     );
   }
 
-  // --- NEW: Helper to build editable text fields ---
-  Widget _buildTextFormField({
-    required TextEditingController controller,
+  // ---
+  // ---
+  // --- 🎨 NEW: HELPER WIDGETS FOR VIEW SCREEN 🎨 ---
+  // ---
+  // ---
+
+  // --- NEW: Helper to build section cards ---
+  Widget _buildSectionCard({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Card(
+      elevation: 2,
+      shadowColor: Colors.black.withOpacity(0.1),
+      color: kCardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      margin: const EdgeInsets.only(bottom: 20.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: kTextColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Divider(color: kBackgroundColor.withOpacity(0.8)),
+            const SizedBox(height: 12),
+            ...children, // Add all the child widgets
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- NEW: Helper for Icon | Label | Value rows (like your image) ---
+  Widget _buildDetailRow({
+    required IconData icon,
     required String label,
-    String? hint,
-    int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text,
+    required String value,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
         children: [
+          Icon(icon, color: kIconColor, size: 20),
+          const SizedBox(width: 16),
           Text(
             label,
+            style: const TextStyle(fontSize: 15, color: kSubTextColor),
+          ),
+          const Spacer(),
+          Text(
+            value,
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
               color: kTextColor,
             ),
           ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            maxLines: maxLines,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              hintText: hint ?? 'Enter $label'.replaceAll(":", ""),
-              filled: true,
-              fillColor: kBackgroundColor,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide(color: Theme.of(context).primaryColor),
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '$label cannot be empty'.replaceAll(":", "");
-              }
-              return null;
-            },
-          ),
         ],
       ),
     );
   }
 
-  // --- NEW: Helper to build the date picker ---
-  Widget _buildDatePicker(BuildContext context) {
+  // --- NEW: Helper for Label: Value rows ---
+  Widget _buildLocationRow({required String label, required String value}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Column(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Date Of Damage Occurance:',
-            style: TextStyle(
+          Text(
+            '$label: ',
+            style: const TextStyle(
               fontSize: 15,
+              color: kSubTextColor,
               fontWeight: FontWeight.bold,
-              color: kTextColor,
             ),
           ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _pickDate, // Call _pickDate function
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-              decoration: BoxDecoration(
-                color: kBackgroundColor,
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _formattedDate,
-                    style: const TextStyle(fontSize: 15, color: kSubTextColor),
-                  ),
-                  const Icon(Icons.calendar_today_outlined,
-                      color: kSubTextColor, size: 20),
-                ],
-              ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 15, color: kTextColor),
             ),
           ),
         ],
@@ -400,58 +306,74 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
-  // --- MODIFIED: Helper to build the image gallery ---
+  // ---
+  // ---
+  // --- 📸 IMAGE GALLERY WIDGETS (Unchanged from previous) 📸 ---
+  // ---
+  // ---
   Widget _buildImageGallery(List<dynamic> images) {
     if (images.isEmpty) {
-      return const Text('No images uploaded.',
-          style: TextStyle(color: kSubTextColor));
+      return Container(
+        height: 120,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(12.0),
+        ),
+        child: const Center(
+          child: Text('No images uploaded.',
+              style: TextStyle(color: kSubTextColor)),
+        ),
+      );
     }
 
     return SizedBox(
-      height: 100, // Give the gallery a fixed height
+      height: 120,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
           children: images.map((imageUrl) {
-            // --- ADDED: GestureDetector wrapper ---
             return GestureDetector(
               onTap: () {
-                // --- ADDED: Navigation to a new zoomable screen ---
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    // Builder creates the new screen
-                    builder: (context) => _buildImageZoomScreen(imageUrl.toString()),
+                    builder: (context) =>
+                        _buildImageZoomScreen(imageUrl.toString()),
                   ),
                 );
               },
               child: Padding(
                 padding: const EdgeInsets.only(right: 12.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: Image.network(
-                    imageUrl.toString(), // This is the server URL
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    // Loading and error builders for a better UX
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        width: 100,
-                        height: 100,
-                        color: Colors.grey[200],
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 100,
-                        height: 100,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.broken_image, color: Colors.grey),
-                      );
-                    },
+                child: Hero(
+                  tag: imageUrl.toString(),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12.0),
+                    child: Image.network(
+                      imageUrl.toString(),
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          width: 120,
+                          height: 120,
+                          color: Colors.grey[200],
+                          child:
+                              const Center(child: CircularProgressIndicator()),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 120,
+                          height: 120,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.broken_image,
+                              color: Colors.grey),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -462,44 +384,42 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
-  // --- NEW: Helper to build the full-screen zoomable image page ---
   Widget _buildImageZoomScreen(String imageUrl) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        // This adds a white back arrow
-        iconTheme: const IconThemeData(color: Colors.white), 
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
-        // InteractiveViewer is the widget that enables zooming and panning
-        child: InteractiveViewer(
-          panEnabled: true, // Allow panning
-          minScale: 1.0,    // Start at 100%
-          maxScale: 4.0,    // Allow user to zoom up to 400%
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain, // Show the whole image
-            // Re-added loading/error builders for the zoom screen
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return const Center(child: CircularProgressIndicator(color: Colors.white));
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: Colors.grey[800],
-                child: const Center(
-                  child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
-                ),
-              );
-            },
+        child: Hero(
+          tag: imageUrl,
+          child: InteractiveViewer(
+            panEnabled: true,
+            minScale: 1.0,
+            maxScale: 4.0,
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                    child: CircularProgressIndicator(color: Colors.white));
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey[800],
+                  child: const Center(
+                    child:
+                        Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
     );
   }
-
-  // --- This helper is no longer used, but kept for reference ---
-  // Widget _buildDetailRow(String label, String? value) { ... }
 }

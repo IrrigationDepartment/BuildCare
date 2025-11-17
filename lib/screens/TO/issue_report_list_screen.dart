@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'issue_report_details_screen.dart'; // We will create this next
+import 'issue_report_details_screen.dart';
 import 'add_issue_screen.dart'; // Placeholder for adding new issues
 
 class IssueReportListScreen extends StatefulWidget {

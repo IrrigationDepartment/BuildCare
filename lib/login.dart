@@ -1,10 +1,12 @@
-// login.dart
-// [----- ADD THIS IMPORT -----]
-import 'screens/forgot_password_flow.dart'; // Import the new screen
-// [-----------------------------]
+// Import for Firebase Auth
+import 'package:firebase_auth/firebase_auth.dart';
+// Import for Firebase Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+// Import the new screen
+import 'screens/forgot_password_flow.dart';
 
 // Corrected imports to match your folder structure
 import 'screens/ProvincialEng/dashboard.dart';
@@ -33,6 +35,8 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Shows a dialog message to the user.
   void _showMessage(String title, String message) {
+    // Check if the widget is still in the tree (mounted)
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -63,78 +67,109 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final usersCollection =
-          FirebaseFirestore.instance.collection('users');
+      // --- 1. FIND USER BY NIC TO GET EMAIL ---
+      final usersCollection = FirebaseFirestore.instance.collection('users');
       final querySnapshot = await usersCollection
-          .where('nic', isEqualTo: _nicController.text.trim())
-          .where('password', isEqualTo: _passwordController.text.trim())
+          .where('nic', isEqualTo: _nicController.text.trim().toUpperCase())
           .limit(1)
           .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        // --- FIX: Get the document itself to access both data and ID ---
-        final userDoc = querySnapshot.docs.first;
-        final userData = userDoc.data();
-        final userType = userData['userType'] as String?;
+      if (querySnapshot.docs.isEmpty) {
+        // NIC not found, show a generic error
+        _showMessage(
+            'Login Failed', 'Invalid NIC or Password. Please try again.');
+        setState(() => _isLoading = false);
+        return;
+      }
 
-        // ⭐ START MODIFICATION: Capture the NIC and prepare data for dashboard
+      // --- 2. GET THE EMAIL AND USER DATA ---
+      final userDoc = querySnapshot.docs.first;
+      final userData = userDoc.data();
+      final String? email = userData['email'] as String?;
+      final String? uid = userDoc.id; // This is the user's Auth UID
+
+      if (email == null || email.isEmpty) {
+        _showMessage('Login Error',
+            'Your account has no email. Please contact support.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // --- 3. SIGN IN WITH FIREBASE AUTH ---
+      UserCredential userCredential;
+      try {
+        userCredential =
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: _passwordController.text.trim(),
+        );
+      } on FirebaseAuthException catch (e) {
+        // This catches wrong password, user-not-found (which shouldn't happen here), etc.
+        _showMessage(
+            'Login Failed', 'Invalid NIC or Password. Please try again.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // --- 4. AUTH SUCCEEDED, NOW CHECK FIRESTORE FOR 'isActive' ---
+      
+      // We can re-use the userData we fetched earlier
+      final bool isActive = userData['isActive'] as bool? ?? false;
+      final userType = userData['userType'] as String?;
+
+      if (isActive) {
+        // --- User is active, proceed with login ---
         final String loggedInNic = _nicController.text.trim();
         final Map<String, dynamic> combinedUserData = {
           ...userData,
-          'nic': loggedInNic, // Explicitly ensure NIC is in the map for transit
+          'nic': loggedInNic, // Ensure NIC is passed
+          'uid': uid, // Pass the user's ID
         };
-        // ⭐ END MODIFICATION
-
-        // --- ADDED: Check if user is active ---
-        final bool isActive = userData['isActive'] as bool? ?? false;
-
-        if (isActive) {
-          // --- User is active, proceed with login ---
-          Widget destination;
-          switch (userType) {
-            case 'Provincial Engineer':
-              destination = ProvincialEngDashboard(userData: combinedUserData);
-              break;
-            case 'Chief Engineer':
-              destination = ChiefEngDashboard(userData: combinedUserData);
-              break;
-            case 'District Engineer':
-              destination = DistrictEngDashboard(userData: combinedUserData);
-              break;
-            case 'Principal':
-              // Pass the combined data to the Principal dashboard
-              destination = PrincipalDashboard(userData: combinedUserData);
-              break;
-            case 'Technical Officer':
-              destination = TODashboard(userData: combinedUserData); 
-              break;
-            default:
-              _showMessage('Login Error',
-                  'Could not determine user role. Please contact support.');
-              setState(() {
-                _isLoading = false;
-              });
-              return;
-          }
-
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => destination),
-            );
-          }
-        } else {
-          // --- ADDED: User is not active, show error ---
-          _showMessage(
-              'Login Failed',
-              'Your account is not active. Please contact an administrator.');
+        
+        Widget destination;
+        switch (userType) {
+          case 'Provincial Engineer':
+            destination = ProvincialEngDashboard(userData: combinedUserData);
+            break;
+          case 'Chief Engineer':
+            destination = ChiefEngDashboard(userData: combinedUserData);
+            break;
+          case 'District Engineer':
+            destination = DistrictEngDashboard(userData: combinedUserData);
+            break;
+          case 'Principal':
+            destination = PrincipalDashboard(userData: combinedUserData);
+            break;
+          case 'Technical Officer':
+            destination = TODashboard(userData: combinedUserData);
+            break;
+          default:
+            _showMessage('Login Error',
+                'Could not determine user role. Please contact support.');
+            setState(() {
+              _isLoading = false;
+            });
+            // Sign out to be safe
+            await FirebaseAuth.instance.signOut();
+            return;
         }
 
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => destination),
+          );
+        }
       } else {
+        // --- User is not active, show error ---
         _showMessage(
-            'Login Failed', 'Invalid NIC or Password. Please try again.');
+            'Login Failed',
+            'Your account is not active. Please contact an administrator.');
+        // Sign the user out again, as they are not allowed in
+        await FirebaseAuth.instance.signOut();
       }
+
     } catch (e) {
-      _showMessage('Error', 'An error occurred during login: $e');
+      _showMessage('Error', 'An unexpected error occurred: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -197,7 +232,7 @@ class _LoginPageState extends State<LoginPage> {
                 _buildPasswordField(),
                 const SizedBox(height: 12),
 
-                // [----- ADD THIS WIDGET -----]
+                // [----- Forgot Password Button -----]
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(

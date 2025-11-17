@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // <-- Import Firebase Auth
 
 class ForgotPasswordFlow extends StatefulWidget {
   const ForgotPasswordFlow({super.key});
@@ -12,36 +12,22 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
   final PageController _pageController = PageController();
   bool _isLoading = false;
 
-  // Step 1: Controllers
-  final TextEditingController _nicController = TextEditingController();
+  // --- Controllers for the new flow ---
+  // Step 1: Email
+  final TextEditingController _emailController = TextEditingController();
 
-  // Step 2: Controllers
-  final TextEditingController _petController = TextEditingController();
-  final TextEditingController _nicknameController = TextEditingController();
-
-  // Step 3: Controllers
-  final TextEditingController _newPasswordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
-
-  // Stored data from Firebase
-  String _userId = '';
-  String _correctPetAnswer = '';
-  String _correctNicknameAnswer = '';
+  // --- We no longer need OTP or Password controllers ---
 
   @override
   void dispose() {
     _pageController.dispose();
-    _nicController.dispose();
-    _petController.dispose();
-    _nicknameController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
   /// Shows a dialog message
   void _showMessage(String title, String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -59,10 +45,10 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     );
   }
 
-  // --- Page 1 Logic: Verify NIC ---
-  Future<void> _verifyNic() async {
-    if (_nicController.text.isEmpty) {
-      _showMessage('Error', 'Please enter your NIC.');
+  // --- Page 1 Logic: Send Password Reset Email ---
+  Future<void> _sendResetEmail() async {
+    if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
+      _showMessage('Error', 'Please enter a valid email address.');
       return;
     }
     setState(() {
@@ -70,34 +56,29 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     });
 
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('nic', isEqualTo: _nicController.text.trim())
-          .limit(1)
-          .get();
+      // --- This is the new, correct Firebase Auth call ---
+      // It sends the email template you saw in your Firebase console
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text.trim(),
+      );
+      // --- End of new call ---
 
-      if (querySnapshot.docs.isEmpty) {
-        _showMessage('Error', 'NIC not found. Please check and try again.');
-      } else {
-        final userDoc = querySnapshot.docs.first;
-        final userData = userDoc.data();
+      // Go to the success page
+      _pageController.animateToPage(1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeIn);
 
-        // Store the details we need for the next steps
-        _userId = userDoc.id;
-        _correctPetAnswer = userData['securityQuestionPet'] ?? '';
-        _correctNicknameAnswer = userData['securityQuestionNickname'] ?? '';
-
-        // Check if security questions are set
-        if (_correctPetAnswer.isEmpty || _correctNicknameAnswer.isEmpty) {
-          _showMessage('Error',
-              'Your account does not have security questions set up. Please contact an administrator.');
-        } else {
-          // Go to the next page
-          _pageController.animateToPage(1,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeIn);
-        }
+    } on FirebaseAuthException catch (e) {
+      // Handle errors
+      String message = 'An error occurred. Please try again.';
+      if (e.code == 'user-not-found') {
+        // We show a generic message for security
+        // But you can be specific if you prefer
+        message = 'No user found for that email.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
       }
+      _showMessage('Error', message);
     } catch (e) {
       _showMessage('Error', 'An error occurred: $e');
     }
@@ -107,80 +88,14 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     });
   }
 
-  // --- Page 2 Logic: Verify Security Answers ---
-  void _verifySecurityAnswers() {
-    final petAnswer = _petController.text.trim();
-    final nicknameAnswer = _nicknameController.text.trim();
-
-    if (petAnswer.isEmpty || nicknameAnswer.isEmpty) {
-      _showMessage('Error', 'Please answer both security questions.');
-      return;
-    }
-
-    // Case-insensitive comparison
-    if (petAnswer.toLowerCase() == _correctPetAnswer.toLowerCase() &&
-        nicknameAnswer.toLowerCase() == _correctNicknameAnswer.toLowerCase()) {
-      // Answers are correct, move to page 3
-      _pageController.animateToPage(2,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
-    } else {
-      _showMessage('Error', 'One or both answers are incorrect.');
-    }
-  }
-
-  // --- Page 3 Logic: Reset Password ---
-  Future<void> _updatePassword() async {
-    final newPassword = _newPasswordController.text;
-    final confirmPassword = _confirmPasswordController.text;
-
-    if (newPassword.isEmpty || confirmPassword.isEmpty) {
-      _showMessage('Error', 'Please fill in both password fields.');
-      return;
-    }
-
-    if (newPassword != confirmPassword) {
-      _showMessage('Error', 'Passwords do not match.');
-      return;
-    }
-
-    // --- TODO: Add password strength check here if you want ---
-    if (newPassword.length < 6) {
-      _showMessage(
-          'Error', 'Password must be at least 6 characters long.');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Update the password in Firebase
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(_userId)
-          .update({'password': newPassword});
-
-      // Go to success page
-      _pageController.animateToPage(3,
-          duration: const Duration(milliseconds: 300), curve: Curves.easeIn);
-    } catch (e) {
-      _showMessage('Error', 'Failed to update password: $e');
-    }
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  // --- Page 4 Logic: Back to Login ---
+  // --- Page 2 Logic: Back to Login ---
   void _backToLogin() {
     Navigator.of(context).pop(); // Close this flow and return to Login
   }
 
   @override
   Widget build(BuildContext context) {
-    // Define styles from your design
+    // Define styles
     const textStyleTitle =
         TextStyle(fontSize: 28, fontWeight: FontWeight.bold);
     const textStyleSubtitle = TextStyle(fontSize: 16, color: Colors.grey);
@@ -191,8 +106,8 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
         borderRadius: BorderRadius.circular(30),
       ),
     );
-    final textStyleButton =
-        const TextStyle(fontSize: 18, color: Colors.white);
+    const textStyleButton =
+        TextStyle(fontSize: 18, color: Colors.white);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -211,12 +126,10 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
         // Disable swiping between pages
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _buildNicEntryPage(
+          // --- Page 1 ---
+          _buildEmailEntryPage(
               textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
-          _buildSecurityQuestionsPage(
-              textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
-          _buildNewPasswordPage(
-              textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
+          // --- Page 2 (The new success page) ---
           _buildSuccessPage(
               textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
         ],
@@ -224,8 +137,8 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     );
   }
 
-  // --- Page 1: Enter NIC ---
-  Widget _buildNicEntryPage(TextStyle title, TextStyle subtitle,
+  // --- Page 1: Enter Email ---
+  Widget _buildEmailEntryPage(TextStyle title, TextStyle subtitle,
       ButtonStyle btnStyle, TextStyle btnText) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -237,115 +150,29 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
           const SizedBox(height: 30),
           Text('Forgot Password?', style: title, textAlign: TextAlign.center),
           const SizedBox(height: 10),
-          Text("No worries, we'll help you out.",
+          Text("Enter your email and we'll send you a reset link.",
               style: subtitle, textAlign: TextAlign.center),
           const SizedBox(height: 30),
           _buildStyledTextField(
-            controller: _nicController,
-            labelText: 'Enter Your NIC', // Changed from Email to NIC
-            icon: Icons.person,
+            controller: _emailController,
+            labelText: 'Enter Your Email',
+            icon: Icons.email,
+            keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 30),
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : ElevatedButton(
-                  onPressed: _verifyNic,
+                  onPressed: _sendResetEmail, // <-- Updated function
                   style: btnStyle,
-                  child: Text('Find Account', style: btnText),
+                  child: Text('Send Reset Link', style: btnText), // <-- Updated text
                 ),
         ],
       ),
     );
   }
 
-  // --- Page 2: Security Questions ---
-  Widget _buildSecurityQuestionsPage(TextStyle title, TextStyle subtitle,
-      ButtonStyle btnStyle, TextStyle btnText) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Image.network('https://i.imgur.com/H0sYmNl.png', height: 200),
-            const SizedBox(height: 30),
-            Text('Security Questions',
-                style: title, textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Text('Answer these questions to verify it\'s you.',
-                style: subtitle, textAlign: TextAlign.center),
-            const SizedBox(height: 30),
-            _buildStyledTextField(
-              controller: _petController,
-              labelText: 'What was your first pet\'s name?',
-              icon: Icons.pets,
-            ),
-            const SizedBox(height: 20),
-            _buildStyledTextField(
-              controller: _nicknameController,
-              labelText: 'What was your childhood nickname?',
-              icon: Icons.child_care,
-            ),
-            const SizedBox(height: 30),
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ElevatedButton(
-                    onPressed: _verifySecurityAnswers,
-                    style: btnStyle,
-                    child: Text('Verify Answers', style: btnText),
-                  ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- Page 3: Create New Password ---
-  Widget _buildNewPasswordPage(TextStyle title, TextStyle subtitle,
-      ButtonStyle btnStyle, TextStyle btnText) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Image.network('https://i.imgur.com/T0b7orA.png', height: 200),
-            const SizedBox(height: 30),
-            Text('Create New Password',
-                style: title, textAlign: TextAlign.center),
-            const SizedBox(height: 10),
-            Text('Your new password must be different.',
-                style: subtitle, textAlign: TextAlign.center),
-            const SizedBox(height: 30),
-            _buildStyledTextField(
-              controller: _newPasswordController,
-              labelText: 'New Password',
-              icon: Icons.lock,
-              isPassword: true,
-            ),
-            const SizedBox(height: 20),
-            _buildStyledTextField(
-              controller: _confirmPasswordController,
-              labelText: 'Confirm New Password',
-// [----- AFTER (THE FIX) -----]
-              icon: Icons.task_alt, // This is a nice checkmark icon              
-              isPassword: true,
-            ),
-            const SizedBox(height: 30),
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ElevatedButton(
-                    onPressed: _updatePassword,
-                    style: btnStyle,
-                    child: Text('Reset Password', style: btnText),
-                  ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- Page 4: Success ---
+  // --- Page 2: Success ---
   Widget _buildSuccessPage(TextStyle title, TextStyle subtitle,
       ButtonStyle btnStyle, TextStyle btnText) {
     return Padding(
@@ -357,10 +184,13 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
           const Icon(Icons.check_circle_outline,
               color: Colors.green, size: 150),
           const SizedBox(height: 30),
-          Text('Success!', style: title, textAlign: TextAlign.center),
+          Text('Check Your Email!', style: title, textAlign: TextAlign.center),
           const SizedBox(height: 10),
-          Text('Your password has been reset successfully.',
-              style: subtitle, textAlign: TextAlign.center),
+          Text(
+              // Show the email they entered
+              'We have sent a password reset link to ${_emailController.text.trim()}.',
+              style: subtitle,
+              textAlign: TextAlign.center),
           const SizedBox(height: 30),
           ElevatedButton(
             onPressed: _backToLogin,
@@ -378,10 +208,12 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     required String labelText,
     required IconData icon,
     bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
       controller: controller,
       obscureText: isPassword,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: labelText,
         prefixIcon: Icon(icon),
