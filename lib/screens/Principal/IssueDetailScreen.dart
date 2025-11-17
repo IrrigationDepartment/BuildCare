@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 // Assuming you have an AddBuildingIssuesPage for editing
-import 'add_building_issues_page.dart'; 
+import 'add_building_issues_page.dart';
 
 class IssueDetailScreen extends StatefulWidget {
   final Map<String, dynamic> issueData;
@@ -26,12 +26,37 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
   static const Color _primaryColor = Color(0xFF53BDFF);
   bool _isDeleting = false;
   List<String> _imageUrlsState = []; // holds current image urls for display
+  static const int _maxImagesToDisplay = 10; // Image limit: Only display first 10
+  
+  // New: Controller for the image carousel
+  late PageController _pageController; 
+  int _currentPage = 0;
 
   // --- Utility Functions ---
 
   String _formatDate(Timestamp? timestamp) {
     if (timestamp == null) return 'Date N/A';
     return DateFormat('yyyy-MM-dd').format(timestamp.toDate());
+  }
+
+  // Function to move to the next image
+  void _nextImage() {
+    if (_currentPage < _imageUrlsState.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeIn,
+      );
+    }
+  }
+
+  // Function to move to the previous image
+  void _previousImage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeIn,
+      );
+    }
   }
 
   // Fetch latest imageUrls from Firestore for this issue (useful after upload)
@@ -59,8 +84,15 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
           }
           final single = data['imageUrl'] ?? '';
           if (single is String && single.isNotEmpty && !fresh.contains(single)) fresh.insert(0, single);
+
+          // Apply the 10-image limit here
           setState(() {
-            _imageUrlsState = fresh;
+            _imageUrlsState = fresh.take(_maxImagesToDisplay).toList();
+            // Reset page index if the list changed significantly
+            if (_pageController.hasClients) {
+              _currentPage = 0; 
+              _pageController.jumpToPage(0);
+            }
           });
         }
       }
@@ -173,6 +205,7 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
     // initialize local image list from passed issueData
     final List<String> initial = [];
     final raw = widget.issueData['imageUrls'];
@@ -191,8 +224,17 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     }
     final single = widget.issueData['imageUrl'] ?? '';
     if (single is String && single.isNotEmpty && !initial.contains(single)) initial.insert(0, single);
-    _imageUrlsState = initial;
+    
+    // Apply the 10-image limit during initialization as well
+    _imageUrlsState = initial.take(_maxImagesToDisplay).toList();
   }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -224,46 +266,87 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Display: show a gallery (thumbnails) if images exist
+            // --- Image Carousel Implementation ---
             if (_imageUrlsState.isNotEmpty) ...[
               SizedBox(
-                height: 200,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _imageUrlsState.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    final url = _imageUrlsState[index];
-                    return GestureDetector(
-                      onTap: () => _openImageViewer(url),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          url,
-                          width: 320,
-                          height: 200,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (c, w, p) => p == null
-                              ? w
-                              : const SizedBox(
-                                  width: 320,
-                                  height: 200,
-                                  child: Center(child: CircularProgressIndicator()),
+                height: 250, // Height for the image carousel
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // 1. PageView (The Carousel itself)
+                    PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentPage = index;
+                        });
+                      },
+                      itemCount: _imageUrlsState.length,
+                      itemBuilder: (context, index) {
+                        final url = _imageUrlsState[index];
+                        return GestureDetector(
+                          onTap: () => _openImageViewer(url),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(
+                                url,
+                                width: double.infinity, 
+                                height: 250, 
+                                fit: BoxFit.cover,
+                                loadingBuilder: (c, w, p) => p == null
+                                    ? w
+                                    : const Center(child: CircularProgressIndicator()),
+                                errorBuilder: (c, o, s) => Container(
+                                  width: double.infinity,
+                                  height: 250,
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.broken_image, size: 60, color: Colors.grey),
                                 ),
-                          errorBuilder: (c, o, s) => Container(
-                            width: 320,
-                            height: 200,
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.broken_image, size: 60, color: Colors.grey),
+                              ),
+                            ),
                           ),
+                        );
+                      },
+                    ),
+                    
+                    // 2. Navigation Chevrons (Left)
+                    if (_imageUrlsState.length > 1) 
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          icon: Icon(Icons.chevron_left, size: 40, 
+                                     color: _currentPage > 0 ? _primaryColor : Colors.grey.shade400),
+                          onPressed: _previousImage,
                         ),
                       ),
-                    );
-                  },
+
+                    // 3. Navigation Chevrons (Right)
+                    if (_imageUrlsState.length > 1) 
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          icon: Icon(Icons.chevron_right, size: 40, 
+                                     color: _currentPage < _imageUrlsState.length - 1 ? _primaryColor : Colors.grey.shade400),
+                          onPressed: _nextImage,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
+
+              // 4. Image Counter (e.g., 1/3)
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  '${_currentPage + 1} / ${_imageUrlsState.length}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ),
+              const Divider(height: 30), 
             ],
+            // --- End Image Carousel Implementation ---
 
             // Title and Status
             Text(
@@ -319,9 +402,11 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                   // If editing changed the document, re-fetch images so user can see uploads immediately
                   if (result == true) {
                     _refreshImages();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Issue updated — images refreshed')),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Issue updated — images refreshed')),
+                      );
+                    }
                   }
                 });
               },
