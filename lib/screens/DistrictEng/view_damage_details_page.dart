@@ -1,150 +1,187 @@
-// view_damage_details_page.dart
 import 'package:flutter/material.dart';
-import 'damage_details_dialog.dart'; // 1. Import the new dialog file
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'damage_details_dialog.dart'; // Corrected import to match the actual class name
 
-class ViewDamageDetailsPage extends StatelessWidget {
-  const ViewDamageDetailsPage({super.key});
+class ViewDamageDetailsPage extends StatefulWidget {
+  final String userNic; // User's NIC from login
+  const ViewDamageDetailsPage({super.key, required this.userNic});
 
-  // Define consistent colors
-  static const Color _primaryBlue = Color(0xFF1E88E5);
-  static const Color _secondaryYellow = Color(0xFFFFC107); // Used for Edit button
-  static const Color _backgroundColor = Color(0xFFF0F2F5);
+  @override
+  State<ViewDamageDetailsPage> createState() => _ViewDamageDetailsPageState();
+}
 
-  // Sample data for the Damage Details list
-  final List<Map<String, String>> damageReports = const [
-    {
-      'school': "G/Rippon Girls' Collage",
-      'details': 'Roof leakage in science lab.',
-      'date': '2025/10/20',
-      'status': 'Pending TO review',
-    },
-    {
-      'school': 'Ambalangoda Central College',
-      'details': 'Damaged boundary wall section.',
-      'date': '2025/10/15',
-      'status': 'Work in progress',
-    },
-    {
-      'school': 'Galle Vidyalaya',
-      'details': 'Electrical short circuit in library.',
-      'date': '2025/10/01',
-      'status': 'Completed',
-    },
-    {
-      'school': 'Baddegama National School',
-      'details': 'Floor damage in main hall.',
-      'date': '2025/09/28',
-      'status': 'Pending TO review',
-    },
-  ];
+class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
+  // --- Style Constants ---
+  static const Color kPrimaryBlue = Color(0xFF42A5F5);
+  static const Color kBackgroundColor = Color(0xFFF5F7FA);
+  static const Color kCardColor = Colors.white;
+  static const Color kTextColor = Color(0xFF333333);
+  static const Color kSubTextColor = Color(0xFF757575);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text('Damage Reports', style: TextStyle(color: Color.fromARGB(255, 5, 5, 5))),
-        backgroundColor: const Color.fromARGB(255, 248, 248, 248),
-        iconTheme: const IconThemeData(color: Color.fromARGB(255, 13, 13, 13)),
+        title:
+            const Text('Damage Reports', style: TextStyle(color: kTextColor)),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: kTextColor),
       ),
-      backgroundColor: _backgroundColor,
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: damageReports.length,
-        itemBuilder: (context, index) {
-          return _buildReportCard(context, damageReports[index]);
+      // --- Floating Action Button removed based on request ---
+      
+      body: StreamBuilder<QuerySnapshot>(
+        // Assumes your collection is named 'issues' (or 'damageReports')
+        stream: FirebaseFirestore.instance.collection('issues').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No damage reports found.'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final issueDoc = snapshot.data!.docs[index];
+              return _buildIssueCard(issueDoc);
+            },
+          );
         },
       ),
     );
   }
 
-  // Refactored to use the imported DamageDetailsDialog
-  void _showDamageDetailsDialog(BuildContext context, Map<String, String> report) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return DamageDetailsDialog(report: report); // Use the imported widget
-      },
-    );
+  // --- Helper to get color for the status chip ---
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'In Progress':
+        return Colors.blue.shade100;
+      case 'Pending':
+        return Colors.amber.shade100;
+      case 'Resolved':
+        return Colors.green.shade100;
+      default:
+        return Colors.grey.shade200;
+    }
   }
 
-  // Widget to build a single report card
-  Widget _buildReportCard(BuildContext context, Map<String, String> report) {
-    final String school = report['school'] ?? 'N/A';
-    final String details = report['details'] ?? 'No details';
-    final String date = report['date'] ?? 'N/A';
-    final String status = report['status'] ?? 'Unknown';
+  // --- Helper to get text color for the status chip ---
+  Color _getStatusTextColor(String? status) {
+    switch (status) {
+      case 'In Progress':
+        return Colors.blue.shade800;
+      case 'Pending':
+        return Colors.amber.shade800;
+      case 'Resolved':
+        return Colors.green.shade800;
+      default:
+        return Colors.grey.shade800;
+    }
+  }
+
+  // --- Builds the individual issue card ---
+  Widget _buildIssueCard(DocumentSnapshot issueDoc) {
+    final data = issueDoc.data() as Map<String, dynamic>;
+    final String issueId = issueDoc.id;
+    final String title = data['issueTitle'] ?? 'No Title';
+    final String school = data['schoolName'] ?? 'Unknown School';
+    final String status = data['status'] ?? 'Unknown';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 3,
+      elevation: 2,
+      color: kCardColor,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. School Name (Title)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: kTextColor,
+                    ),
+                  ),
+                ),
+                // --- Status Chip ---
+                Chip(
+                  label: Text(
+                    status,
+                    style: TextStyle(
+                      color: _getStatusTextColor(status),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  backgroundColor: _getStatusColor(status),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
             Text(
               school,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: _primaryBlue,
-              ),
+              style: const TextStyle(color: kSubTextColor, fontSize: 14),
             ),
-            const SizedBox(height: 8),
-
-            // 2. Details & Date (Subtitle/Body)
-            Text('Details: $details', style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 4),
-            Text('Date: $date', style: const TextStyle(fontSize: 14, color: Colors.black54)),
-            const SizedBox(height: 4),
-
-            // 3. Status Chip
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _getStatusColor(status).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: Text(
-                status,
-                style: TextStyle(
-                  color: _getStatusColor(status),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 4. Action Buttons Row
+            const SizedBox(height: 16),
+            // --- View and Edit Buttons ---
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // 1. VIEW Button (Blue) - Calls the external dialog
-                _buildActionButton(
-                  context,
-                  'View',
-                  Icons.visibility,
-                  _primaryBlue,
-                  () {
-                    _showDamageDetailsDialog(context, report); // Call external dialog
-                  },
-                ),
-                const SizedBox(width: 8),
-
-                // 2. EDIT Button (Yellow)
-                _buildActionButton(
-                  context,
-                  'Edit',
-                  Icons.edit,
-                  _secondaryYellow,
-                  () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Editing Report for: $school')),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            DamageDetailsDialog(issueId: issueId), // Correct class name
+                      ),
                     );
                   },
+                  icon: const Icon(Icons.visibility, size: 18),
+                  label: const Text('View'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // TODO: Navigate to an "EditIssueScreen"
+                    // For now, it can also go to the details screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            DamageDetailsDialog(issueId: issueId), // Correct class name
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Edit'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
                 ),
               ],
             ),
@@ -152,46 +189,5 @@ class ViewDamageDetailsPage extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  // Helper widget for a consistent action button style
-  Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: const Color.fromARGB(255, 255, 255, 255)),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Helper function to determine status color
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return Colors.green;
-      case 'work in progress':
-        return _primaryBlue; // Or a specific 'in progress' color
-      case 'pending to review':
-      default:
-        return Colors.red;
-    }
   }
 }

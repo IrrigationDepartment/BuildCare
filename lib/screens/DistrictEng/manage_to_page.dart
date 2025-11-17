@@ -230,10 +230,12 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             'View Damage Details', 
             Icons.remove_red_eye_outlined,
             onTap: () {
+              // Note: The ViewDamageDetailsPage requires a userNic parameter. 
+              // Assuming a placeholder or default NIC for navigation from this admin page.
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ViewDamageDetailsPage(),
+                  builder: (context) => const ViewDamageDetailsPage(userNic: 'ADMIN_NIC_123'),
                 ),
               );
             },
