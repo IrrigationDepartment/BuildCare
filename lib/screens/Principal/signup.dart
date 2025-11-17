@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. IMPORT FIREBASE AUTH
 
 class PrincipalRegistrationPage extends StatefulWidget {
   const PrincipalRegistrationPage({super.key});
@@ -32,6 +33,12 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  
+  // --- ADDED: Default values for consistency ---
+  final bool _initialIsActiveStatus = false; // User starts as deactivated
+  final String _defaultProfileImageUrl =
+      'https://t4.ftcdn.net/jpg/00/64/67/63/360_F_64676383_Ldbm8TwlbnL43PId23vLdI3MgqhaNYf5.jpg';
+
 
   // Re-using the theme colors from your example
   static const Color _primaryColor = Color(0xFF53BDFF);
@@ -55,18 +62,33 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
   /// Registers the Principal in Firestore
   Future<void> _registerUser() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+    if (!_formKey.currentState!.validate()) {
+      return; // Stop if form is invalid
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
 
-      try {
-        // Add a new document to the 'users' collection
-        await FirebaseFirestore.instance.collection('users').add({
-          // Mapping fields from your form to the Firebase structure
+    try {
+      // --- 2. CREATE USER IN FIREBASE AUTH ---
+      // We use the School Email as the login email
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _schoolEmailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      // --- 3. GET THE NEW USER'S UID ---
+      String? uid = userCredential.user?.uid;
+
+      if (uid != null) {
+        
+        // --- 4. CREATE THE DATA MAP (WITHOUT PASSWORD) ---
+        final userData = {
           'userType': 'Principal', // Hardcoded for this page
-          'nic': _nicController.text.trim(),
-          'schoolName': _schoolNameController.text.trim(), // Using a clear field name
+          'nic': _nicController.text.trim().toUpperCase(),
+          'schoolName': _schoolNameController.text.trim(),
           'schoolType': _selectedSchoolType,
           'email': _schoolEmailController.text.trim(), // Corresponds to School Email
           'officePhone': _schoolPhoneController.text.trim(), // Corresponds to School Phone
@@ -74,29 +96,57 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
           'mobilePhone': _principalMobileController.text.trim(), // Corresponds to Principal Mobile
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
-          'password': _passwordController.text.trim(), // Storing password
+          // --- NO PASSWORD SAVED TO FIRESTORE ---
           'createdAt': Timestamp.now(),
-        });
+          'isActive': _initialIsActiveStatus, // Automatically set to false
+          'profile_image': _defaultProfileImageUrl,
+        };
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Registration successful! Please login.')),
-        );
-        // Go back to the very first screen (usually login)
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: $e')),
-        );
-      } finally {
+        // --- 5. SAVE USER DATA TO FIRESTORE USING THE AUTH UID ---
+        await FirebaseFirestore.instance.collection('users').doc(uid).set(userData);
+
         if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                backgroundColor: Colors.green,
+                content: Text(
+                    'Registration successful! Your account is currently deactivated.')),
+          );
+          // Go back to the very first screen (usually login)
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
+      }
+    } on FirebaseAuthException catch (e) {
+      // --- 6. HANDLE AUTHENTICATION ERRORS ---
+      String message = 'Registration failed. Please try again.';
+      if (e.code == 'weak-password') {
+        message = 'The password provided is too weak.';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'The email address is already in use by another account.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text(message)));
+      }
+    } catch (e) {
+      // Handle general errors (e.g., Firestore write failed)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Registration failed: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +197,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
               const SizedBox(height: 20),
               _buildTextFormField(
                 controller: _schoolEmailController,
-                labelText: 'School Email Address',
+                labelText: 'School Email Address (This will be your Login ID)',
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
@@ -192,7 +242,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                 labelText: 'Principal\'s Mobile Number',
                 icon: Icons.phone_iphone,
                 keyboardType: TextInputType.phone,
-                 validator: (value) {
+                  validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'This field cannot be empty';
                   }
@@ -303,13 +353,13 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
           icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
           onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
         ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(3), borderSide: BorderSide.none),
         filled: true,
         fillColor: _fillColor,
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return 'Please enter a password';
-        if (value.length <= 6) return 'Password must be more than 6 characters';
+        if (value.length < 6) return 'Password must be at least 6 characters';
         return null;
       },
       autovalidateMode: AutovalidateMode.onUserInteraction,
