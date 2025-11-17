@@ -1,283 +1,192 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'add_contractor_screen.dart'; // Removed import
+import 'view_contractor.dart'; // Import the details view page
 
-class ViewContractorDetailsPage extends StatelessWidget {
-  const ViewContractorDetailsPage({super.key});
+// --- Data Model (No changes needed here) ---
+class Contractor {
+  final String id;
+  final String companyName;
+  final String contractorName;
+  final String cidaRegistrationNumber;
 
-  // Define consistent colors
-  static const Color _primaryBlue = Color(0xFF1E88E5);
-  static const Color _secondaryYellow = Color(0xFFFFC107); 
-  static const Color _backgroundColor = Color(0xFFF0F2F5);
+  Contractor({
+    required this.id,
+    required this.companyName,
+    required this.contractorName,
+    required this.cidaRegistrationNumber,
+  });
 
-  // Sample data for the Contractor Details list
-  final List<Map<String, String>> contractors = const [
-    {
-      'name': 'ABC Construction (Pvt) Ltd',
-      'contact': '091-2234567',
-      'email': 'abc@lanka.com',
-      'specialization': 'General Building',
-      'status': 'Active',
-    },
-    {
-      'name': 'Saman & Sons Engineers',
-      'contact': '077-1234567',
-      'email': 'saman@eng.lk',
-      'specialization': 'Civil/Roads',
-      'status': 'Active',
-    },
-    {
-      'name': 'Electric Solutions Co.',
-      'contact': '011-5551234',
-      'email': 'electric@sol.lk',
-      'specialization': 'Electrical Works',
-      'status': 'Under Review',
-    },
-    {
-      'name': 'K.L. Builders',
-      'contact': '071-9876543',
-      'email': 'klbuild@yahoo.com',
-      'specialization': 'Roofing/Ceilings',
-      'status': 'Active',
-    },
-  ];
+  factory Contractor.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return Contractor(
+      id: doc.id,
+      companyName: data['companyName'] ?? 'N/A',
+      contractorName: data['contractorName'] ?? 'Unknown Contractor',
+      cidaRegistrationNumber: data['cidaRegistrationNumber'] ?? 'N/A',
+    );
+  }
+}
+
+// --- UPDATED: ContractorListScreen (Widget) ---
+class ContractorListScreen extends StatefulWidget {
+  // Renamed the class from ViewContractorDetailsPage to ContractorListScreen 
+  // to better reflect its function, but keeping the original file name.
+  const ContractorListScreen({super.key});
+
+  @override
+  State<ContractorListScreen> createState() => _ContractorListScreenState();
+}
+
+class _ContractorListScreenState extends State<ContractorListScreen> {
+  // Controller to handle the text input
+  final TextEditingController _searchController = TextEditingController();
+  // String to store what the user is typing
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Contractor Details',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Search Bar for Contractors
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildSearchBar(),
+        backgroundColor: const Color(0xFFF5F7FA),
+        elevation: 1,
+        // --- SEARCH BAR UI IN APP BAR ---
+        title: Container(
+          height: 45,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search Name or CIDA No...',
+              prefixIcon: const Icon(Icons.search, color: Colors.grey),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              // Add a clear button when text exists
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = "";
+                        });
+                      },
+                    )
+                  : null,
             ),
+            // Update the state whenever the user types
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+              });
+            },
+          ),
+        ),
+      ),
+      
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('contractor_details')
+            .orderBy('companyName')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No contractors found.'));
+          }
+
+          // 1. Convert all Firestore documents to Contractor objects
+          final List<Contractor> allContractors = snapshot.data!.docs
+              .map((doc) => Contractor.fromFirestore(doc))
+              .toList();
+
+          // 2. --- FILTERING LOGIC ---
+          // If search query is empty, show all. Otherwise, filter the list.
+          final List<Contractor> filteredContractors = allContractors.where((contractor) {
+            final nameLower = contractor.contractorName.toLowerCase();
+            final cidaLower = contractor.cidaRegistrationNumber.toLowerCase();
+            final companyLower = contractor.companyName.toLowerCase();
             
-            // Contractor List
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                itemCount: contractors.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final contractor = contractors[index];
-                  return _buildContractorTile(
-                    context, 
-                    contractor['name']!,
-                    contractor['specialization']!,
-                    contractor['contact']!,
-                    contractor['status']!,
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      // Consistent Bottom Navigation Bar styling
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-        currentIndex: 1, // Profile (person) is selected
-        selectedItemColor: _primaryBlue,
-        unselectedItemColor: Colors.grey,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-      ),
-    );
-  }
+            // Check if the query matches Name OR CIDA OR Company
+            return nameLower.contains(_searchQuery) || 
+                   cidaLower.contains(_searchQuery) ||
+                   companyLower.contains(_searchQuery);
+          }).toList();
 
-  // Helper widget for the search bar
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: const TextField(
-        decoration: InputDecoration(
-          hintText: 'Search Contractors..........',
-          border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.grey),
-          contentPadding: EdgeInsets.symmetric(vertical: 12),
-        ),
-      ),
-    );
-  }
+          // 3. Check if search result is empty
+          if (filteredContractors.isEmpty) {
+              return Center(
+                child: Text('No results found for "$_searchQuery"'),
+              );
+          }
 
-  // Helper function to get status color
-  Color _getStatusColor(String status) {
-    if (status.contains('Review')) {
-      return Colors.orange;
-    } else if (status.contains('Active')) {
-      return Colors.green;
-    }
-    return Colors.grey;
-  }
-
-  // Helper widget for a single contractor tile
-  Widget _buildContractorTile(
-      BuildContext context, String name, String specialization, String contact, String status) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Name and Status Tag
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          return ListView.builder(
+            itemCount: filteredContractors.length,
+            itemBuilder: (context, index) {
+              final contractor = filteredContractors[index];
+              return Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.business,
+                    color: Color(0xFF42A5F5),
+                    size: 30,
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _getStatusColor(status),
+                  title: Text(
+                    contractor.companyName,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
                   ),
+                  // Displaying both Name and CIDA so user sees what they searched for
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Name: ${contractor.contractorName}'),
+                      Text('CIDA: ${contractor.cidaRegistrationNumber}', 
+                          style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                    ],
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    // Navigate to the updated view page
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        // FIX: Use the imported ViewContractorScreen class
+                        builder: (context) => ViewContractorScreen( 
+                            contractorId: contractor.id),
+                      ),
+                    );
+                  },
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          
-          // Details
-          Text(
-            'Specialization: $specialization',
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Contact: $contact',
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
-          ),
-          
-          const Divider(height: 20),
-          
-          // Action Buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              // 1. VIEW Button (Blue)
-              _buildActionButton(
-                context, 
-                'View', 
-                Icons.visibility, 
-                _primaryBlue,
-                () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Viewing profile for: $name')),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-
-              // 2. EDIT Button (Yellow)
-              _buildActionButton(
-                context, 
-                'Edit', 
-                Icons.edit, 
-                _secondaryYellow,
-                () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Editing profile for: $name')),
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
+              );
+            },
+          );
+        },
       ),
-    );
-  }
 
-  // Helper widget for a consistent action button style
-  Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
+      // Floating action button for 'Add Contractor' has been removed
+      // floatingActionButton: FloatingActionButton.extended(...)
+      // floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

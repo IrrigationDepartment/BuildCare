@@ -9,10 +9,11 @@ import 'school_master_plan_page.dart';
 // Import the View Damage Details Page 
 import 'view_damage_details_page.dart';
 
-// FIX: Import the Contract List Page (now ContractsListPage)
+// FIX: Import the Contract List Page (ContractsListPage)
+// Assuming the actual Contracts List Page file is 'view_contract_details_page.dart'
 import 'view_contract_details_page.dart'; 
 
-// Import the View Contractor Details Page
+// Import the View Contractor Details Page (The list page is now named ContractorListScreen)
 import 'view_contractor_details_page.dart';
 
 class ManagePrincipalsPage extends StatelessWidget {
@@ -261,7 +262,7 @@ class ManagePrincipalsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // FIX: Use the renamed list page class
+                  // FIX: Use the ContractsListPage class
                   builder: (context) => const ContractsListPage(),
                 ),
               );
@@ -278,7 +279,8 @@ class ManagePrincipalsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ViewContractorDetailsPage(),
+                  // FIX: Use the ContractorListScreen class from view_contractor_details_page.dart
+                  builder: (context) => const ContractorListScreen(),
                 ),
               );
             },
