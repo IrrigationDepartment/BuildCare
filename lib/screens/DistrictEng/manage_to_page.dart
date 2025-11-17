@@ -9,7 +9,7 @@ import 'school_master_plan_page.dart';
 // Import the View Damage Details Page
 import 'view_damage_details_page.dart';
 
-// Import the View Contract Details Page
+// FIX: Import the Contract List Page (now ContractsListPage)
 import 'view_contract_details_page.dart';
 
 // Import the View Contractor Details Page
@@ -251,7 +251,8 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ViewContractDetailsPage(),
+                  // FIX: Use the renamed list page class
+                  builder: (context) => const ContractsListPage(),
                 ),
               );
             },

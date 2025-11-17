@@ -1,297 +1,207 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'add_contract.dart'; // Removed as requested
+import 'view_details_screen.dart'; // FIX: Assuming view_details.dart is actually the file holding ViewContractDetailsScreen
 
-class ViewContractDetailsPage extends StatelessWidget {
-  const ViewContractDetailsPage({super.key});
+// --- Data Model ---
+class Contract {
+  final String id;
+  final String cidaRegisterNumber;
+  final String contractorName;
 
-  // Define consistent colors
-  static const Color _primaryBlue = Color(0xFF1E88E5);
-  static const Color _secondaryGreen = Color(0xFF4CAF50); // Used for Download button/Completed status
-  static const Color _backgroundColor = Color(0xFFF0F2F5);
+  Contract({
+    required this.id,
+    required this.cidaRegisterNumber,
+    required this.contractorName,
+  });
 
-  // Sample data for the Contract Details list
-  final List<Map<String, String>> contractReports = const [
-    {
-      'title': 'G/Rippon Girls\' - New Block Construction',
-      'contractor': 'ABC Construction (Pvt) Ltd',
-      'value': 'Rs. 45 Million',
-      'status': 'Work in progress',
-      'updated_date': '2025/11/01',
-    },
-    {
-      'title': 'Ambalangoda Central - Boundary Wall Repair',
-      'contractor': 'Saman & Sons Engineers',
-      'value': 'Rs. 2.5 Million',
-      'status': 'Completed',
-      'updated_date': '2025/10/25',
-    },
-    {
-      'title': 'Galle Vidyalaya - Electrical Upgrades',
-      'contractor': 'Electric Solutions Co.',
-      'value': 'Rs. 1.8 Million',
-      'status': 'Pending Approval',
-      'updated_date': '2025/10/01',
-    },
-    {
-      'title': 'Baddegama National - Main Hall Ceiling',
-      'contractor': 'K.L. Builders',
-      'value': 'Rs. 5 Million',
-      'status': 'Work in progress',
-      'updated_date': '2025/09/10',
-    },
-  ];
+  factory Contract.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return Contract(
+      id: doc.id,
+      cidaRegisterNumber: data['cidaRegisterNumber'] ?? 'N/A',
+      contractorName: data['contractorName'] ?? 'Unknown Contractor',
+    );
+  }
+}
+
+// --- FIX: Renamed to ContractsListPage to better reflect its function ---
+class ContractsListPage extends StatefulWidget {
+  const ContractsListPage({super.key});
+
+  @override
+  State<ContractsListPage> createState() => _ContractsListPageState();
+}
+
+class _ContractsListPageState extends State<ContractsListPage> {
+  // 1. Variables to hold search text
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'View Contract Details',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+        // Retained 'Manage Contracts' title as this page lists contracts
+        title: const Text('Manage Contracts'),
+        backgroundColor: const Color(0xFFF5F7FA),
+        elevation: 1,
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Search Bar for Contracts
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildSearchBar(),
-            ),
-            
-            // Contract List
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                itemCount: contractReports.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final report = contractReports[index];
-                  return _buildContractTile(
-                    context, 
-                    report['title']!,
-                    report['contractor']!,
-                    report['value']!,
-                    report['status']!,
-                    report['updated_date']!,
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      // Consistent Bottom Navigation Bar styling
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-        currentIndex: 1, // Profile (person) is selected
-        selectedItemColor: _primaryBlue,
-        unselectedItemColor: Colors.grey,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-      ),
-    );
-  }
-
-  // Helper widget for the search bar
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: const TextField(
-        decoration: InputDecoration(
-          hintText: 'Search Contracts..........',
-          border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.grey),
-          contentPadding: EdgeInsets.symmetric(vertical: 12),
-        ),
-      ),
-    );
-  }
-
-  // Helper function to get status color
-  Color _getStatusColor(String status) {
-    if (status.contains('Pending')) {
-      return Colors.orange;
-    } else if (status.contains('progress')) {
-      return _primaryBlue;
-    } else if (status.contains('Completed')) {
-      return _secondaryGreen;
-    }
-    return Colors.grey;
-  }
-
-  // Helper widget for a single contract tile
-  Widget _buildContractTile(
-      BuildContext context, String title, String contractor, String value, String status, String date) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
         children: [
-          // Title and Status Tag
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+          // --- 2. Search Bar (Placed outside StreamBuilder for better performance) ---
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by CIDA No. or Name...',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                // Clear button
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = "";
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                  borderSide: const BorderSide(color: Color(0xFF42A5F5)),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _getStatusColor(status),
-                  ),
-                ),
-              ),
-            ],
+              onChanged: (value) {
+                // 3. Update state when user types
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
           ),
-          const SizedBox(height: 8),
-          
-          // Contractor and Value
-          Text(
-            'Contractor: $contractor',
-            style: const TextStyle(fontSize: 14, color: Colors.black54),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Value: $value',
-            style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
-          ),
-          
-          const Divider(height: 20),
-          
-          // Action Buttons and Update Date
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Last Update: $date',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-              Row(
-                children: [
-                  // 1. VIEW Button (Blue)
-                  _buildActionButton(
-                    context, 
-                    'View', 
-                    Icons.visibility, 
-                    _primaryBlue,
-                    () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Viewing full contract: $title')),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 8),
 
-                  // 2. DOWNLOAD Button (Green)
-                  _buildActionButton(
-                    context, 
-                    'Download', 
-                    Icons.file_download, 
-                    _secondaryGreen,
-                    () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Downloading contract: $title')),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ],
+          // --- 3. The List (Wrapped in Expanded) ---
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('contracts') // Ensure collection name is correct
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text('No contracts found.'),
+                  );
+                }
+
+                // Convert all docs to Contract objects
+                final List<Contract> allContracts = snapshot.data!.docs
+                    .map((doc) => Contract.fromFirestore(doc))
+                    .toList();
+
+                // --- 4. Filtering Logic ---
+                final List<Contract> filteredContracts = allContracts.where((contract) {
+                  final nameLower = contract.contractorName.toLowerCase();
+                  final cidaLower = contract.cidaRegisterNumber.toLowerCase();
+                  
+                  return nameLower.contains(_searchQuery) || 
+                              cidaLower.contains(_searchQuery);
+                }).toList();
+
+                if (filteredContracts.isEmpty) {
+                  return Center(
+                    child: Text('No results found for "$_searchQuery"'),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredContracts.length,
+                  itemBuilder: (context, index) {
+                    final contract = filteredContracts[index];
+                    return Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 6.0, horizontal: 10.0),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.engineering,
+                          color: Color(0xFF42A5F5),
+                          size: 30,
+                        ),
+                        title: Text(
+                          contract.contractorName,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        subtitle: Text(
+                          'CIDA Reg No: ${contract.cidaRegisterNumber}',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                        trailing: TextButton.icon(
+                          onPressed: () {
+                            // FIX: Use the correct class name for the details screen
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => ViewContractDetailsScreen(
+                                    contractId: contract.id),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.info_outline,
+                              size: 18, color: Colors.blue),
+                          label: const Text('Details',
+                              style: TextStyle(color: Colors.blue)),
+                        ),
+                        onTap: () {
+                          // FIX: Use the correct class name for the details screen
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => ViewContractDetailsScreen(
+                                  contractId: contract.id),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
-    );
-  }
 
-  // Helper widget for a consistent action button style
-  Widget _buildActionButton(BuildContext context, String label, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ),
+      // --- Floating Action Button section removed as requested ---
     );
   }
 }
