@@ -41,8 +41,10 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   DateTime? _selectedDate;
 
   // Switched to XFile for cross-platform image handling
-  final List<XFile> _selectedNewImages = []; // ⭐ Renamed for clarity: new images picked
-  final List<String> _existingImageUrls = []; // ⭐ NEW: For images already in Firebase
+  final List<XFile> _selectedNewImages =
+      []; // ⭐ Renamed for clarity: new images picked
+  final List<String> _existingImageUrls =
+      []; // ⭐ NEW: For images already in Firebase
   final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false; // Added loading state
@@ -85,11 +87,12 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     if (widget.issueId != null && widget.issueData != null) {
       _schoolNameController.text = widget.issueData!['schoolName'] ?? '';
       _floorsController.text = (widget.issueData!['numFloors'] ?? 0).toString();
-      _classroomsController.text = (widget.issueData!['numClassrooms'] ?? 0).toString();
+      _classroomsController.text =
+          (widget.issueData!['numClassrooms'] ?? 0).toString();
       _descriptionController.text = widget.issueData!['description'] ?? '';
       _selectedBuilding = widget.issueData!['buildingName'];
       _selectedDamageType = widget.issueData!['damageType'];
-      
+
       // Handle date
       if (widget.issueData!['dateOfOccurance'] != null) {
         final Timestamp timestamp = widget.issueData!['dateOfOccurance'];
@@ -99,7 +102,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
       // ⭐ Populate existing image URLs
       if (widget.issueData!['imageUrls'] is List) {
-        _existingImageUrls.addAll(List<String>.from(widget.issueData!['imageUrls']));
+        _existingImageUrls
+            .addAll(List<String>.from(widget.issueData!['imageUrls']));
       }
     }
   }
@@ -117,7 +121,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   // --- Image Picker Function (MODIFIED for multi-select) ---
   Future<void> _pickImages() async {
     // Allows picking multiple images
-    final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 70);
+    final List<XFile> pickedFiles =
+        await _picker.pickMultiImage(imageQuality: 70);
     if (pickedFiles.isNotEmpty) {
       setState(() {
         _selectedNewImages.addAll(pickedFiles); // Add to new images list
@@ -143,13 +148,14 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   }
 
   // --- 1. Upload Images to Server Function (Copied from add_issue_screen.dart) ---
-  Future<List<String>> _uploadNewImages() async { // ⭐ Renamed to reflect it uploads NEW images
+  Future<List<String>> _uploadNewImages() async {
+    // ⭐ Renamed to reflect it uploads NEW images
     if (_selectedNewImages.isEmpty) {
       return [];
     }
 
     // --- REPLACE WITH YOUR NEW LINK ---
-    var uri = Uri.parse("http://buildcare.atwebpages.com/index.php");
+    var uri = Uri.parse("https://buildcare.atigalle.x10.mx/index.php");
     var request = http.MultipartRequest("POST", uri);
 
     for (var imageFile in _selectedNewImages) {
@@ -211,12 +217,14 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         newlyUploadedImageUrls = await _uploadNewImages();
         if (newlyUploadedImageUrls.isEmpty && _selectedNewImages.isNotEmpty) {
           // Only throw if there were new images but none uploaded successfully
-          throw Exception('Failed to upload new images. Please check server connection.');
+          throw Exception(
+              'Failed to upload new images. Please check server connection.');
         }
       }
 
       // ⭐ Combine existing and newly uploaded image URLs
-      List<String> allImageUrls = List.from(_existingImageUrls); // Start with existing
+      List<String> allImageUrls =
+          List.from(_existingImageUrls); // Start with existing
       allImageUrls.addAll(newlyUploadedImageUrls); // Add newly uploaded
 
       // Step 2: Prepare Data
@@ -226,7 +234,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
         'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
         'damageType': _selectedDamageType, // From Dropdown
-        'issueTitle': '$_selectedBuilding - $_selectedDamageType', // Generated Title
+        'issueTitle':
+            '$_selectedBuilding - $_selectedDamageType', // Generated Title
         'description': _descriptionController.text.trim(),
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
         'addedByNic': widget.userNic,
@@ -265,7 +274,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           ),
         );
         // ⭐ Pass true back to indicate a change, prompting dashboard to refresh
-        Navigator.of(context).pop(true); 
+        Navigator.of(context).pop(true);
       }
     } catch (e) {
       // Step 5: Error
@@ -318,7 +327,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   @override
   Widget build(BuildContext context) {
     final bool isEditing = widget.issueId != null;
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -336,17 +345,26 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           Padding(
             padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: _primaryColor))
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: _primaryColor))
                 : OutlinedButton(
                     onPressed: _saveIssue, // Calls the Firebase save function
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: _primaryColor, width: 1.5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                     ),
                     child: Text(
-                      isEditing ? "Update" : "Save", // ⭐ Text changes based on mode
-                      style: TextStyle(color: _primaryColor, fontSize: 14, fontWeight: FontWeight.bold),
+                      isEditing
+                          ? "Update"
+                          : "Save", // ⭐ Text changes based on mode
+                      style: TextStyle(
+                          color: _primaryColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
           ),
@@ -360,7 +378,9 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTextField("School Name", "Enter Your School name", _schoolNameController, isNumber: false),
+                _buildTextField("School Name", "Enter Your School name",
+                    _schoolNameController,
+                    isNumber: false),
                 _buildDropdown(
                   "Select Damage Building",
                   "select Type of Damage Building",
@@ -372,8 +392,12 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                     });
                   },
                 ),
-                _buildTextField("Number of Floors", "Enter number of floors in building", _floorsController, isNumber: true),
-                _buildTextField("Number of Classrooms", "Enter Number of rooms in building", _classroomsController, isNumber: true),
+                _buildTextField("Number of Floors",
+                    "Enter number of floors in building", _floorsController,
+                    isNumber: true),
+                _buildTextField("Number of Classrooms",
+                    "Enter Number of rooms in building", _classroomsController,
+                    isNumber: true),
                 _buildDropdown(
                   "Type Of Damage",
                   "select Type of Damage",
@@ -385,10 +409,17 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                     });
                   },
                 ),
-                _buildDescriptionField("Description of Issue", "Describe your School building Issue", _descriptionController),
+                _buildDescriptionField(
+                    "Description of Issue",
+                    "Describe your School building Issue",
+                    _descriptionController),
                 // --- MODIFIED: Uses new XFile-based logic ---
                 _buildUploadImagesSection(),
-                _buildDateField("Date Of Damage Occurance", "Enter Date Of Damage Occurance", _dateController, _selectDate),
+                _buildDateField(
+                    "Date Of Damage Occurance",
+                    "Enter Date Of Damage Occurance",
+                    _dateController,
+                    _selectDate),
               ],
             ),
           ),
@@ -400,7 +431,9 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   // --- Helper Widgets (Unchanged structure) ---
 
   /// Reusable Text Field builder
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber}) {
+  Widget _buildTextField(
+      String label, String hint, TextEditingController controller,
+      {required bool isNumber}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -408,13 +441,16 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: Colors.black87),
           ),
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
             keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-            inputFormatters: isNumber ? [FilteringTextInputFormatter.digitsOnly] : null, // ⭐ Only allow digits for number fields
+            inputFormatters: isNumber
+                ? [FilteringTextInputFormatter.digitsOnly]
+                : null, // ⭐ Only allow digits for number fields
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[600]),
@@ -424,10 +460,12 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) { // ⭐ Handle null value
+              if (value == null || value.isEmpty) {
+                // ⭐ Handle null value
                 return 'Please enter $label';
               }
               if (isNumber && int.tryParse(value) == null) {
@@ -442,12 +480,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   }
 
   /// Reusable Dropdown Field builder
-  Widget _buildDropdown(
-      String label,
-      String hint,
-      List<String> items,
-      String? currentValue,
-      Function(String? value) onChanged) {
+  Widget _buildDropdown(String label, String hint, List<String> items,
+      String? currentValue, Function(String? value) onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -455,7 +489,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: Colors.black87),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
@@ -469,7 +504,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12).copyWith(top: 14, bottom: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12)
+                  .copyWith(top: 14, bottom: 14),
             ),
             isExpanded: true,
             items: items.map((String value) {
@@ -487,7 +523,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   }
 
   /// Specific builder for the Description field (Multiline Text Field).
-  Widget _buildDescriptionField(String label, String hint, TextEditingController controller) {
+  Widget _buildDescriptionField(
+      String label, String hint, TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -495,7 +532,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: Colors.black87),
           ),
           const SizedBox(height: 8),
           TextFormField(
@@ -510,9 +548,12 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             ),
-            validator: (value) => value == null || value.isEmpty ? 'Please enter $label' : null, // ⭐ Handle null value
+            validator: (value) => value == null || value.isEmpty
+                ? 'Please enter $label'
+                : null, // ⭐ Handle null value
           ),
         ],
       ),
@@ -520,7 +561,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   }
 
   /// Builder for the Date Of Damage Occurance field.
-  Widget _buildDateField(String label, String hint, TextEditingController controller, VoidCallback onTap) {
+  Widget _buildDateField(String label, String hint,
+      TextEditingController controller, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -528,7 +570,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: Colors.black87),
           ),
           const SizedBox(height: 8),
           TextFormField(
@@ -544,11 +587,15 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               // Calendar icon at the end
-              suffixIcon: const Icon(Icons.calendar_today_outlined, color: Colors.grey),
+              suffixIcon:
+                  const Icon(Icons.calendar_today_outlined, color: Colors.grey),
             ),
-            validator: (value) => value == null || value.isEmpty ? 'Please select $label' : null, // ⭐ Handle null value
+            validator: (value) => value == null || value.isEmpty
+                ? 'Please select $label'
+                : null, // ⭐ Handle null value
           ),
         ],
       ),
@@ -558,7 +605,10 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   /// ⭐ MODIFIED: Builder for the Upload Images section. Displays existing and new images.
   Widget _buildUploadImagesSection() {
     // Combine both lists for display purposes
-    final List<dynamic> allImagesForDisplay = [..._existingImageUrls, ..._selectedNewImages];
+    final List<dynamic> allImagesForDisplay = [
+      ..._existingImageUrls,
+      ..._selectedNewImages
+    ];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -567,7 +617,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         children: [
           const Text(
             'Upload Images (JPG/PNG)',
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+            style:
+                TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
           ),
           const SizedBox(height: 8),
 
@@ -595,9 +646,13 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                         fit: BoxFit.cover,
                         loadingBuilder: (c, w, p) => p == null
                             ? w
-                            : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                        errorBuilder: (c, o, s) =>
-                            const Icon(Icons.broken_image, size: 60, color: Colors.grey),
+                            : const Center(
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
+                        errorBuilder: (c, o, s) => const Icon(
+                            Icons.broken_image,
+                            size: 60,
+                            color: Colors.grey),
                       );
                       removeAction = () => _removeExistingImage(index);
                     } else if (item is XFile) {
@@ -606,7 +661,9 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                       imageWidget = FutureBuilder<Uint8List>(
                         future: item.readAsBytes(),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                          if (snapshot.connectionState ==
+                                  ConnectionState.done &&
+                              snapshot.hasData) {
                             // Display the image from memory
                             return Image.memory(
                               snapshot.data!,
@@ -619,7 +676,9 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                           return const SizedBox(
                             width: 100,
                             height: 100,
-                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            child: Center(
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2)),
                           );
                         },
                       );
@@ -627,7 +686,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                       final newImageIndex = index - _existingImageUrls.length;
                       removeAction = () => _removeNewImage(newImageIndex);
                     } else {
-                      imageWidget = const Icon(Icons.error, size: 60, color: Colors.red);
+                      imageWidget =
+                          const Icon(Icons.error, size: 60, color: Colors.red);
                     }
 
                     return Padding(
@@ -638,7 +698,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                             borderRadius: BorderRadius.circular(8),
                             child: imageWidget,
                           ),
-                          if (removeAction != null) // Only show remove button if action exists
+                          if (removeAction !=
+                              null) // Only show remove button if action exists
                             Positioned(
                               top: 0,
                               right: 0,
@@ -648,7 +709,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                                   decoration: BoxDecoration(
                                     color: Colors.red,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
                                   ),
                                   child: const Icon(
                                     Icons.close,
@@ -675,20 +737,30 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 color: _textFieldBackgroundColor,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: (allImagesForDisplay.isEmpty) ? Colors.transparent : _primaryColor, // ⭐ Border logic
+                  color: (allImagesForDisplay.isEmpty)
+                      ? Colors.transparent
+                      : _primaryColor, // ⭐ Border logic
                   width: 1.5,
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.cloud_upload_outlined, size: 28, color: allImagesForDisplay.isEmpty ? Colors.grey : _primaryColor),
+                  Icon(Icons.cloud_upload_outlined,
+                      size: 28,
+                      color: allImagesForDisplay.isEmpty
+                          ? Colors.grey
+                          : _primaryColor),
                   const SizedBox(width: 10),
                   Text(
                     allImagesForDisplay.isEmpty
                         ? 'Tap to Upload Building Damage Photos'
                         : 'Tap to Add More Photos (${allImagesForDisplay.length} selected)',
-                    style: TextStyle(color: allImagesForDisplay.isEmpty ? Colors.grey : Colors.black87, fontSize: 16),
+                    style: TextStyle(
+                        color: allImagesForDisplay.isEmpty
+                            ? Colors.grey
+                            : Colors.black87,
+                        fontSize: 16),
                   ),
                 ],
               ),
