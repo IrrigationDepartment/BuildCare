@@ -213,7 +213,7 @@ class _DashboardScreenState extends State<TODashboard> {
         break;
       default:
         debugPrint("Unknown activity type: $type");
-    }
+    } 
 
     if (page != null && mounted) {
       Navigator.push(

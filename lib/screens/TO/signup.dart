@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. IMPORT FIREBASE AUTH
 
 class TORegistrationPage extends StatefulWidget {
   const TORegistrationPage({super.key});
@@ -156,42 +157,58 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     });
   }
 
-  // --- Firebase Registration Logic ---
+  // --- (!!!) MODIFIED: Firebase Registration Logic ---
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
-    if (_formKey.currentState!.validate()) {
-      // Perform password validation check
-      if (!_has8Chars ||
-          !_hasLowercase ||
-          !_hasUppercase ||
-          !_hasNumber ||
-          !_hasSpecialChar) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              backgroundColor: Colors.orange,
-              content: Text(
-                  'Please ensure the password meets all security requirements.')));
-        }
-        return;
-      }
+    if (!_formKey.currentState!.validate()) {
+      return; // Stop if form is invalid
+    }
 
-      // --- ADDED: Final NIC check before submit ---
-      // Run the check one last time in case the user didn't lose focus
-      await _checkNicDuplication();
-      if (_isNicDuplicate) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('This NIC is already registered.'),
-          ));
-        }
-        return; // Stop submission
+    // Perform password validation check
+    if (!_has8Chars ||
+        !_hasLowercase ||
+        !_hasUppercase ||
+        !_hasNumber ||
+        !_hasSpecialChar) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.orange,
+            content: Text(
+                'Please ensure the password meets all security requirements.')));
       }
-      // --- END ---
+      return;
+    }
 
-      setState(() => _isLoading = true);
-      try {
-        await FirebaseFirestore.instance.collection('users').add({
+    // --- ADDED: Final NIC check before submit ---
+    // Run the check one last time in case the user didn't lose focus
+    await _checkNicDuplication();
+    if (_isNicDuplicate) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('This NIC is already registered.'),
+        ));
+      }
+      return; // Stop submission
+    }
+    // --- END ---
+
+    setState(() => _isLoading = true);
+
+    try {
+      // --- 2. CREATE USER IN FIREBASE AUTH ---
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      // --- 3. GET THE NEW USER'S UID ---
+      String? uid = userCredential.user?.uid;
+
+      if (uid != null) {
+        // --- 4. CREATE THE DATA MAP (WITHOUT PASSWORD) ---
+        final userData = {
           'name': _nameController.text.trim(),
           'nic': _nicController.text.trim().toUpperCase(),
           'email': _emailController.text.trim(),
@@ -200,16 +217,18 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
           'mobilePhone': _mobileController.text.trim(),
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
-          'password': _passwordController.text.trim(), // Consider hashing this!
+          // --- NO PASSWORD SAVED TO FIRESTORE ---
           'userType': 'Technical Officer',
           'createdAt': Timestamp.now(),
-
-          // *** MODIFICATION 1: User is automatically deactivated ***
           'isActive': _initialIsActiveStatus, // Automatically set to false
-
-          // *** MODIFICATION 2: Add the default profile image URL ***
           'profile_image': _defaultProfileImageUrl,
-        });
+        };
+
+        // --- 5. SAVE USER DATA TO FIRESTORE USING THE AUTH UID ---
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(userData);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -224,15 +243,30 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
             }
           });
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              backgroundColor: Colors.red,
-              content: Text('Registration failed: $e')));
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
       }
+    } on FirebaseAuthException catch (e) {
+      // --- 6. HANDLE AUTHENTICATION ERRORS ---
+      String message = 'Registration failed. Please try again.';
+      if (e.code == 'weak-password') {
+        message = 'The password provided is too weak.';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'The email address is already in use by another account.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(backgroundColor: Colors.red, content: Text(message)));
+      }
+    } catch (e) {
+      // Handle general errors (e.g., Firestore write failed)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Registration failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -522,7 +556,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     String? Function(String?)? validator,
     FocusNode? focusNode,
     String? errorText, // <-- For NIC error
-    bool isChecking = false, // <-- For NIC spinner
+    bool isChecking = false, // <-- For spinner
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
