@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'add_issue_screen.dart'; // <-- IMPORT AddIssueScreen
 
 class IssueReportDetailsScreen extends StatefulWidget {
   final String issueId;
-  const IssueReportDetailsScreen({super.key, required this.issueId});
+  final String userNic; // <-- ADDED
+  const IssueReportDetailsScreen({
+    super.key,
+    required this.issueId,
+    required this.userNic, // <-- ADDED
+  });
 
   @override
   State<IssueReportDetailsScreen> createState() =>
@@ -100,14 +106,17 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit Report',
             onPressed: () {
-              // TODO: Navigate to your IssueReportDetailsScreen (the editable one)
-              // Example:
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => IssueReportDetailsScreen(issueId: widget.issueId),
-              //   ),
-              // );
+              // --- MODIFIED: Navigate to AddIssueScreen in Edit Mode ---
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddIssueScreen(
+                    userNic: widget.userNic, // Pass the NIC
+                    issueId: widget.issueId,  // Pass the ID to enable Edit Mode
+                  ),
+                ),
+              );
+              // --- END OF MODIFICATION ---
             },
           )
         ],
@@ -212,7 +221,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
   // ---
   // ---
-  // --- 🎨 NEW: HELPER WIDGETS FOR VIEW SCREEN 🎨 ---
+  // --- 耳 NEW: HELPER WIDGETS FOR VIEW SCREEN 耳 ---
   // ---
   // ---
 
@@ -308,7 +317,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
   // ---
   // ---
-  // --- 📸 IMAGE GALLERY WIDGETS (Unchanged from previous) 📸 ---
+  // --- 萄 IMAGE GALLERY WIDGETS (Unchanged from previous) 萄 ---
   // ---
   // ---
   Widget _buildImageGallery(List<dynamic> images) {

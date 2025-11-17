@@ -195,7 +195,10 @@ class _DashboardScreenState extends State<TODashboard> {
     Widget? page;
     switch (type) {
       case 'issue':
-        page = IssueReportDetailsScreen(issueId: id);
+        page = IssueReportDetailsScreen(
+          issueId: id,
+          userNic: widget.userData['nic'] ?? 'UNKNOWN_NIC',
+        );
         break;
       case 'contract':
         page = ViewContractDetailsScreen(contractId: id);
@@ -213,7 +216,7 @@ class _DashboardScreenState extends State<TODashboard> {
         break;
       default:
         debugPrint("Unknown activity type: $type");
-    } 
+    }
 
     if (page != null && mounted) {
       Navigator.push(
