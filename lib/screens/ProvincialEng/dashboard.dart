@@ -24,18 +24,18 @@ class ActivityItem {
 // -----------------------------------------------------------------------------
 // --- Dashboard Screen (Main Dashboard) ---
 // -----------------------------------------------------------------------------
-class ProvincialEngineerDashboard extends StatefulWidget {
+class ProvincialEngDashboard extends StatefulWidget {
   final Map<String, dynamic>? userData;
 
-  const ProvincialEngineerDashboard({super.key, this.userData});
+  const ProvincialEngDashboard({super.key, this.userData});
 
   @override
-  State<ProvincialEngineerDashboard> createState() =>
+  State<ProvincialEngDashboard> createState() =>
       _ProvincialEngineerDashboardState();
 }
 
 class _ProvincialEngineerDashboardState
-    extends State<ProvincialEngineerDashboard> {
+    extends State<ProvincialEngDashboard> {
   late final Stream<List<ActivityItem>> _activityStream;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -880,7 +880,7 @@ class CustomBottomNavBar extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (context) =>
-                          const ProvincialEngineerDashboard()),
+                          const ProvincialEngDashboard()),
                 );
               }
             },
