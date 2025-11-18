@@ -24,7 +24,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   final _nicknameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
   final _passwordFocusNode = FocusNode();
 
   String? _selectedOffice;

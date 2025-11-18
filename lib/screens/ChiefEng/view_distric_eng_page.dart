@@ -168,7 +168,7 @@ class _ActiveDistrictEngineerScreenState
                       )
                       .toList(),
                 ),
-      bottomNavigationBar:  BottomNavigationBar(
+      bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
@@ -429,16 +429,40 @@ class EngineerDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildHeader(),
-            const SizedBox(height: 24),
-            _buildDetailItem("Name", engineer.name),
-            _buildDetailItem("Email", engineer.email),
-            _buildDetailItem("Phone", engineer.phone),
-            _buildDetailItem("NIC", engineer.nic),
-            _buildDetailItem("District", engineer.district),
-            _buildDetailItem(
-              "Joined Date",
-              "${engineer.createdAt.day}/${engineer.createdAt.month}/${engineer.createdAt.year}",
+            
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.15),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 24),
+                  _buildDetailItem("Name", engineer.name),
+                  _buildDetailItem("Email", engineer.email),
+                  _buildDetailItem("Phone", engineer.phone),
+                  _buildDetailItem("NIC", engineer.nic),
+                  _buildDetailItem("District", engineer.district),
+                  _buildDetailItem(
+                    "Joined Date",
+                    "${engineer.createdAt.day}/${engineer.createdAt.month}/${engineer.createdAt.year}",
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -495,7 +519,7 @@ class EngineerDetailScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey[300]!, 
+          color: Colors.grey[300]!,
           width: 1.5,
         ),
         boxShadow: [
@@ -515,7 +539,6 @@ class EngineerDetailScreen extends StatelessWidget {
               "$label:",
               style: TextStyle(
                 fontSize: 20,
-
                 color: Colors.grey[700],
                 fontWeight: FontWeight.w600,
               ),
@@ -526,9 +549,6 @@ class EngineerDetailScreen extends StatelessWidget {
               value,
               style: const TextStyle(
                 fontSize: 17,
-                
-
-
                 color: Colors.black87,
                 fontWeight: FontWeight.w500,
               ),

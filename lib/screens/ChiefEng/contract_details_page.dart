@@ -398,7 +398,7 @@ class ContractDetailCard extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Contract Details
-                  const Text(
+                   Text(
                     'Contract Information',
                     style: TextStyle(
                       fontSize: 18.0,
