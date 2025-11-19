@@ -1,5 +1,3 @@
-// File: view_details_screen.dart (Contents were in contract_details.dart)
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
