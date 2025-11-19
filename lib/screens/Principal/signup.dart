@@ -13,32 +13,35 @@ class PrincipalRegistrationPage extends StatefulWidget {
 class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers for all the fields from your design
+  // Controllers for fields
   final _nicController = TextEditingController();
   final _schoolNameController = TextEditingController();
   final _schoolEmailController = TextEditingController();
   final _schoolPhoneController = TextEditingController();
   final _principalNameController = TextEditingController();
   final _principalMobileController = TextEditingController();
-  final _petNameController = TextEditingController();
-  final _nicknameController = TextEditingController();
+  // REMOVED: final _petNameController = TextEditingController();
+  // REMOVED: final _nicknameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // State for the School Type dropdown
+  // Dropdown States
   String? _selectedSchoolType;
   final List<String> _schoolTypes = ['Provincial', 'Government'];
+
+  // NEW: School District field mapped to Firestore 'office'
+  String? _selectedDistrict;
+  final List<String> _districts = ['Galle', 'Matara', 'Hambantota', 'Colombo']; // Example districts
 
   // State for UI
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   
-  // --- ADDED: Default values for consistency ---
+  // Default values for consistency
   final bool _initialIsActiveStatus = false; // User starts as deactivated
   final String _defaultProfileImageUrl =
       'https://t4.ftcdn.net/jpg/00/64/67/63/360_F_64676383_Ldbm8TwlbnL43PId23vLdI3MgqhaNYf5.jpg';
-
 
   // Re-using the theme colors from your example
   static const Color _primaryColor = Color(0xFF53BDFF);
@@ -53,14 +56,14 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     _schoolPhoneController.dispose();
     _principalNameController.dispose();
     _principalMobileController.dispose();
-    _petNameController.dispose();
-    _nicknameController.dispose();
+    // REMOVED: _petNameController.dispose();
+    // REMOVED: _nicknameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  /// Registers the Principal in Firestore
+  /// Registers the Principal in Firebase Auth and Firestore
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) {
       return; // Stop if form is invalid
@@ -72,7 +75,6 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
     try {
       // --- 2. CREATE USER IN FIREBASE AUTH ---
-      // We use the School Email as the login email
       UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _schoolEmailController.text.trim(),
@@ -84,21 +86,20 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
       if (uid != null) {
         
-        // --- 4. CREATE THE DATA MAP (WITHOUT PASSWORD) ---
+        // --- 4. CREATE THE DATA MAP ---
         final userData = {
           'userType': 'Principal', // Hardcoded for this page
           'nic': _nicController.text.trim().toUpperCase(),
           'schoolName': _schoolNameController.text.trim(),
           'schoolType': _selectedSchoolType,
-          'email': _schoolEmailController.text.trim(), // Corresponds to School Email
-          'officePhone': _schoolPhoneController.text.trim(), // Corresponds to School Phone
-          'name': _principalNameController.text.trim(), // Corresponds to Principal Name
-          'mobilePhone': _principalMobileController.text.trim(), // Corresponds to Principal Mobile
-          'securityQuestionPet': _petNameController.text.trim(),
-          'securityQuestionNickname': _nicknameController.text.trim(),
-          // --- NO PASSWORD SAVED TO FIRESTORE ---
+          'office': _selectedDistrict, // NEW: Mapped School District to 'office'
+          'email': _schoolEmailController.text.trim(),
+          'officePhone': _schoolPhoneController.text.trim(),
+          'name': _principalNameController.text.trim(),
+          'mobilePhone': _principalMobileController.text.trim(),
+          // REMOVED: 'securityQuestionPet' and 'securityQuestionNickname'
           'createdAt': Timestamp.now(),
-          'isActive': _initialIsActiveStatus, // Automatically set to false
+          'isActive': _initialIsActiveStatus, // Automatically set to false (Pending Approval)
           'profile_image': _defaultProfileImageUrl,
         };
 
@@ -110,7 +111,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
             const SnackBar(
                 backgroundColor: Colors.green,
                 content: Text(
-                    'Registration successful! Your account is currently deactivated.')),
+                    'Registration successful! Your account is currently deactivated and pending approval.')),
           );
           // Go back to the very first screen (usually login)
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -165,26 +166,16 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- FORM FIELDS AS PER YOUR DESIGN ---
+              // --- FORM FIELDS ---
               _buildReadOnlyDropdown('User Type', 'Principal'),
               const SizedBox(height: 20),
-              _buildTextFormField(
-                controller: _nicController,
-                labelText: 'NIC Number',
-                icon: Icons.badge_outlined,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'This field cannot be empty';
-                  }
-                  // Standard Sri Lankan NIC validation
-                  final nicRegex = RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
-                  if (!nicRegex.hasMatch(value.trim())) {
-                    return 'Enter a valid SL NIC (e.g., 123456789V)';
-                  }
-                  return null;
-                },
-              ),
+              
+              _buildSchoolTypeDropdown(), // School Type Dropdown
               const SizedBox(height: 20),
+
+              _buildDistrictDropdown(), // NEW: School District Dropdown
+              const SizedBox(height: 20),
+
               _buildTextFormField(
                 controller: _schoolNameController,
                 labelText: 'School Name',
@@ -193,25 +184,52 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                     value!.isEmpty ? 'Please enter the school name' : null,
               ),
               const SizedBox(height: 20),
-              _buildSchoolTypeDropdown(),
-              const SizedBox(height: 20),
+              
               _buildTextFormField(
-                controller: _schoolEmailController,
-                labelText: 'School Email Address (This will be your Login ID)',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
+                controller: _nicController,
+                labelText: 'Principal NIC Number',
+                icon: Icons.badge_outlined,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'This field cannot be empty';
                   }
-                  final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-                  if (!emailRegex.hasMatch(value.trim())) {
-                    return 'Enter a valid email address';
+                  final nicRegex = RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
+                  if (!nicRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid SL NIC (e.g., 123456789V or 200012345678)';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 20),
+              
+              _buildTextFormField(
+                controller: _principalNameController,
+                labelText: 'Principal Name',
+                icon: Icons.person_outline,
+                validator: (value) =>
+                    value!.isEmpty ? 'Please enter the principal\'s name' : null,
+              ),
+              const SizedBox(height: 20),
+
+              _buildTextFormField(
+                controller: _principalMobileController,
+                labelText: 'Principal\'s Mobile Number',
+                icon: Icons.phone_iphone,
+                keyboardType: TextInputType.phone,
+                  validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'This field cannot be empty';
+                  }
+                    // Allows 10 digits (e.g., 0712345678)
+                  final phoneRegex = RegExp(r'^\d{10}$');
+                  if (!phoneRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid 10-digit mobile number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+
               _buildTextFormField(
                 controller: _schoolPhoneController,
                 labelText: 'School Phone Number',
@@ -229,50 +247,27 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                 },
               ),
               const SizedBox(height: 20),
+
               _buildTextFormField(
-                controller: _principalNameController,
-                labelText: 'Principal Name',
-                icon: Icons.person_outline,
-                validator: (value) =>
-                    value!.isEmpty ? 'Please enter the principal\'s name' : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextFormField(
-                controller: _principalMobileController,
-                labelText: 'Principal\'s Mobile Number',
-                icon: Icons.phone_iphone,
-                keyboardType: TextInputType.phone,
-                  validator: (value) {
+                controller: _schoolEmailController,
+                labelText: 'School Email Address (Login ID)',
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'This field cannot be empty';
                   }
-                   // Allows 10 digits (e.g., 0712345678)
-                  final phoneRegex = RegExp(r'^\d{10}$');
-                  if (!phoneRegex.hasMatch(value.trim())) {
-                    return 'Enter a valid 10-digit mobile number';
+                  final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                  if (!emailRegex.hasMatch(value.trim())) {
+                    return 'Enter a valid email address';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 24),
-              const Text("Security Questions", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              _buildTextFormField(
-                controller: _petNameController,
-                labelText: 'First Pet Name',
-                icon: Icons.pets_outlined,
-                validator: (value) =>
-                    value!.isEmpty ? 'This field cannot be empty' : null,
-              ),
-              const SizedBox(height: 20),
-              _buildTextFormField(
-                controller: _nicknameController,
-                labelText: 'Childhood nickname',
-                icon: Icons.child_care_outlined,
-                validator: (value) =>
-                    value!.isEmpty ? 'This field cannot be empty' : null,
-              ),
-              const SizedBox(height: 24),
+
+              // REMOVED SECURITY QUESTIONS SECTION
+
               _buildPasswordFormField(),
               const SizedBox(height: 20),
               _buildConfirmPasswordFormField(),
@@ -315,7 +310,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     );
   }
 
-  // --- HELPER WIDGETS (ADAPTED FROM YOUR EXAMPLE) ---
+  // --- HELPER WIDGETS ---
 
   Widget _buildTextFormField({
     required TextEditingController controller,
@@ -347,13 +342,13 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       controller: _passwordController,
       obscureText: !_isPasswordVisible,
       decoration: InputDecoration(
-        labelText: 'Principal\'s Password',
+        labelText: 'Principal\'s Password (Min 6 characters)',
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off),
           onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
         ),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(3), borderSide: BorderSide.none),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
         filled: true,
         fillColor: _fillColor,
       ),
@@ -393,7 +388,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   Widget _buildSchoolTypeDropdown() {
     return DropdownButtonFormField<String>(
       value: _selectedSchoolType,
-      hint: const Text('Select a school type'),
+      hint: const Text('Select School Type'),
       decoration: InputDecoration(
         prefixIcon: Icon(Icons.category_outlined, color: Colors.grey[700]),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
@@ -409,6 +404,29 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
         return DropdownMenuItem<String>(value: value, child: Text(value));
       }).toList(),
       validator: (value) => value == null ? 'Please select a school type' : null,
+    );
+  }
+
+  // NEW: School District Dropdown (maps to 'office' field)
+  Widget _buildDistrictDropdown() {
+    return DropdownButtonFormField<String>(
+      value: _selectedDistrict,
+      hint: const Text('Select School District'),
+      decoration: InputDecoration(
+        prefixIcon: Icon(Icons.location_city_outlined, color: Colors.grey[700]),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+        filled: true,
+        fillColor: _fillColor,
+      ),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedDistrict = newValue;
+        });
+      },
+      items: _districts.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(value: value, child: Text(value));
+      }).toList(),
+      validator: (value) => value == null ? 'Please select a district' : null,
     );
   }
 
