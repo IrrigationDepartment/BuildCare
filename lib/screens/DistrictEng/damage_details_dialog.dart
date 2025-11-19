@@ -210,13 +210,9 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     );
   }
 
-  // ---
-  // ---
-  // --- 🎨 HELPER WIDGETS FOR VIEW SCREEN 🎨 ---
-  // ---
-  // ---
+  //  HELPER WIDGETS FOR VIEW SCREEN 
 
-  // --- Helper to build section cards ---
+  // Helper to build section cards
   Widget _buildSectionCard({
     required String title,
     required List<Widget> children,
@@ -250,7 +246,7 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     );
   }
 
-  // --- Helper for Icon | Label | Value rows (like your image) ---
+  //  Helper for Icon | Label | Value rows  
   Widget _buildDetailRow({
     required IconData icon,
     required String label,
@@ -280,7 +276,7 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     );
   }
 
-  // --- Helper for Label: Value rows ---
+  //  Helper for Label: Value rows  
   Widget _buildLocationRow({required String label, required String value}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -306,11 +302,8 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     );
   }
 
-  // ---
-  // ---
-  // --- 📸 IMAGE GALLERY WIDGETS (Unchanged from previous) 📸 ---
-  // ---
-  // ---
+  //  IMAGE GALLERY WIDGETS (Unchanged from previous) 
+ 
   Widget _buildImageGallery(List<dynamic> images) {
     if (images.isEmpty) {
       return Container(
