@@ -1,472 +1,419 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:rxdart/rxdart.dart'; // <--- NEW: Import RxDart
 
-// --- Data Model and ApprovalCard remain the same ---
+class PendingApprovalsPage extends StatelessWidget {
+  const PendingApprovalsPage({super.key});
 
-class ApprovalItem {
-  final String uid; // The unique ID from Firebase Auth to update the document
-  final String name;
-  final String email;
-  final String officePhone;
-  final String mobilePhone;
-  final String district;
-  final String role;
-  final String nic;
-
-  ApprovalItem({
-    required this.uid,
-    required this.name,
-    required this.email,
-    required this.officePhone,
-    required this.mobilePhone,
-    required this.district,
-    required this.role,
-    required this.nic,
-  });
-}
-
-class ApprovalCard extends StatelessWidget {
-  final ApprovalItem item;
-  final Function(String uid) onApprove;
-  final Function(String uid) onDecline;
-  final Function(ApprovalItem item) onViewDetails;
-
-  const ApprovalCard({
-    super.key,
-    required this.item,
-    required this.onApprove,
-    required this.onDecline,
-    required this.onViewDetails,
-  });
+  // --- Modern Professional Color Palette ---
+  static const Color _bgLight = Color(0xFFF3F4F6); // Cool Gray Background
+  static const Color _textDark = Color(0xFF1F2937); // Dark Slate
+  static const Color _textLight = Color(0xFF6B7280); // Muted Gray
+  static const Color _primaryBlue = Color(0xFF2563EB); // Royal Blue
+  static const Color _successGreen = Color(0xFF10B981); // Emerald
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15.0),
+    return Scaffold(
+      backgroundColor: _bgLight,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: _textDark, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Pending Technical Officers',
+          style: TextStyle(color: _textDark, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        centerTitle: true,
       ),
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Name and Email Row
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Color(0xFFE0E0E0),
-                  child: Icon(Icons.person, color: Colors.blue),
+      body: StreamBuilder<QuerySnapshot>(
+        // --- UPDATED QUERY: Filter by 'Technical Officer' AND 'isActive: false' ---
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .where('userType', isEqualTo: 'Technical Officer') 
+            .where('isActive', isEqualTo: false)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: _primaryBlue));
+          }
+
+          if (snapshot.hasError) {
+             // Shows error if Index is missing
+            return Center(child: Text("Error: ${snapshot.error}")); 
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          final allDocs = snapshot.data!.docs;
+
+          return Column(
+            children: [
+              // 1. Summary Header (Simplified for TOs only)
+              _buildSummaryHeader(allDocs.length),
+
+              // 2. The List of Users
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: allDocs.length,
+                  itemBuilder: (context, index) {
+                    final doc = allDocs[index];
+                    return _buildUserCard(context, doc);
+                  },
                 ),
-                const SizedBox(width: 10),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // --- WIDGETS ---
+
+  Widget _buildSummaryHeader(int count) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.blue.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          ],
+          border: Border.all(color: Colors.blue.shade50),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Pending Requests", style: TextStyle(color: _textLight, fontSize: 14, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                Text("Technical Officers", style: TextStyle(color: _textDark, fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(color: _primaryBlue, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(BuildContext context, QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final String name = data['name'] ?? 'Unknown';
+    final String email = data['email'] ?? 'No Email';
+    final String? imageUrl = data['profile_image'];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Avatar
+                Hero(
+                  tag: doc.id,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: (imageUrl != null && imageUrl.isNotEmpty)
+                          ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
+                          : null,
+                      color: Colors.grey.shade200,
+                    ),
+                    child: (imageUrl == null || imageUrl.isEmpty)
+                        ? Icon(Icons.person, size: 30, color: Colors.grey.shade400)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
+                        name,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textDark),
                       ),
-                      Text(
-                        item.email,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          "Technical Officer",
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue.shade800),
+                        ),
                       ),
+                      const SizedBox(height: 6),
+                      Text(email, style: const TextStyle(fontSize: 13, color: _textLight)),
                     ],
                   ),
                 ),
-                // Role Badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: item.role == 'Technical Officer'
-                        ? Colors.deepPurple.shade100
-                        : Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    item.role,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: item.role == 'Technical Officer'
-                          ? Colors.deepPurple
-                          : Colors.orange.shade900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const Divider(height: 18),
-
-            // District Info
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('District: ${item.district}',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500)),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // Buttons Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // View Details Button
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 4.0),
-                    child: OutlinedButton.icon(
-                      onPressed: () => onViewDetails(item),
-                      icon: const Icon(Icons.info_outline, size: 18),
-                      label: const Text('Details'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue,
-                        side: const BorderSide(color: Colors.blue),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ),
-                // Decline Button
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () => onDecline(item.uid),
-                      icon: const Icon(Icons.close, size: 18),
-                      label: const Text('Decline'),
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.red.shade400,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ),
-                // Approve Button
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 4.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () => onApprove(item.uid),
-                      icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Approve'),
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.green,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ------------------------------------------------------
-// --- The Main Page (RxDart Integration) ---
-// ------------------------------------------------------
-
-class PendingApprovalsPage extends StatefulWidget {
-  const PendingApprovalsPage({super.key});
-
-  @override
-  State<PendingApprovalsPage> createState() => _PendingApprovalsPageState();
-}
-
-class _PendingApprovalsPageState extends State<PendingApprovalsPage> {
-  // RxDart: Used to manage the asynchronous loading of the DE's office.
-  // We use String? to represent loading (null initial state), failure (null after load), or success (String).
-  final _deOfficeSubject = BehaviorSubject<String?>.seeded(null);
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchDEOffice();
-  }
-
-  @override
-  void dispose() {
-    _deOfficeSubject.close();
-    super.dispose();
-  }
-
-  // 1. Fetch the current District Engineer's assigned office
-  Future<void> _fetchDEOffice() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Error: No District Engineer logged in.')));
-      }
-      _deOfficeSubject.add(null);
-      return;
-    }
-
-    try {
-      final deDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (deDoc.exists) {
-        // Publish the fetched office to the stream
-        _deOfficeSubject.add(deDoc.data()?['office'] as String?);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Error: DE profile not found in database.')));
-        }
-        _deOfficeSubject.add(null);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error fetching DE office: $e')));
-      }
-      _deOfficeSubject.add(null);
-    }
-  }
-
-  // 2. Handle the approval logic
-  Future<void> _handleApproval(String uid) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'isActive': true, // User is now active (approved)
-        'approvedBy': FirebaseAuth.instance.currentUser!.uid,
-        'approvedAt': Timestamp.now(),
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('User approved successfully!')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red, content: Text('Approval failed: $e')));
-      }
-    }
-  }
-
-  // 3. Handle the decline logic
-  Future<void> _handleDecline(String uid) async {
-    try {
-      // Deleting the document is a clean way to handle a declined registration request
-      await FirebaseFirestore.instance.collection('users').doc(uid).delete();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.orange,
-            content: Text('Registration request declined and removed.')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red, content: Text('Decline failed: $e')));
-      }
-    }
-  }
-
-  // 4. Show a dialog with full user details
-  void _showUserDetailsDialog(ApprovalItem item) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('${item.name} Details'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                _buildDetailRow('User Type:', item.role),
-                _buildDetailRow('District:', item.district),
-                _buildDetailRow('NIC:', item.nic),
-                _buildDetailRow('Email:', item.email),
-                _buildDetailRow('Mobile Phone:', item.mobilePhone),
-                _buildDetailRow('Office Phone:', item.officePhone),
-                const SizedBox(height: 10),
-                const Text(
-                    'Note: Please verify these details before approving.',
-                    style: TextStyle(fontStyle: FontStyle.italic)),
               ],
             ),
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Close'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _handleApproval(item.uid);
-              },
-              child:
-                  const Text('Approve', style: TextStyle(color: Colors.green)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          const SizedBox(width: 8),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+          // Divider
+          Divider(height: 1, color: Colors.grey.shade100),
+          // Actions
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => UserDetailsPage(data: data, docId: doc.id)),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.only(bottomLeft: Radius.circular(16)),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "View Details",
+                        style: TextStyle(color: _textDark, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Container(width: 1, height: 45, color: Colors.grey.shade100), // Vertical Separator
+              Expanded(
+                child: InkWell(
+                  onTap: () => _approveUser(context, doc.id, name),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.only(bottomRight: Radius.circular(16)),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "Approve",
+                        style: TextStyle(color: _primaryBlue, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          )
         ],
       ),
     );
   }
 
-  // 5. Build the main page with RxDart and Firebase Stream
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle_outline, size: 80, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text("All Caught Up!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade600)),
+          const SizedBox(height: 8),
+          Text("No pending Technical Officers.", style: TextStyle(color: Colors.grey.shade500)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _approveUser(BuildContext context, String userId, String name) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({'isActive': true});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [const Icon(Icons.check, color: Colors.white), const SizedBox(width: 8), Text("Approved $name")]),
+            backgroundColor: _successGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
+  }
+}
+
+// ---------------------------------------------------------
+// PAGE: USER DETAILS SCREEN
+// ---------------------------------------------------------
+class UserDetailsPage extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String docId;
+
+  const UserDetailsPage({super.key, required this.data, required this.docId});
+
   @override
   Widget build(BuildContext context) {
+    // Safely get data
+    final String name = data['name'] ?? 'N/A';
+    final String email = data['email'] ?? 'N/A';
+    final String mobile = data['mobilePhone'] ?? 'N/A';
+    final String nic = data['nic'] ?? 'N/A';
+    final String office = data['office'] ?? 'N/A';
+    final String officePhone = data['officePhone'] ?? 'N/A';
+    final String? imageUrl = data['profile_image'];
+    
+    // For Technical Officers, we usually look for 'region' or similar, 
+    // but I'll check if 'schoolName' exists just in case, otherwise default to Region
+    final String regionOrZone = data['region'] ?? data['office'] ?? 'N/A';
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Pending Approvals'),
+        title: const Text("Technical Officer Profile", style: TextStyle(color: Colors.black, fontSize: 16)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: const BackButton(color: Colors.black),
         centerTitle: true,
       ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // 1. Big Profile Image
+            Center(
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.blue.shade100, width: 3),
+                  image: (imageUrl != null && imageUrl.isNotEmpty)
+                      ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
+                      : null,
+                  color: Colors.grey.shade100,
+                ),
+                child: (imageUrl == null || imageUrl.isEmpty)
+                    ? Icon(Icons.person, size: 50, color: Colors.grey.shade300)
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text("Technical Officer", style: TextStyle(fontSize: 14, color: Colors.blue.shade700, fontWeight: FontWeight.w600)),
+            
+            const SizedBox(height: 32),
 
-      // The core fix is here: StreamBuilder listens to the DE's office status.
-      body: StreamBuilder<String?>(
-        stream: _deOfficeSubject.stream,
-        builder: (context, snapshot) {
-          final deOffice = snapshot.data;
+            // 2. Details Grid
+            _buildSectionHeader("Contact Information"),
+            _buildDetailRow(Icons.email_outlined, "Email", email),
+            _buildDetailRow(Icons.phone_android_outlined, "Mobile", mobile),
+            _buildDetailRow(Icons.phone_outlined, "Office Phone", officePhone),
 
-          if (snapshot.connectionState == ConnectionState.waiting ||
-              !snapshot.hasData && deOffice == null) {
-            // Initial loading state while waiting for the first value from _fetchDEOffice()
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (deOffice == null || deOffice.isEmpty) {
-            // Office data failed to load or the DE document didn't have an office
-            return const Center(
-                child: Padding(
-                    padding: EdgeInsets.all(24.0),
-                    child: Text(
-                        'Cannot load approvals. Your assigned office is unknown or failed to fetch.',
-                        textAlign: TextAlign.center)));
-          }
-
-          // Once the DE office is known, start streaming the pending users
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .where('isActive',
-                    isEqualTo: false) // Filter: Users waiting for approval
-                .where('office',
-                    isEqualTo:
-                        deOffice) // Filter: Users in the DE's assigned office
-                .where('userType', whereIn: [ 
-              'Technical Officer',
-              'Principal'
-            ]) // Filter: Only show the roles the DE approves
-                .snapshots(),
-            builder: (context, userSnapshot) {
-              if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (userSnapshot.hasError) {
-                return Center(
-                    child:
-                        Text('Error loading requests: ${userSnapshot.error}'));
-              }
-              if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                return const Center(
-                    child: Text('✅ No pending requests found.'));
-              }
-
-              // Map Firebase documents to ApprovalItem list
-              final List<ApprovalItem> pendingApprovals =
-                  userSnapshot.data!.docs
-                      .map((doc) => ApprovalItem(
-                            uid: doc.id,
-                            name: doc['name'] ?? 'N/A',
-                            email: doc['email'] ?? 'N/A',
-                            officePhone: doc['officePhone'] ?? 'N/A',
-                            mobilePhone: doc['mobilePhone'] ?? 'N/A',
-                            district: doc['office'] ?? 'N/A',
-                            role: doc['userType'] ?? 'N/A',
-                            nic: doc['nic'] ?? 'N/A',
-                          ))
-                      .toList();
-
-              return ListView.builder(
-                itemCount: pendingApprovals.length,
-                itemBuilder: (context, index) {
-                  final item = pendingApprovals[index];
-                  return ApprovalCard(
-                    item: item,
-                    onApprove: _handleApproval,
-                    onDecline: _handleDecline,
-                    onViewDetails: _showUserDetailsDialog,
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
-
-      // Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: '',
-          ),
-        ],
-        currentIndex: 1,
-        onTap: (index) {
-          // Handle navigation
-        },
+            const SizedBox(height: 24),
+            _buildSectionHeader("Official Information"),
+            _buildDetailRow(Icons.badge_outlined, "NIC Number", nic),
+            _buildDetailRow(Icons.location_city_outlined, "Assigned Office", office),
+            _buildDetailRow(Icons.map_outlined, "Region/Zone", regionOrZone),
+            
+            const SizedBox(height: 40),
+            
+            // 3. Action Button
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                onPressed: () => _approveAndClose(context),
+                child: const Text("Approve & Activate", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            )
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1.2)),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB), // Very light gray
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey.shade600, size: 22),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF374151))),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Future<void> _approveAndClose(BuildContext context) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(docId).update({'isActive': true});
+      if (context.mounted) {
+        Navigator.pop(context); // Close details
+        ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text("Technical Officer Approved"), backgroundColor: Color(0xFF10B981)),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
+    }
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 
 // Import for the Pending Approvals Page 
 import 'pending_approvals_page.dart';
@@ -15,10 +16,13 @@ import 'view_contract_details_page.dart';
 // Import the View Contractor Details Page
 import 'view_contractor_details_page.dart';
 
+// --- IMPORT THE NEW LIST PAGE HERE ---
+import 'manage_technical_officers_list.dart'; 
+
 class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
-  // Define the consistent colors from the ManagePrincipalsPage
+  // Define the consistent colors
   static const Color _cardColor = Color(0xFFE3F2FD);
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
@@ -26,15 +30,13 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Use the consistent background color
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        // Transparent app bar to blend with the background
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(), // Navigate back
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           'Manage Technical Officers',
@@ -43,27 +45,53 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          // Use consistent padding
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStatsGrid(context), // Pass context to the grid builder
-              const SizedBox(height: 24),
-              _buildSearchBar(),
-              const SizedBox(height: 24),
-              // Pass context to _buildManagementOptions to allow navigation
-              _buildManagementOptions(context), 
-            ],
-          ),
+        child: StreamBuilder<QuerySnapshot>(
+          // Query: Get all users where userType is 'Technical Officer'
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('userType', isEqualTo: 'Technical Officer')
+              .snapshots(),
+          builder: (context, snapshot) {
+            // 1. Handle Loading State
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // 2. Handle Error State
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            // 3. Process Data
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+               // Show empty state with 0 counts if no data found
+               return _buildContent(context, 0, 0, 0);
+            }
+
+            final docs = snapshot.data!.docs;
+            final totalTOs = docs.length;
+
+            // Count Active (isActive == true)
+            final activeTOs = docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['isActive'] == true;
+            }).length;
+
+            // Count Inactive/Pending (isActive == false)
+            final pendingTOs = docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['isActive'] == false;
+            }).length;
+
+            // 4. Return the Main UI with calculated data
+            return _buildContent(context, totalTOs, pendingTOs, activeTOs);
+          },
         ),
       ),
-      // Consistent Bottom Navigation Bar styling
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined), // Changed to outlined home icon
+            icon: Icon(Icons.home_outlined),
             label: 'Home',
           ),
           BottomNavigationBarItem(
@@ -75,32 +103,49 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             label: 'Settings',
           ),
         ],
-        // The current index is 1 (person icon)
         currentIndex: 1,
-        selectedItemColor: _primaryBlue, // The highlighted icon is blue
-        unselectedItemColor: Colors.grey, // Non-selected icons are grey
-        showSelectedLabels: false, // Hide labels for a cleaner look
+        selectedItemColor: _primaryBlue,
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: false,
         showUnselectedLabels: false,
-        backgroundColor: Colors.white, // White background for the bar
-        type: BottomNavigationBarType.fixed, // To show all icons clearly
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
 
-  // Helper widget to build the stats grid (Total TOs, Pending, Active, Schools)
-  Widget _buildStatsGrid(BuildContext context) {
+  // Extracted the main content scrolling view to keep StreamBuilder clean
+  Widget _buildContent(BuildContext context, int total, int pending, int active) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Pass the calculated numbers to the grid
+          _buildStatsGrid(context, total, pending, active), 
+          const SizedBox(height: 24),
+          _buildSearchBar(),
+          const SizedBox(height: 24),
+          _buildManagementOptions(context),
+        ],
+      ),
+    );
+  }
+
+  // Updated widget to accept dynamic data
+  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Total TOs - Group Icon
-            _buildStatCard('Total TOs', '25', Icons.group_outlined),
+            // Total TOs (Live Data)
+            _buildStatCard('Total TOs', total.toString(), Icons.group_outlined),
 
-            // PENDING CARD - NOW CLICKABLE
+            // Pending / Inactive (Live Data)
             _buildStatCard(
-              'Pending',
-              '5',
+              'Pending', // or 'Deactivated'
+              pending.toString(),
               Icons.pending_actions_outlined,
               onTap: () {
                 Navigator.push(
@@ -117,9 +162,24 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Active TOs - Group with 'Add' Icon
-            _buildStatCard('Active TOs', '20', Icons.how_to_reg_outlined),
-            // Schools - School/Building Icon
+            // Active TOs (Live Data) - NOW LINKED
+            _buildStatCard(
+              'Active TOs', 
+              active.toString(), 
+              Icons.how_to_reg_outlined,
+              onTap: () {
+                // Navigate to the new Manage/List page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ManageTechnicalOfficersListPage(),
+                  ),
+                );
+              },
+            ),
+            
+            // Note: Schools data usually comes from a different collection ('schools').
+            // Keeping this hardcoded or fetch separately if needed.
             _buildStatCard('Schools', '150', Icons.apartment_outlined),
           ],
         ),
@@ -127,22 +187,21 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  // Helper widget for a single stat card in the grid
   Widget _buildStatCard(
       String title, String count, IconData icon, {VoidCallback? onTap}) {
     return Expanded(
       child: InkWell(
-        onTap: onTap, // Apply the onTap function here
+        onTap: onTap,
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.all(16),
-          height: 120, // Give it a fixed height for consistent look
+          height: 120,
           decoration: BoxDecoration(
-            color: _cardColor, // Use the light blue card color
+            color: _cardColor,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05), // Subtle shadow
+                color: Colors.black.withOpacity(0.05),
                 spreadRadius: 1,
                 blurRadius: 3,
               ),
@@ -168,7 +227,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
-                  Icon(icon, size: 36, color: _primaryBlue), // Use primary blue icon color
+                  Icon(icon, size: 36, color: _primaryBlue),
                 ],
               ),
             ],
@@ -178,7 +237,6 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  // Helper widget for the search bar
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -198,17 +256,15 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           hintText: 'Search TOs.......',
           border: InputBorder.none,
           icon: Icon(Icons.search, color: Colors.grey),
-          contentPadding: EdgeInsets.symmetric(vertical: 12), // Consistent padding
+          contentPadding: EdgeInsets.symmetric(vertical: 12),
         ),
       ),
     );
   }
 
-  // Helper widget to build the three main management option tiles
   Widget _buildManagementOptions(BuildContext context) {
     return Column(
       children: [
-        // Master Plan Navigation
         _buildOptionTile(
             context, 
             'View School Master Plan', 
@@ -223,26 +279,20 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             },
         ),
         const SizedBox(height: 16),
-
-        // Damage Details Navigation
         _buildOptionTile(
             context, 
             'View Damage Details', 
             Icons.remove_red_eye_outlined,
             onTap: () {
-              // Note: The ViewDamageDetailsPage requires a userNic parameter. 
-              // Assuming a placeholder or default NIC for navigation from this admin page.
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ViewDamageDetailsPage(userNic: 'ADMIN_NIC_123'),
+                  builder: (context) => const ViewDamageDetailsPage(userNic: 'ADMIN'),
                 ),
               );
             },
         ), 
         const SizedBox(height: 16),
-
-        // Contract Details Navigation
         _buildOptionTile(
             context, 
             'View Contract Details', 
@@ -251,15 +301,12 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // FIX: Use the ContractsListPage class
                   builder: (context) => const ContractsListPage(),
                 ),
               );
             },
         ), 
         const SizedBox(height: 16),
-
-        // Contractor Details Navigation
         _buildOptionTile(
             context, 
             'View Contractor Details', 
@@ -268,7 +315,6 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // FIX: Use the ContractorListScreen class from view_contractor_details_page.dart
                   builder: (context) => const ContractorListScreen(),
                 ),
               );
@@ -278,22 +324,15 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  // Helper widget for a single option tile
   Widget _buildOptionTile(
       BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
-      onTap: onTap ?? () {
-        // Default action for unlinked options
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tapped: $title - Navigation not set')),
-        );
-      },
+      onTap: onTap ?? () {},
       child: Container(
         width: double.infinity,
-        // Used consistent vertical padding
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
         decoration: BoxDecoration(
-          color: Colors.white, // White background for the tiles
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -313,7 +352,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Colors.black87),
             ),
-            Icon(icon, size: 28, color: _primaryBlue), // Use primary blue icon color
+            Icon(icon, size: 28, color: _primaryBlue),
           ],
         ),
       ),
