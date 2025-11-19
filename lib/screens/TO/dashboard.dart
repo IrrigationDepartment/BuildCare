@@ -1,4 +1,3 @@
-// In screens/TO/dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,6 +12,8 @@ import 'view_contractor_screen.dart';
 
 // --- Settings Import ---
 import 'settings.dart';
+// Import your Profile Page
+import 'profile.dart'; 
 
 // ====================================================================
 // DATA MODEL
@@ -200,7 +201,7 @@ class _DashboardScreenState extends State<TODashboard> {
   // NAVIGATION HELPER
   // ====================================================================
   void _navigateToDetails(String type, String id) {
-     Widget? page;
+      Widget? page;
     switch (type) {
       case 'issue':
         page = IssueReportDetailsScreen(issueId: id, userNic: widget.userData['nic'] ?? '');
@@ -230,7 +231,8 @@ class _DashboardScreenState extends State<TODashboard> {
     if (_selectedIndex == 0) {
       bodyContent = _buildDashboardHome();
     } else if (_selectedIndex == 1) {
-      bodyContent = const Center(child: Text("Profile Page Coming Soon"));
+      // LINKED PROFILE PAGE HERE
+      bodyContent = const ProfilePage();
     } else {
       bodyContent = SettingsScreen(onBackTap: _goToHome);
     }
@@ -414,7 +416,7 @@ class _DashboardScreenState extends State<TODashboard> {
     return const Row(
       children: [
         Icon(Icons.history, color: kSubTextColor),
-        SizedBox(width: 8),
+        const SizedBox(width: 8),
         Text(
           'Recent Activity',
           style: TextStyle(
