@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'add_contractor_screen.dart'; // Removed import
 import 'view_contractor.dart'; // Import the details view page
 
 // --- Data Model (No changes needed here) ---
@@ -184,9 +183,6 @@ class _ContractorListScreenState extends State<ContractorListScreen> {
         },
       ),
 
-      // Floating action button for 'Add Contractor' has been removed
-      // floatingActionButton: FloatingActionButton.extended(...)
-      // floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
