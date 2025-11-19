@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'add_contract.dart'; // Removed as requested
-import 'view_details_screen.dart'; // FIX: Assuming view_details.dart is actually the file holding ViewContractDetailsScreen
+import 'view_details_screen.dart'; 
 
 // --- Data Model ---
 class Contract {
@@ -34,7 +33,7 @@ class ContractsListPage extends StatefulWidget {
 }
 
 class _ContractsListPageState extends State<ContractsListPage> {
-  // 1. Variables to hold search text
+  //  Variables to hold search text
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
@@ -55,7 +54,7 @@ class _ContractsListPageState extends State<ContractsListPage> {
       ),
       body: Column(
         children: [
-          // --- 2. Search Bar (Placed outside StreamBuilder for better performance) ---
+          // Search Bar 
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: TextField(
@@ -93,7 +92,7 @@ class _ContractsListPageState extends State<ContractsListPage> {
                 ),
               ),
               onChanged: (value) {
-                // 3. Update state when user types
+                //  Update state when user types
                 setState(() {
                   _searchQuery = value.toLowerCase();
                 });
@@ -101,7 +100,7 @@ class _ContractsListPageState extends State<ContractsListPage> {
             ),
           ),
 
-          // --- 3. The List (Wrapped in Expanded) ---
+          // The List (Wrapped in Expanded) 
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -127,7 +126,7 @@ class _ContractsListPageState extends State<ContractsListPage> {
                     .map((doc) => Contract.fromFirestore(doc))
                     .toList();
 
-                // --- 4. Filtering Logic ---
+                //  Filtering Logic 
                 final List<Contract> filteredContracts = allContracts.where((contract) {
                   final nameLower = contract.contractorName.toLowerCase();
                   final cidaLower = contract.cidaRegisterNumber.toLowerCase();
@@ -201,7 +200,6 @@ class _ContractsListPageState extends State<ContractsListPage> {
         ],
       ),
 
-      // --- Floating Action Button section removed as requested ---
     );
   }
 }
