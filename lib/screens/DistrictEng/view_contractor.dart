@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// Removed: import 'add_contractor_screen.dart'; // Add/Edit functionality removed
+//  import 'add_contractor_screen.dart'; // (Not needed in this screen)
 
 class ViewContractorScreen extends StatelessWidget {
   final String contractorId;
