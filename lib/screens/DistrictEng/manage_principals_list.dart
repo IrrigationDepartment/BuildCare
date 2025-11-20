@@ -628,7 +628,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
               TextField(
                   controller: regionCtrl,
                   enabled: false, // LOCKED
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: Colors.grey.shade600), 
                   decoration: InputDecoration(
                       labelText: "Region/Zone (Cannot Edit)",
                       filled: true,

@@ -1,15 +1,20 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart'; // Import Image Picker
+import 'package:http/http.dart' as http; // Import HTTP
 
 class ManageTechnicalOfficersListPage extends StatefulWidget {
   const ManageTechnicalOfficersListPage({super.key});
 
   @override
-  State<ManageTechnicalOfficersListPage> createState() => _ManageTechnicalOfficersListPageState();
+  State<ManageTechnicalOfficersListPage> createState() =>
+      _ManageTechnicalOfficersListPageState();
 }
 
-class _ManageTechnicalOfficersListPageState extends State<ManageTechnicalOfficersListPage> with SingleTickerProviderStateMixin {
-  // --- Modern Professional Color Palette ---
+class _ManageTechnicalOfficersListPageState
+    extends State<ManageTechnicalOfficersListPage>
+    with SingleTickerProviderStateMixin {
   static const Color _bgLight = Color(0xFFF3F4F6);
   static const Color _textDark = Color(0xFF1F2937);
   static const Color _primaryBlue = Color(0xFF2563EB);
@@ -82,15 +87,13 @@ class _ManageTechnicalOfficersListPageState extends State<ManageTechnicalOfficer
               },
             ),
           ),
-          
+
           // Tab View Content
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                // Tab 1: Active Users
                 _buildUserList(isActive: true),
-                // Tab 2: Inactive Users
                 _buildUserList(isActive: false),
               ],
             ),
@@ -109,16 +112,17 @@ class _ManageTechnicalOfficersListPageState extends State<ManageTechnicalOfficer
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _primaryBlue));
+          return const Center(
+              child: CircularProgressIndicator(color: _primaryBlue));
         }
         if (snapshot.hasError) {
           return Center(child: Text("Error: ${snapshot.error}"));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _buildEmptyState(isActive ? "No active officers found." : "No inactive officers.");
+          return _buildEmptyState(
+              isActive ? "No active officers found." : "No inactive officers.");
         }
 
-        // Filter locally for search query
         final filteredDocs = snapshot.data!.docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final name = (data['name'] ?? '').toString().toLowerCase();
@@ -134,9 +138,10 @@ class _ManageTechnicalOfficersListPageState extends State<ManageTechnicalOfficer
           itemCount: filteredDocs.length,
           itemBuilder: (context, index) {
             return _UserCard(
-              doc: filteredDocs[index], 
+              doc: filteredDocs[index],
               isActive: isActive,
-              onStatusChange: () => _toggleUserStatus(filteredDocs[index].id, !isActive),
+              onStatusChange: () =>
+                  _toggleUserStatus(filteredDocs[index].id, !isActive),
             );
           },
         );
@@ -149,7 +154,8 @@ class _ManageTechnicalOfficersListPageState extends State<ManageTechnicalOfficer
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.person_off_outlined, size: 60, color: Colors.grey.shade300),
+          Icon(Icons.person_off_outlined,
+              size: 60, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(message, style: TextStyle(color: Colors.grey.shade500)),
         ],
@@ -159,9 +165,10 @@ class _ManageTechnicalOfficersListPageState extends State<ManageTechnicalOfficer
 
   Future<void> _toggleUserStatus(String docId, bool newStatus) async {
     try {
-      await FirebaseFirestore.instance.collection('users').doc(docId).update({
-        'isActive': newStatus
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(docId)
+          .update({'isActive': newStatus});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -182,7 +189,10 @@ class _UserCard extends StatelessWidget {
   final bool isActive;
   final VoidCallback onStatusChange;
 
-  const _UserCard({required this.doc, required this.isActive, required this.onStatusChange});
+  const _UserCard(
+      {required this.doc,
+      required this.isActive,
+      required this.onStatusChange});
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +209,10 @@ class _UserCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: ExpansionTile(
@@ -212,15 +225,18 @@ class _UserCard extends StatelessWidget {
             shape: BoxShape.circle,
             color: Colors.grey.shade100,
             image: (imageUrl != null && imageUrl.isNotEmpty)
-                ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
+                ? DecorationImage(
+                    image: NetworkImage(imageUrl), fit: BoxFit.cover)
                 : null,
           ),
           child: (imageUrl == null || imageUrl.isEmpty)
               ? const Icon(Icons.person, color: Colors.grey)
               : null,
         ),
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle: Text("$office Office", style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+        title: Text(name,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        subtitle: Text("$office Office",
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -240,7 +256,8 @@ class _UserCard extends StatelessWidget {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => EditUserPage(doc: doc)),
+                            MaterialPageRoute(
+                                builder: (context) => EditUserPage(doc: doc)),
                           );
                         },
                         icon: const Icon(Icons.edit, size: 18),
@@ -257,10 +274,13 @@ class _UserCard extends StatelessWidget {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: onStatusChange,
-                        icon: Icon(isActive ? Icons.block : Icons.check_circle, size: 18),
+                        icon: Icon(isActive ? Icons.block : Icons.check_circle,
+                            size: 18),
                         label: Text(isActive ? "Deactivate" : "Activate"),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isActive ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                          backgroundColor: isActive
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF10B981),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
@@ -287,7 +307,7 @@ class _UserCard extends StatelessWidget {
   }
 }
 
-// --- EDIT USER DETAILS PAGE ---
+// --- REDESIGNED EDIT USER PAGE ---
 class EditUserPage extends StatefulWidget {
   final QueryDocumentSnapshot doc;
   const EditUserPage({super.key, required this.doc});
@@ -300,27 +320,108 @@ class _EditUserPageState extends State<EditUserPage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameCtrl;
   late TextEditingController _mobileCtrl;
+  late TextEditingController _emailCtrl;
   late TextEditingController _officeCtrl;
   late TextEditingController _officePhoneCtrl;
+  
+  String? _currentImageUrl;
   bool _isLoading = false;
+  bool _isUploadingImage = false;
 
   @override
   void initState() {
     super.initState();
     final data = widget.doc.data() as Map<String, dynamic>;
-    _nameCtrl = TextEditingController(text: data['name']);
-    _mobileCtrl = TextEditingController(text: data['mobilePhone']);
-    _officeCtrl = TextEditingController(text: data['office']);
-    _officePhoneCtrl = TextEditingController(text: data['officePhone']);
+    _nameCtrl = TextEditingController(text: data['name'] ?? '');
+    _mobileCtrl = TextEditingController(text: data['mobilePhone'] ?? '');
+    _emailCtrl = TextEditingController(text: data['email'] ?? '');
+    _officeCtrl = TextEditingController(text: data['office'] ?? '');
+    _officePhoneCtrl = TextEditingController(text: data['officePhone'] ?? '');
+    _currentImageUrl = data['profile_image'];
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _mobileCtrl.dispose();
+    _emailCtrl.dispose();
     _officeCtrl.dispose();
     _officePhoneCtrl.dispose();
     super.dispose();
+  }
+
+  // --- UPLOAD IMAGE TO buildcare.atigalle.x10.mx/profile/TO ---
+  Future<void> _pickAndUploadImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    setState(() {
+      _isUploadingImage = true;
+    });
+
+    try {
+      final bytes = await image.readAsBytes();
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://buildcare.atigalle.x10.mx/index.php'), 
+      );
+
+      // **IMPORTANT**: Using 'to_profile_image' triggers Logic 4 in PHP
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'to_profile_image', 
+          bytes,
+          filename: 'to_upload.jpg', 
+        ),
+      );
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = jsonDecode(response.body);
+
+        if (jsonResponse['status'] == 'success') {
+          String newImageUrl = jsonResponse['toProfileImageUrl'];
+
+          // Update Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.doc.id)
+              .update({'profile_image': newImageUrl});
+
+          setState(() {
+            _currentImageUrl = newImageUrl;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Profile Photo Updated!")),
+            );
+          }
+        } else {
+          throw Exception(jsonResponse['message']);
+        }
+      } else {
+        throw Exception("Server error: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Error uploading image: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
   }
 
   Future<void> _saveChanges() async {
@@ -328,19 +429,25 @@ class _EditUserPageState extends State<EditUserPage> {
 
     setState(() => _isLoading = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(widget.doc.id).update({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.doc.id)
+          .update({
         'name': _nameCtrl.text.trim(),
         'mobilePhone': _mobileCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
         'office': _officeCtrl.text.trim(),
         'officePhone': _officePhoneCtrl.text.trim(),
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User Updated!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("User Updated!"), backgroundColor: Colors.green));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Error: $e")));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -352,10 +459,15 @@ class _EditUserPageState extends State<EditUserPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Edit Technical Officer", style: TextStyle(color: Colors.black)),
+        title: const Text("Technical Officer Profile",
+            style: TextStyle(color: Colors.black, fontSize: 18)),
+        centerTitle: true,
         backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -363,14 +475,152 @@ class _EditUserPageState extends State<EditUserPage> {
           key: _formKey,
           child: Column(
             children: [
-              _buildTextField("Full Name", _nameCtrl, Icons.person),
-              const SizedBox(height: 16),
-              _buildTextField("Mobile Phone", _mobileCtrl, Icons.phone_android),
-              const SizedBox(height: 16),
-              _buildTextField("Office Location", _officeCtrl, Icons.location_city),
-              const SizedBox(height: 16),
-              _buildTextField("Office Phone", _officePhoneCtrl, Icons.phone),
-              const SizedBox(height: 32),
+              
+              // --- 1. PROFILE IMAGE & HEADER ---
+              Center(
+                child: Column(
+                  children: [
+                    Stack(
+                      children: [
+                        Container(
+                          width: 110,
+                          height: 110,
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.blue.shade100, width: 3),
+                          ),
+                          child: _isUploadingImage
+                              ? const CircularProgressIndicator()
+                              : Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.grey.shade100,
+                                    image: (_currentImageUrl != null &&
+                                            _currentImageUrl!.isNotEmpty)
+                                        ? DecorationImage(
+                                            image: NetworkImage(_currentImageUrl!),
+                                            fit: BoxFit.cover)
+                                        : null,
+                                  ),
+                                  child: (_currentImageUrl == null ||
+                                          _currentImageUrl!.isEmpty)
+                                      ? Icon(Icons.person,
+                                          size: 60, color: Colors.grey.shade300)
+                                      : null,
+                                ),
+                        ),
+                        // Camera Icon Badge
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: InkWell(
+                            onTap: _pickAndUploadImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF2563EB),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.camera_alt,
+                                  color: Colors.white, size: 18),
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(_nameCtrl.text.isEmpty ? "Officer Name" : _nameCtrl.text,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    const Text("Technical Officer",
+                      style: TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // --- 2. CONTACT INFORMATION SECTION ---
+              _buildSectionHeader("CONTACT INFORMATION"),
+              const SizedBox(height: 10),
+              _buildInfoBlock(
+                icon: Icons.email_outlined,
+                label: "Email",
+                child: TextFormField(
+                   controller: _emailCtrl,
+                   style: const TextStyle(fontWeight: FontWeight.w500),
+                   decoration: const InputDecoration(
+                     border: InputBorder.none,
+                     isDense: true,
+                     contentPadding: EdgeInsets.zero,
+                   ),
+                ),
+              ),
+              const SizedBox(height: 12),
+               _buildInfoBlock(
+                icon: Icons.phone_android,
+                label: "Mobile",
+                child: TextFormField(
+                   controller: _mobileCtrl,
+                   style: const TextStyle(fontWeight: FontWeight.w500),
+                   decoration: const InputDecoration(
+                     border: InputBorder.none,
+                     isDense: true,
+                     contentPadding: EdgeInsets.zero,
+                   ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildInfoBlock(
+                icon: Icons.person_outline,
+                label: "Full Name",
+                child: TextFormField(
+                   controller: _nameCtrl,
+                   style: const TextStyle(fontWeight: FontWeight.w500),
+                   decoration: const InputDecoration(
+                     border: InputBorder.none,
+                     isDense: true,
+                     contentPadding: EdgeInsets.zero,
+                   ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // --- 3. OFFICE INFORMATION SECTION ---
+              _buildSectionHeader("OFFICE INFORMATION"),
+              const SizedBox(height: 10),
+               _buildInfoBlock(
+                icon: Icons.location_city_outlined,
+                label: "Office Location",
+                child: TextFormField(
+                   controller: _officeCtrl,
+                   style: const TextStyle(fontWeight: FontWeight.w500),
+                   decoration: const InputDecoration(
+                     border: InputBorder.none,
+                     isDense: true,
+                     contentPadding: EdgeInsets.zero,
+                   ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildInfoBlock(
+                icon: Icons.phone_outlined,
+                label: "Office Phone",
+                child: TextFormField(
+                   controller: _officePhoneCtrl,
+                   style: const TextStyle(fontWeight: FontWeight.w500),
+                   decoration: const InputDecoration(
+                     border: InputBorder.none,
+                     isDense: true,
+                     contentPadding: EdgeInsets.zero,
+                   ),
+                ),
+              ),
+              
+              const SizedBox(height: 40),
+              
+              // --- 4. SAVE BUTTON ---
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -378,13 +628,16 @@ class _EditUserPageState extends State<EditUserPage> {
                   onPressed: _isLoading ? null : _saveChanges,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: _isLoading 
+                  child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Save Changes", style: TextStyle(fontSize: 16)),
+                      : const Text("Save Changes",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -392,17 +645,43 @@ class _EditUserPageState extends State<EditUserPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: Colors.grey),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: const Color(0xFFF9FAFB),
+  // Helper for the Section Headers (uppercase grey text)
+  Widget _buildSectionHeader(String title) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(title, style: TextStyle(
+        color: Colors.grey.shade500,
+        fontWeight: FontWeight.bold,
+        fontSize: 13,
+        letterSpacing: 0.5
+      )),
+    );
+  }
+
+  // Helper for the Rounded Data Blocks
+  Widget _buildInfoBlock({required IconData icon, required String label, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FA), // Very light grey background
+        borderRadius: BorderRadius.circular(12),
       ),
-      validator: (value) => value == null || value.isEmpty ? "Field required" : null,
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey.shade600, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                const SizedBox(height: 4),
+                child, // This is the editable TextFormField
+              ],
+            ),
+          )
+        ],
+      ),
     );
   }
 }
