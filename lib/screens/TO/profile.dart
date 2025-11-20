@@ -1,11 +1,14 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Removed: import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+// --- Imports ---
+// ForgotPasswordFlow lives in lib/screens/, so reference one level up
+import '../forgot_password_flow.dart';
+import 'dashboard.dart'; // Required to navigate back to TODashboard
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -21,12 +24,16 @@ class _ProfilePageState extends State<ProfilePage> {
   // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
-  
+
   // State variables
   String? _profileImageUrl;
   String? _email;
-  String? _userType; // Matches 'Title' in mockup
+  String? _userType;
   String? _officePhone;
+
+  // We need to store the full data map to pass it back to the Dashboard
+  Map<String, dynamic>? _userDataMap;
+
   bool _isLoading = true;
   bool _isUpdating = false;
 
@@ -56,11 +63,15 @@ class _ProfilePageState extends State<ProfilePage> {
       if (userDoc.exists) {
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
         setState(() {
+          // Store the full map for navigation
+          _userDataMap = data;
+
+          // Populate UI fields
           _nameController.text = data['name'] ?? '';
           _mobileController.text = data['mobilePhone'] ?? '';
           _profileImageUrl = data['profile_image'];
           _email = data['email'];
-          _userType = data['userType']; // Mapping 'userType' to 'Title'
+          _userType = data['userType'];
           _officePhone = data['officePhone'];
           _isLoading = false;
         });
@@ -73,7 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Pick image from gallery and upload to Firebase Storage
+  /// Pick image from gallery and upload
   Future<void> _updateProfilePicture() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -83,36 +94,30 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isUpdating = true);
 
     try {
-      // 1. Upload to Your Custom Server (Replaces Firebase Storage)
-      // TODO: Replace with your actual upload API endpoint
-      var uri = Uri.parse('https://your-server.com/api/upload'); 
-      
+      // Replace with your actual upload API endpoint
+      var uri = Uri.parse('https://your-server.com/api/upload');
+
       var request = http.MultipartRequest('POST', uri);
-      
-      // Add the image file to the request
-      // 'file' is the field name expected by your server
       request.files.add(await http.MultipartFile.fromPath('file', image.path));
-      
-      // Send request
+
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        // Parse the response to get the URL
-        // Assumes server returns JSON: { "url": "https://..." }
         var jsonResponse = json.decode(response.body);
-        String downloadUrl = jsonResponse['url']; // Change 'url' key based on your API response
-        
-        print("Uploaded Image URL: $downloadUrl");
+        String downloadUrl = jsonResponse['url'];
 
-        // 2. Update Firestore with the new URL from your server
         await FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser!.uid)
             .update({'profile_image': downloadUrl});
 
+        // Update local state and the main data map
         setState(() {
           _profileImageUrl = downloadUrl;
+          if (_userDataMap != null) {
+            _userDataMap!['profile_image'] = downloadUrl;
+          }
           _isUpdating = false;
         });
 
@@ -146,6 +151,12 @@ class _ProfilePageState extends State<ProfilePage> {
         'mobilePhone': _mobileController.text.trim(),
       });
 
+      // Update the local data map so the dashboard gets the new name immediately
+      if (_userDataMap != null) {
+        _userDataMap!['name'] = _nameController.text.trim();
+        _userDataMap!['mobilePhone'] = _mobileController.text.trim();
+      }
+
       setState(() => _isUpdating = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -168,19 +179,27 @@ class _ProfilePageState extends State<ProfilePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.blue),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            // --- Navigation Logic ---
+            if (_userDataMap != null) {
+              // If we have data, restart the Dashboard with it
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TODashboard(userData: _userDataMap!),
+                ),
+              );
+            } else {
+              // Fallback if data hasn't loaded yet (rare)
+              Navigator.of(context).pop();
+            }
+          },
         ),
         title: const Text(
           'Edit Profile',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: _updateProfileData,
-            child: const Text('Save', style: TextStyle(color: Colors.blue, fontSize: 16)),
-          )
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -201,15 +220,18 @@ class _ProfilePageState extends State<ProfilePage> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.grey[200],
-                              image: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                              image: _profileImageUrl != null &&
+                                      _profileImageUrl!.isNotEmpty
                                   ? DecorationImage(
                                       image: NetworkImage(_profileImageUrl!),
                                       fit: BoxFit.cover,
                                     )
                                   : null,
                             ),
-                            child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                                ? const Icon(Icons.person, size: 80, color: Colors.grey)
+                            child: _profileImageUrl == null ||
+                                    _profileImageUrl!.isEmpty
+                                ? const Icon(Icons.person,
+                                    size: 80, color: Colors.grey)
                                 : null,
                           ),
                           Positioned(
@@ -223,7 +245,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                   color: Colors.black,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                child: const Icon(Icons.camera_alt,
+                                    color: Colors.white, size: 20),
                               ),
                             ),
                           ),
@@ -235,7 +258,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     // --- Personal Information ---
                     const Text(
                       'Personal Information',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 15),
                     _buildTextField(
@@ -244,7 +268,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.person_outline,
                     ),
                     const SizedBox(height: 10),
-                    // Display User Type (Title) - Read only as it's usually a role
                     _buildReadOnlyField(
                       label: 'Title',
                       value: _userType ?? 'N/A',
@@ -255,7 +278,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     // --- Contact Information ---
                     const Text(
                       'Contact Information',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 15),
                     _buildReadOnlyField(
@@ -270,7 +294,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 10),
-                     // Display Office Phone - Read only based on mockup usually being fixed
                     _buildReadOnlyField(
                       label: 'Office Phone',
                       value: _officePhone ?? 'N/A',
@@ -278,14 +301,27 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     const SizedBox(height: 30),
 
-                    // --- Account Setting (Mock Buttons) ---
+                    // --- Account Setting ---
                     const Text(
                       'Account Setting',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 10),
-                    _buildSettingsTile(title: 'Change password', onTap: () {}),
-                    _buildSettingsTile(title: 'Manage Notifications', onTap: () {}),
+
+                    _buildSettingsTile(
+                        title: 'Change password',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordFlow(),
+                            ),
+                          );
+                        }),
+
+                    _buildSettingsTile(
+                        title: 'Manage Notifications', onTap: () {}),
 
                     const SizedBox(height: 40),
 
@@ -303,7 +339,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           elevation: 2,
                         ),
                         child: _isUpdating
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text(
                                 'Update Profile',
                                 style: TextStyle(
@@ -319,19 +356,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-      // Simple Mock Bottom Navigation Bar to match image
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.blue[200],
-        currentIndex: 1, // Profile selected
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home, size: 30), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.person, size: 30), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined, size: 30), label: 'Settings'),
-        ],
-      ),
     );
   }
 
@@ -347,7 +371,10 @@ class _ProfilePageState extends State<ProfilePage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-           BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5, spreadRadius: 1),
+          BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 5,
+              spreadRadius: 1),
         ],
       ),
       child: TextFormField(
@@ -357,20 +384,21 @@ class _ProfilePageState extends State<ProfilePage> {
           labelText: label,
           prefixIcon: icon != null ? Icon(icon, color: Colors.grey) : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         ),
         validator: (value) => value!.isEmpty ? 'Please enter $label' : null,
       ),
     );
   }
 
-  // Helper widget for read-only fields (Email, UserType/Title)
+  // Helper widget for read-only fields
   Widget _buildReadOnlyField({required String label, required String value}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: Colors.grey[100], // Slightly darker to indicate read-only
+        color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -378,13 +406,15 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(height: 5),
-          Text(value, style: const TextStyle(color: Colors.black87, fontSize: 16)),
+          Text(value,
+              style: const TextStyle(color: Colors.black87, fontSize: 16)),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsTile({required String title, required VoidCallback onTap}) {
+  Widget _buildSettingsTile(
+      {required String title, required VoidCallback onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -393,7 +423,8 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: ListTile(
         title: Text(title, style: const TextStyle(color: Colors.black54)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        trailing:
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         onTap: onTap,
       ),
     );
