@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 
+// Import the two files we just created
+import 'dashboard_service.dart';
+import 'dashboard_widgets.dart';
+
+// Main dashboard screen for District Engineer
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
 
@@ -10,7 +15,65 @@ class DistrictEngDashboard extends StatefulWidget {
 }
 
 class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
-  int _selectedIndex = 0; // State for BottomNavigationBar
+  int _selectedIndex = 0;
+  
+  // State variables for fetched data
+  int _totalSchools = 0;
+  int _activeTOs = 0;
+  int _pendingRequests = 0;
+  bool _isLoading = true; // Loading state
+
+  // --- 1. VARIABLE TO HOLD THE NIC ---
+  late final String userNic;
+
+  // Create an instance of the service
+  final DashboardService _service = DashboardService();
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // --- 2. GET THE NIC FROM THE 'userData' MAP ---
+    userNic = widget.userData['nic'] ?? 'No NIC Found';
+
+    print('--- District Engineer Dashboard ---');
+    print('Logged in User NIC: $userNic');
+    print('Full User Data: ${widget.userData}');
+    
+    _fetchData(); // Start fetching data
+  }
+
+  // New method to call the service and handle state
+  Future<void> _fetchData() async {
+    try {
+      final counts = await _service.fetchOverviewCounts();
+      
+      if (mounted) {
+        setState(() {
+          _totalSchools = counts.totalSchools;
+          _activeTOs = counts.activeTOs;
+          _pendingRequests = counts.pendingRequests;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // Handle errors
+      if(mounted) {
+        setState(() {
+          _isLoading = false;
+          _totalSchools = 0;
+          _activeTOs = 0;
+          _pendingRequests = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load dashboard data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -18,7 +81,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     });
     // TODO: Handle navigation for other tabs (Profile, Settings)
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,15 +93,36 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(),
+                
+                // 1. The Header
+                DashboardHeader(userData: widget.userData),
                 const SizedBox(height: 24),
-                _buildOverviewSection(),
+
+                // 2. The Overview
+                DashboardOverview(
+                  isLoading: _isLoading,
+                  totalSchools: _totalSchools,
+                  activeTOs: _activeTOs,
+                  pendingRequests: _pendingRequests,
+                  userNic: userNic, // Passing the required userNic
+                ),
                 const SizedBox(height: 24),
-                _buildSectionTitle('Recent Activity'),
-                _buildRecentActivitySection(),
-                const SizedBox(height: 24),
-                _buildSectionTitle('Approval Request'),
-                _buildApprovalRequestSection(),
+
+                // 3. Recent Issues Section
+                const RecentIssuesSection(),
+                const SizedBox(height: 24), 
+
+                // 4. Recent Schools Section (FIXED: Uses 'addDate' for correct sorting)
+                const RecentSchoolsSection(),
+                const SizedBox(height: 24), 
+
+                // 5. Recent Users Section
+                const RecentUsersSection(),
+                const SizedBox(height: 24), 
+
+                // 6. Approval Request
+                const SectionTitle('Approval Request'),
+                const ApprovalRequestSection(),
               ],
             ),
           ),
@@ -61,233 +145,9 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blueAccent,
+        unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
-    );
-  }
-
-  // --- WIDGET BUILDER HELPERS ---
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.blueAccent,
-            child: Icon(Icons.person, size: 35, color: Colors.white),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome, ${widget.userData['name'] ?? 'User'}!',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.userData['userType'] ?? 'District Engineer',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOverviewSection() {
-    // TODO: Fetch these counts from Firestore
-    const totalSchools = '150';
-    const activeTOs = '25';
-    const pendingRequests = '5';
-
-    return _buildCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Overview',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildOverviewCard('Total Schools', totalSchools),
-              _buildOverviewCard('Active TOs', activeTOs),
-              _buildOverviewCard('Pending', pendingRequests),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildManageButton('Manage Schools'),
-              _buildManageButton('Manage TOs'),
-              _buildManageButton('Manage Principals'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOverviewCard(String title, String count) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blue.shade200),
-        ),
-        child: Column(
-          children: [
-            Text(
-              count,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildManageButton(String label) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: ElevatedButton(
-          onPressed: () {
-            // TODO: Implement navigation for each manage button
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal.shade300,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: Text(label,
-              textAlign: TextAlign.center, style: const TextStyle(fontSize: 11)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, left: 4.0),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  Widget _buildRecentActivitySection() {
-    // TODO: Fetch this list from Firestore
-    return _buildCard(
-      child: Column(
-        children: [
-          _buildActivityItem('Thurstan College - Damaged Roof',
-              'Colombo - Status, Pending Review'),
-          const Divider(),
-          _buildActivityItem('Royal College - New Building',
-              'Colombo - Status, Approved'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityItem(String title, String subtitle) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          const Icon(Icons.home_work_outlined, color: Colors.teal, size: 30),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(subtitle,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () {},
-            child: const Text('View Details'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApprovalRequestSection() {
-    // TODO: Fetch this request from Firestore
-    return _buildCard(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Expanded(
-            child: Text('• Manel Withana requested to register as a TO.'),
-          ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.lightBlue.shade300,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Review'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCard({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: child,
     );
   }
 }
