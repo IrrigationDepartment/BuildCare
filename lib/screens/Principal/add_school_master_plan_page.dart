@@ -148,17 +148,29 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       }
       // If we are editing AND no new file was picked, finalImageUrl remains _currentImageUrl
 
+      // --- GET CURRENT DATE AND TIME ---
+      DateTime now = DateTime.now();
+      // Format: YYYY-MM-DD
+      String dateString = "${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}";
+      // Format: HH:MM
+      String timeString = "${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}";
+
       // --- STEP B: Save/Update URL to Firestore ---
       Map<String, dynamic> firestoreData = {
-        'schoolName': widget.schoolName,
+        'schoolName': widget.schoolName,    // What School
         'description': _descriptionController.text,
         'masterPlanUrl': finalImageUrl,
-        'addedByNic': widget.userNic,
+        'addedByNic': widget.userNic,       // Who Uploaded (NIC)
       };
 
       if (widget.masterPlanId == null) {
         // CREATE NEW RECORD
         firestoreData['createdAt'] = Timestamp.now();
+        
+        // --- NEW: Save specific Date and Time strings ---
+        firestoreData['uploadDate'] = dateString; // Upload Date
+        firestoreData['uploadTime'] = timeString; // Upload Time
+        
         await FirebaseFirestore.instance
             .collection('schoolMasterPlans')
             .add(firestoreData);
@@ -166,6 +178,10 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       } else {
         // UPDATE EXISTING RECORD
         firestoreData['updatedAt'] = Timestamp.now();
+        // Optional: Update edit timestamps
+        firestoreData['lastEditDate'] = dateString;
+        firestoreData['lastEditTime'] = timeString;
+
         await FirebaseFirestore.instance
             .collection('schoolMasterPlans')
             .doc(widget.masterPlanId)
@@ -260,7 +276,7 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
   }
   // --- END DELETE FUNCTIONALITY ---
 
-  // --- Helper snackbar methods (assuming they are correct) ---
+  // --- Helper snackbar methods ---
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -327,6 +343,10 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
             final schoolName = data['schoolName'] ?? 'N/A';
             final description = data['description'] ?? 'No description';
             final timestamp = data['createdAt'] as Timestamp?;
+
+            // Optional: You can also display the saved string dates if preferred
+            // final uploadDate = data['uploadDate'] ?? '';
+            // final uploadTime = data['uploadTime'] ?? '';
 
             String formattedDate = timestamp != null
                 ? 'Added on: ${timestamp.toDate().toString().split(' ')[0]}'
@@ -423,7 +443,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         leading: IconButton(
-          // 🔄 CHANGE 1: Changed icon from Icons.arrow_back_ios to standard Icons.arrow_back
           icon: const Icon(Icons.arrow_back, color: Colors.blue),
           onPressed: () => Navigator.pop(context, true), // Pop and signal refresh
         ),
@@ -437,7 +456,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2)),
                 )
-              // 🔄 CHANGE 2: Changed from TextButton to OutlinedButton for blue outline effect
               : Padding(
                   padding: const EdgeInsets.only(right: 12.0, top: 8.0, bottom: 8.0),
                   child: OutlinedButton(
