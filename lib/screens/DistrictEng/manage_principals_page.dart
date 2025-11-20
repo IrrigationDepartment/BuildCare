@@ -1,65 +1,86 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 
-// Import for the Pending Approvals Page
-import 'pending_approvals_page.dart';
+// --- IMPORTS FOR PRINCIPAL PAGES ---
+// Make sure you have created these pages or update these imports to your filenames
+import 'pending_Principal_approvals.dart'; 
+import 'manage_principals_list.dart'; 
 
-// Import the School Master Plan Page
+// Import Common Pages (Master Plan, Damages, Contracts)
 import 'school_master_plan_page.dart'; 
-
-// Import the View Damage Details Page 
 import 'view_damage_details_page.dart';
-
-// FIX: Import the Contract List Page (ContractsListPage)
-// Assuming the actual Contracts List Page file is 'view_contract_details_page.dart'
-import 'view_contract_details_page.dart'; 
-
-// Import the View Contractor Details Page (The list page is now named ContractorListScreen)
+import 'view_contract_details_page.dart';
 import 'view_contractor_details_page.dart';
 
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
 
-  // Define the consistent light blue color from the image
-  static const Color _cardColor = Color(0xFFE3F2FD); // A very light, gentle blue for the cards
-  static const Color _primaryBlue = Color(0xFF1E88E5); // A standard blue for icons/text
-  static const Color _backgroundColor = Color(0xFFF0F2F5); // The light grey background
+  // Define the consistent colors
+  static const Color _cardColor = Color(0xFFE3F2FD);
+  static const Color _primaryBlue = Color(0xFF1E88E5);
+  static const Color _backgroundColor = Color(0xFFF0F2F5);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // The background color matches the dashboard's light grey
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        // Transparent app bar to blend with the background
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(), // Navigate back
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Manage Principals',
+          'Manage Principals', // Changed Title
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStatsGrid(context), // Pass context to the grid
-              const SizedBox(height: 24),
-              _buildSearchBar(),
-              const SizedBox(height: 24),
-              // Pass context to the management options builder
-              _buildManagementOptions(context),
-            ],
-          ),
+        child: StreamBuilder<QuerySnapshot>(
+          // --- UPDATED QUERY: Get all users where userType is 'Principal' ---
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('userType', isEqualTo: 'Principal') 
+              .snapshots(),
+          builder: (context, snapshot) {
+            // 1. Handle Loading State
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            // 2. Handle Error State
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            // 3. Process Data
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+               // Show empty state with 0 counts if no data found
+               return _buildContent(context, 0, 0, 0);
+            }
+
+            final docs = snapshot.data!.docs;
+            final totalPrincipals = docs.length;
+
+            // Count Active (isActive == true)
+            final activePrincipals = docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['isActive'] == true;
+            }).length;
+
+            // Count Inactive/Pending (isActive == false)
+            final pendingPrincipals = docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['isActive'] == false;
+            }).length;
+
+            // 4. Return the Main UI with calculated data
+            return _buildContent(context, totalPrincipals, pendingPrincipals, activePrincipals);
+          },
         ),
       ),
-      // Consistent Bottom Navigation Bar as seen in the image
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -75,42 +96,56 @@ class ManagePrincipalsPage extends StatelessWidget {
             label: 'Settings',
           ),
         ],
-        // The current index is 1 (person icon)
-        currentIndex: 1, 
-        selectedItemColor: _primaryBlue, // The highlighted icon is blue
-        unselectedItemColor: Colors.grey, // Non-selected icons are grey
-        showSelectedLabels: false, // The image doesn't show labels
+        currentIndex: 1,
+        selectedItemColor: _primaryBlue,
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: false,
         showUnselectedLabels: false,
-        backgroundColor: Colors.white, // Assuming a white background for the bar
-        type: BottomNavigationBarType.fixed, // To show all icons clearly
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
-  
-  //---
 
-  // Helper widget to build the stats grid (Total Principals, Pending, Active, Schools)
-  Widget _buildStatsGrid(BuildContext context) {
+  // Extracted the main content scrolling view to keep StreamBuilder clean
+  Widget _buildContent(BuildContext context, int total, int pending, int active) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Pass the calculated numbers to the grid
+          _buildStatsGrid(context, total, pending, active), 
+          const SizedBox(height: 24),
+          _buildSearchBar(),
+          const SizedBox(height: 24),
+          _buildManagementOptions(context),
+        ],
+      ),
+    );
+  }
+
+  // Updated widget to accept dynamic data
+  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Total Principals - Group Icon
-            _buildStatCard('Total Principals', '25', Icons.group, _cardColor, _primaryBlue),
+            // Total Principals
+            _buildStatCard('Total Principals', total.toString(), Icons.group_outlined),
 
-            // PENDING CARD - NOW CLICKABLE
+            // Pending / Inactive
             _buildStatCard(
               'Pending', 
-              '5', 
-              Icons.person_add_outlined, 
-              _cardColor, 
-              _primaryBlue,
+              pending.toString(),
+              Icons.pending_actions_outlined,
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const PendingApprovalsPage(),
+                    // Navigate to the Pending Principal Page
+                    builder: (context) => const PendingPrincipalApprovalsPage(),
                   ),
                 );
               },
@@ -121,38 +156,45 @@ class ManagePrincipalsPage extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Active Principals - Group with 'Add' Icon (or similar)
-            _buildStatCard('Active Principals', '20', Icons.group_add_outlined, _cardColor, _primaryBlue),
-            // Schools - School/Building Icon
-            _buildStatCard('Schools', '150', Icons.apartment_outlined, _cardColor, _primaryBlue),
+            // Active Principals
+            _buildStatCard(
+              'Active Principals', 
+              active.toString(), 
+              Icons.how_to_reg_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    // Navigate to the Manage Principals List Page
+                    builder: (context) => const ManagePrincipalsListPage(),
+                  ),
+                );
+              },
+            ),
+            
+            // Schools Stat (Static or Separate Query)
+            _buildStatCard('Schools', '150', Icons.apartment_outlined),
           ],
         ),
       ],
     );
   }
-  
-  // Helper widget for a single stat card in the grid
+
   Widget _buildStatCard(
-      String title, 
-      String count, 
-      IconData icon, 
-      Color cardColor, 
-      Color iconColor, 
-      {VoidCallback? onTap}
-      ) {
+      String title, String count, IconData icon, {VoidCallback? onTap}) {
     return Expanded(
       child: InkWell(
-        onTap: onTap, // Apply the onTap function here
+        onTap: onTap,
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.all(16),
-          height: 120, // Give it a fixed height for consistent look
+          height: 120,
           decoration: BoxDecoration(
-            color: cardColor, // Use the light blue color
+            color: _cardColor,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05), // Very subtle shadow
+                color: Colors.black.withOpacity(0.05),
                 spreadRadius: 1,
                 blurRadius: 3,
               ),
@@ -164,7 +206,10 @@ class ManagePrincipalsPage extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w500),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -175,7 +220,7 @@ class ManagePrincipalsPage extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
-                  Icon(icon, size: 36, color: iconColor),
+                  Icon(icon, size: 36, color: _primaryBlue),
                 ],
               ),
             ],
@@ -184,10 +229,7 @@ class ManagePrincipalsPage extends StatelessWidget {
       ),
     );
   }
-  
-  //---
 
-  // Helper widget for the search bar
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -204,7 +246,7 @@ class ManagePrincipalsPage extends StatelessWidget {
       ),
       child: const TextField(
         decoration: InputDecoration(
-          hintText: 'Search Principals.......', 
+          hintText: 'Search Principals.......', // Changed Hint
           border: InputBorder.none,
           icon: Icon(Icons.search, color: Colors.grey),
           contentPadding: EdgeInsets.symmetric(vertical: 12),
@@ -212,14 +254,10 @@ class ManagePrincipalsPage extends StatelessWidget {
       ),
     );
   }
-  
-  //---
 
-  // Helper widget to build the three main management option tiles
   Widget _buildManagementOptions(BuildContext context) {
     return Column(
       children: [
-        // Master Plan Navigation
         _buildOptionTile(
             context, 
             'View School Master Plan', 
@@ -234,26 +272,20 @@ class ManagePrincipalsPage extends StatelessWidget {
             },
         ),
         const SizedBox(height: 16),
-        
-        // Damage Details Navigation
         _buildOptionTile(
             context, 
             'View Damage Details', 
             Icons.remove_red_eye_outlined,
             onTap: () {
-              // Note: The ViewDamageDetailsPage requires a userNic parameter. 
-              // Assuming a placeholder or default NIC for navigation from this admin page.
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ViewDamageDetailsPage(userNic: 'ADMIN_NIC_123'),
+                  builder: (context) => const ViewDamageDetailsPage(userNic: 'ADMIN'),
                 ),
               );
             },
         ), 
         const SizedBox(height: 16),
-
-        // Contract Details Navigation
         _buildOptionTile(
             context, 
             'View Contract Details', 
@@ -262,15 +294,12 @@ class ManagePrincipalsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // FIX: Use the ContractsListPage class
                   builder: (context) => const ContractsListPage(),
                 ),
               );
             },
-        ),
+        ), 
         const SizedBox(height: 16),
-
-        // Contractor Details Navigation
         _buildOptionTile(
             context, 
             'View Contractor Details', 
@@ -279,7 +308,6 @@ class ManagePrincipalsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  // FIX: Use the ContractorListScreen class from view_contractor_details_page.dart
                   builder: (context) => const ContractorListScreen(),
                 ),
               );
@@ -289,22 +317,15 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
 
-  // Helper widget for a single option tile
-  // Now accepts an optional onTap function
   Widget _buildOptionTile(
       BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
-      onTap: onTap ?? () {
-        // Default action if no specific onTap is provided
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tapped: $title - Navigation not yet set')),
-        );
-      },
+      onTap: onTap ?? () {},
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
         decoration: BoxDecoration(
-          color: Colors.white, // White background for the tiles
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -319,12 +340,14 @@ class ManagePrincipalsPage extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87),
             ),
             Icon(icon, size: 28, color: _primaryBlue),
           ],
         ),
-        
       ),
     );
   }
