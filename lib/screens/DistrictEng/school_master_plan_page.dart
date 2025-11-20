@@ -1,60 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
-class SchoolMasterPlanPage extends StatelessWidget {
+class SchoolMasterPlanPage extends StatefulWidget {
   const SchoolMasterPlanPage({super.key});
 
-  // Define consistent colors
+  @override
+  State<SchoolMasterPlanPage> createState() => _SchoolMasterPlanPageState();
+}
+
+class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
+  // Colors
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
-  // Sample data for the Master Plan list
-  final List<Map<String, String>> masterPlans = const [
-    // I've added a dummy image path here. You should replace 'assets/master_plan_image.jpg'
-    // with the actual path to your image asset or a network image URL.
-    {
-      'title': 'Master Plan 2020-2025',
-      'school': 'G/Rippon Girls\' Collage',
-      'updated': '2024/05/12',
-      'size': '5.4MB',
-      'image_path': 'assets/master_plan_image.jpg', // Placeholder image path
-    },
-    {
-      'title': 'Master Plan 2020-2025',
-      'school': 'G/Rippon Girls\' Collage',
-      'updated': '2024/05/12',
-      'size': '5.4MB',
-      'image_path': 'assets/master_plan_image.jpg',
-    },
-    {
-      'title': 'Master Plan 2020-2025',
-      'school': 'G/Rippon Girls\' Collage',
-      'updated': '2024/05/12',
-      'size': '5.4MB',
-      'image_path': 'assets/master_plan_image.jpg',
-    },
-    {
-      'title': 'Master Plan 2020-2025',
-      'school': 'G/Rippon Girls\' Collage',
-      'updated': '2024/05/12',
-      'size': '5.4MB',
-      'image_path': 'assets/master_plan_image.jpg',
-    },
-    // You can add more data here
-  ];
+  // Current User Data for the Review Record
+  String _currentEngineerName = '';
+  String _currentEngineerNic = '';
+  bool _isLoadingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentUserData();
+  }
+
+  // 1. Get the Logged-in Engineer's Name and NIC
+  Future<void> _fetchCurrentUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists) {
+          final data = userDoc.data() as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              _currentEngineerName = data['name'] ?? 'Unknown Engineer';
+              _currentEngineerNic = data['nic'] ?? 'Unknown NIC';
+              _isLoadingUser = false;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching user: $e");
+      if (mounted) setState(() => _isLoadingUser = false);
+    }
+  }
+
+  // 2. Function to Add a Review to Firestore
+  Future<void> _addReviewToFirebase(String docId, String note) async {
+    if (note.isEmpty) return;
+
+    try {
+      // We create a 'reviews' sub-collection inside the master plan document
+      // This keeps a perfect history record.
+      await FirebaseFirestore.instance
+          .collection('schoolMasterPlans')
+          .doc(docId)
+          .collection('reviews') 
+          .add({
+        'note': note,
+        'reviewerName': _currentEngineerName,
+        'reviewerNic': _currentEngineerNic,
+        'reviewedAt': Timestamp.now(), // Captures Date and Time
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Review added successfully"), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context); // Close dialog
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error adding review: $e"), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'School Master Plan',
+          'All School Master Plans',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -70,254 +110,250 @@ class SchoolMasterPlanPage extends StatelessWidget {
 
             // Master Plan List
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                itemCount: masterPlans.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final plan = masterPlans[index];
-                  // Pass the whole plan map to the tile
-                  return _buildPlanTile(context, plan);
-                },
-              ),
+              child: _isLoadingUser
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildAllMasterPlansStream(),
             ),
           ],
         ),
       ),
-      // Consistent Bottom Navigation Bar styling
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-        currentIndex: 1, // Profile (person) is selected in the image
-        selectedItemColor: _primaryBlue,
-        unselectedItemColor: Colors.grey,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-      ),
     );
   }
-  
-  // --- NEW FUNCTION: Show Master Plan Dialog ---
-  void _showMasterPlanDialog(BuildContext context, String title, String imagePath) {
+
+  // 3. Stream ALL Master Plans (No filtering)
+  Widget _buildAllMasterPlansStream() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schoolMasterPlans')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text("No master plans found."));
+        }
+
+        final allPlans = snapshot.data!.docs;
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          itemCount: allPlans.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            final doc = allPlans[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return _buildPlanTile(context, doc.id, data);
+          },
+        );
+      },
+    );
+  }
+
+  // --- DIALOG: Add Review ---
+  void _showAddReviewDialog(BuildContext context, String docId) {
+    final TextEditingController noteController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        // We use Dialog for a custom shape and content
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0), // Rounded corners for the dialog
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Text("Add Review Note"),
+          content: TextField(
+            controller: noteController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: "Enter your short note here...",
+              border: OutlineInputBorder(),
+            ),
           ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20.0),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Header Row (Title and Close Button)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'View Master Plan',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const Icon(Icons.close, color: Colors.grey, size: 24), // 'x' close button
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Master Plan Image
-                // NOTE: Using Image.asset requires you to have the image in your assets folder
-                // and updated pubspec.yaml. For a real app, you might use Image.network().
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      imagePath,
-                      fit: BoxFit.contain,
-                      height: MediaQuery.of(context).size.height * 0.5, // Take up half of screen height
-                      // For demonstration, use a placeholder if the asset isn't available
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 200,
-                          color: Colors.grey[200],
-                          child: Center(
-                            child: Text(
-                              'Image for Master Plan not found at:\n$imagePath',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Optional: Master Plan Title/Details
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primaryBlue),
+              onPressed: () => _addReviewToFirebase(docId, noteController.text),
+              child: const Text("Submit Review", style: TextStyle(color: Colors.white)),
             ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- DIALOG: View Review History ---
+  void _showReviewHistoryDialog(BuildContext context, String docId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Review History"),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300, // Fixed height for the list
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('schoolMasterPlans')
+                  .doc(docId)
+                  .collection('reviews')
+                  .orderBy('reviewedAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("No reviews yet."));
+                }
+
+                return ListView.builder(
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                    final String note = data['note'] ?? '';
+                    final String reviewer = data['reviewerName'] ?? 'Unknown';
+                    final Timestamp? ts = data['reviewedAt'];
+                    final String dateStr = ts != null 
+                        ? DateFormat('yyyy-MM-dd hh:mm a').format(ts.toDate()) 
+                        : 'Unknown Date';
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.comment, color: Colors.grey),
+                      title: Text(note, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("By: $reviewer\n$dateStr"),
+                      isThreeLine: true,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- DIALOG: View Image ---
+  void _showImageDialog(BuildContext context, String title, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              Image.network(imageUrl, fit: BoxFit.contain),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))
+            ],
           ),
         );
       },
     );
   }
 
-  // Helper widget for the search bar
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 3, spreadRadius: 1)],
       ),
       child: const TextField(
         decoration: InputDecoration(
-          hintText: 'Search Master Plan..........',
+          hintText: 'Search Master Plan...',
           border: InputBorder.none,
           icon: Icon(Icons.search, color: Colors.grey),
-          contentPadding: EdgeInsets.symmetric(vertical: 12),
         ),
       ),
     );
   }
 
-  // Helper widget for a single master plan document tile (UPDATED to accept map)
-  Widget _buildPlanTile(BuildContext context, Map<String, String> plan) {
-    final String title = plan['title']!;
-    final String school = plan['school']!;
-    final String updated = plan['updated']!;
-    final String size = plan['size']!;
-    final String imagePath = plan['image_path']!; // Get the image path
+  Widget _buildPlanTile(BuildContext context, String docId, Map<String, dynamic> data) {
+    final String schoolName = data['schoolName'] ?? 'Unknown School';
+    final String description = data['description'] ?? 'Master Plan';
+    final String imageUrl = data['masterPlanUrl'] ?? '';
+    
+    String updated = 'Unknown Date';
+    if (data['createdAt'] != null) {
+       Timestamp t = data['createdAt'];
+       updated = DateFormat('yyyy/MM/dd').format(t.toDate());
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 3, spreadRadius: 1)],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  school,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Updated Date: $updated\nPDF ($size)',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          // View Button
-          Column(
+          // Top Row: Info
+          Row(
             children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  // *** ACTION: Call the dialog function here ***
-                  _showMasterPlanDialog(context, title, imagePath);
-                },
-                icon: const Icon(Icons.visibility, size: 18),
-                label: const Text('View'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryBlue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  minimumSize: const Size(100, 35),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(schoolName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    const SizedBox(height: 4),
+                    Text(description, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                    const SizedBox(height: 8),
+                    Text('Uploaded: $updated', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              // Download Button
+              if (imageUrl.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.image, color: _primaryBlue),
+                  onPressed: () => _showImageDialog(context, schoolName, imageUrl),
+                )
+            ],
+          ),
+          const Divider(),
+          // Bottom Row: Action Buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // Add Review Button
               ElevatedButton.icon(
-                onPressed: () {
-                  // Action for Download
-                },
-                icon: const Icon(Icons.download, size: 18, color: Colors.black54),
-                label: const Text('Download', style: TextStyle(color: Colors.black54)),
+                onPressed: () => _showAddReviewDialog(context, docId),
+                icon: const Icon(Icons.rate_review, size: 18),
+                label: const Text('Add Review'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF0F0F0),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(120, 35),
+                ),
+              ),
+              // View History Button
+              OutlinedButton.icon(
+                onPressed: () => _showReviewHistoryDialog(context, docId),
+                icon: const Icon(Icons.history, size: 18),
+                label: const Text('History'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.black54,
                   minimumSize: const Size(100, 35),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
                 ),
               ),
             ],
-          ),
+          )
         ],
       ),
     );
