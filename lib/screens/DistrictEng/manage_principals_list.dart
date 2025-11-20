@@ -1,5 +1,9 @@
+import 'dart:convert'; // For JSON decoding
+import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http; // Import HTTP package
 
 class ManagePrincipalsListPage extends StatefulWidget {
   const ManagePrincipalsListPage({super.key});
@@ -184,7 +188,6 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
             const SizedBox(height: 16),
             const Divider(height: 1),
             
-            // --- Action Buttons ---
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -275,7 +278,7 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
 }
 
 // ---------------------------------------------------------
-// NEW PAGE: PRINCIPAL PROFILE VIEW
+// PAGE: PRINCIPAL PROFILE VIEW
 // ---------------------------------------------------------
 class PrincipalProfileView extends StatefulWidget {
   final String docId;
@@ -290,6 +293,7 @@ class PrincipalProfileView extends StatefulWidget {
 
 class _PrincipalProfileViewState extends State<PrincipalProfileView> {
   late Map<String, dynamic> userData;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -297,7 +301,6 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
     userData = widget.data;
   }
 
-  // Refresh data after edit
   void _refreshData() async {
     DocumentSnapshot doc = await FirebaseFirestore.instance
         .collection('users')
@@ -306,6 +309,90 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
     setState(() {
       userData = doc.data() as Map<String, dynamic>;
     });
+  }
+
+  // --- UPLOAD IMAGE TO SERVER ---
+  Future<void> _pickAndUploadImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      // 1. Read image as Bytes
+      final bytes = await image.readAsBytes();
+
+      // 2. Create Multipart Request
+      // Ensure your server address is correct
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://buildcare.atigalle.x10.mx/index.php'), 
+      );
+
+      // 3. Add File 
+      // Field name 'profile_image' triggers logic in PHP
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'profile_image', 
+          bytes,
+          filename: 'upload.jpg', // PHP ignores this and generates a unique name
+        ),
+      );
+
+      // 4. Send Request
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        // Try to parse JSON
+        Map<String, dynamic> jsonResponse;
+        try {
+             jsonResponse = jsonDecode(response.body);
+        } catch (e) {
+             throw Exception("Invalid JSON from server: ${response.body}");
+        }
+
+        if (jsonResponse['status'] == 'success') {
+          // Get the new URL returned by PHP
+          String newImageUrl = jsonResponse['profileImageUrl'];
+
+          // 5. Update Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.docId)
+              .update({'profile_image': newImageUrl});
+
+          _refreshData(); 
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Profile Photo Updated!")),
+            );
+          }
+        } else {
+          throw Exception(jsonResponse['message']);
+        }
+      } else {
+        throw Exception("Server error: ${response.statusCode}.");
+      }
+    } catch (e) {
+      debugPrint("Error uploading image: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -341,33 +428,58 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // 1. Profile Image & Name
+            // Profile Image & Name
             Center(
               child: Column(
                 children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.blue.shade100, width: 2),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.grey.shade100,
-                        image: (imageUrl != null && imageUrl.isNotEmpty)
-                            ? DecorationImage(
-                                image: NetworkImage(imageUrl),
-                                fit: BoxFit.cover)
-                            : null,
+                  Stack(
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 120,
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border:
+                              Border.all(color: Colors.blue.shade100, width: 2),
+                        ),
+                        child: _isUploading
+                            ? const CircularProgressIndicator()
+                            : Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.grey.shade100,
+                                  image:
+                                      (imageUrl != null && imageUrl.isNotEmpty)
+                                          ? DecorationImage(
+                                              image: NetworkImage(imageUrl),
+                                              fit: BoxFit.cover)
+                                          : null,
+                                ),
+                                child: (imageUrl == null || imageUrl.isEmpty)
+                                    ? Icon(Icons.person,
+                                        size: 60, color: Colors.grey.shade300)
+                                    : null,
+                              ),
                       ),
-                      child: (imageUrl == null || imageUrl.isEmpty)
-                          ? Icon(Icons.person,
-                              size: 60, color: Colors.grey.shade300)
-                          : null,
-                    ),
+                      // Camera Icon
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: InkWell(
+                          onTap: _pickAndUploadImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1E88E5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt,
+                                color: Colors.white, size: 20),
+                          ),
+                        ),
+                      )
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Text(name,
@@ -387,7 +499,6 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
 
             const SizedBox(height: 40),
 
-            // 2. Contact Info Section
             _buildSectionHeader("CONTACT INFORMATION"),
             const SizedBox(height: 8),
             _buildInfoContainer(
@@ -400,7 +511,6 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
 
             const SizedBox(height: 24),
 
-            // 3. School Info Section
             _buildSectionHeader("SCHOOL INFORMATION"),
             const SizedBox(height: 8),
             _buildInfoContainer(
@@ -415,7 +525,6 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
             
             const SizedBox(height: 30),
             
-            // Bottom Activate/Deactivate Button (Optional, for quick access)
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -448,7 +557,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
   Widget _buildInfoContainer({required List<Widget> children}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA), // Very light grey like the screenshot
+        color: const Color(0xFFF8F9FA), 
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(children: children),
@@ -489,7 +598,6 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
     final schoolCtrl = TextEditingController(text: userData['schoolName']);
     final phoneCtrl = TextEditingController(text: userData['mobilePhone']);
     final nicCtrl = TextEditingController(text: userData['nic']);
-    // region is not always editable but we can add it if needed
     final regionCtrl = TextEditingController(text: userData['region']);
 
     showDialog(
@@ -503,9 +611,30 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
               TextField(
                   controller: nameCtrl,
                   decoration: const InputDecoration(labelText: "Full Name")),
+              const SizedBox(height: 10),
+              
+              // NIC LOCKED
               TextField(
                   controller: nicCtrl,
-                  decoration: const InputDecoration(labelText: "NIC")),
+                  enabled: false, // LOCKED
+                  style: TextStyle(color: Colors.grey.shade600),
+                  decoration: InputDecoration(
+                      labelText: "NIC (Cannot Edit)",
+                      filled: true,
+                      fillColor: Colors.grey.shade100)),
+              const SizedBox(height: 10),
+
+              // REGION LOCKED
+              TextField(
+                  controller: regionCtrl,
+                  enabled: false, // LOCKED
+                  style: TextStyle(color: Colors.grey.shade600),
+                  decoration: InputDecoration(
+                      labelText: "Region/Zone (Cannot Edit)",
+                      filled: true,
+                      fillColor: Colors.grey.shade100)),
+              const SizedBox(height: 10),
+
               TextField(
                   controller: schoolCtrl,
                   decoration: const InputDecoration(labelText: "School Name")),
@@ -513,9 +642,6 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
                   controller: phoneCtrl,
                   decoration: const InputDecoration(labelText: "Mobile Phone"),
                   keyboardType: TextInputType.phone),
-              TextField(
-                  controller: regionCtrl,
-                  decoration: const InputDecoration(labelText: "Region/Zone")),
             ],
           ),
         ),
@@ -534,14 +660,13 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
                     .doc(widget.docId)
                     .update({
                   'name': nameCtrl.text.trim(),
-                  'nic': nicCtrl.text.trim(),
                   'schoolName': schoolCtrl.text.trim(),
                   'mobilePhone': phoneCtrl.text.trim(),
-                  'region': regionCtrl.text.trim(),
+                  // NIC and Region are NOT updated
                 });
                 if (mounted) {
                   Navigator.pop(context);
-                  _refreshData(); // Refresh the profile view
+                  _refreshData(); 
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Profile Updated")));
                 }
