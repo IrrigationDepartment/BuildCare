@@ -19,21 +19,22 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: _textDark, size: 20),
+          icon:
+              const Icon(Icons.arrow_back_ios_new, color: _textDark, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Pending Technical Officers',
+          'Pending Principals', // Changed Title
           style: TextStyle(
               color: _textDark, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // --- QUERY: Filter by 'Technical Officer' AND 'isActive: false' ---
+        // --- QUERY: Filter by 'Principal' AND 'isActive: false' ---
         stream: FirebaseFirestore.instance
             .collection('users')
-            .where('userType', isEqualTo: 'Technical Officer') // Ensure DB spelling matches this
+            .where('userType', isEqualTo: 'Principal') // Changed to Principal
             .where('isActive', isEqualTo: false)
             .snapshots(),
         builder: (context, snapshot) {
@@ -57,7 +58,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
               // 1. Summary Header
               _buildSummaryHeader(allDocs.length),
 
-              // 2. The List of Technical Officers
+              // 2. The List of Principals
               Expanded(
                 child: ListView.builder(
                   padding:
@@ -107,7 +108,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                         fontSize: 14,
                         fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
-                const Text("Technical Officers",
+                const Text("Principals", // Changed Label
                     style: TextStyle(
                         color: _textDark,
                         fontSize: 18,
@@ -139,9 +140,9 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
     final String name = data['name'] ?? 'Unknown';
     final String email = data['email'] ?? 'No Email';
     final String? imageUrl = data['profile_image'];
-    
-    // Display 'Office' for TOs instead of School
-    final String officeName = data['office'] ?? 'Unassigned Office';
+
+    // Display 'School Name' for Principals
+    final String schoolName = data['schoolName'] ?? 'Unassigned School';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -176,7 +177,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                       color: Colors.grey.shade200,
                     ),
                     child: (imageUrl == null || imageUrl.isEmpty)
-                        ? Icon(Icons.person,
+                        ? Icon(Icons.school, // Changed icon to School for Principal
                             size: 30, color: Colors.grey.shade400)
                         : null,
                   ),
@@ -203,7 +204,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          officeName, // Showing Office Name here
+                          schoolName, // Showing School Name
                           style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -232,7 +233,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                           builder: (context) =>
-                              UserDetailsPage(data: data, docId: doc.id)),
+                              PrincipalDetailsPage(data: data, docId: doc.id)),
                     );
                   },
                   child: Container(
@@ -299,7 +300,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: Colors.grey.shade600)),
           const SizedBox(height: 8),
-          Text("No pending Technical Officers.",
+          Text("No pending Principals.",
               style: TextStyle(color: Colors.grey.shade500)),
         ],
       ),
@@ -335,13 +336,13 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
 }
 
 // ---------------------------------------------------------
-// PAGE: USER DETAILS SCREEN (For Technical Officers)
+// PAGE: USER DETAILS SCREEN (For Principals)
 // ---------------------------------------------------------
-class UserDetailsPage extends StatelessWidget {
+class PrincipalDetailsPage extends StatelessWidget {
   final Map<String, dynamic> data;
   final String docId;
 
-  const UserDetailsPage({super.key, required this.data, required this.docId});
+  const PrincipalDetailsPage({super.key, required this.data, required this.docId});
 
   @override
   Widget build(BuildContext context) {
@@ -352,17 +353,16 @@ class UserDetailsPage extends StatelessWidget {
     final String nic = data['nic'] ?? 'N/A';
     final String? imageUrl = data['profile_image'];
 
-    // --- Technical Officer Specific Data ---
-    // Removed 'Principal/School' specific logic
-    final String office = data['office'] ?? 'N/A'; 
-    final String officePhone = data['officePhone'] ?? 'N/A';
-    // Use 'region' if available, but prioritize Office data
+    // --- Principal Specific Data ---
+    final String schoolName = data['schoolName'] ?? 'Unassigned School';
+    // Often Principals might not have a separate office phone, 
+    // but if they do, you can map it here. 
     final String region = data['region'] ?? 'N/A';
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Technical Officer Profile",
+        title: const Text("Principal Profile",
             style: TextStyle(color: Colors.black, fontSize: 16)),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -396,7 +396,7 @@ class UserDetailsPage extends StatelessWidget {
             Text(name,
                 style:
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            Text("Technical Officer",
+            Text("Principal",
                 style: TextStyle(
                     fontSize: 14,
                     color: Colors.blue.shade700,
@@ -408,13 +408,12 @@ class UserDetailsPage extends StatelessWidget {
             _buildSectionHeader("Contact Information"),
             _buildDetailRow(Icons.email_outlined, "Email", email),
             _buildDetailRow(Icons.phone_android_outlined, "Mobile", mobile),
-            
+
             const SizedBox(height: 24),
-            _buildSectionHeader("Office Information"), // Renamed from Official
+            _buildSectionHeader("School Information"), // Changed Header
             _buildDetailRow(Icons.badge_outlined, "NIC Number", nic),
             _buildDetailRow(
-                Icons.business_outlined, "Assigned Office", office), // Changed icon to business
-            _buildDetailRow(Icons.phone_outlined, "Office Phone", officePhone),
+                Icons.school_outlined, "School Name", schoolName), // Changed Icon/Label
             _buildDetailRow(Icons.map_outlined, "Region/Zone", region),
 
             const SizedBox(height: 40),
@@ -497,7 +496,7 @@ class UserDetailsPage extends StatelessWidget {
         Navigator.pop(context); // Close details
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text("Technical Officer Approved"),
+              content: Text("Principal Approved"),
               backgroundColor: Color(0xFF10B981)),
         );
       }
