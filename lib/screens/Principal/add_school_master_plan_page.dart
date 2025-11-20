@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:intl/intl.dart'; // Added for Date Formatting
 
 class AddMasterPlanScreen extends StatefulWidget {
   final String schoolName;
@@ -274,7 +275,78 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       },
     );
   }
-  // --- END DELETE FUNCTIONALITY ---
+
+  // --- SHOW REVIEWS DIALOG (NEW FEATURE) ---
+  void _showReviewsDialog(String masterPlanId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Review History"),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300, 
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('schoolMasterPlans')
+                  .doc(masterPlanId)
+                  .collection('reviews')
+                  .orderBy('reviewedAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text("No reviews added yet.", style: TextStyle(color: Colors.grey)),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    var doc = snapshot.data!.docs[index];
+                    var data = doc.data() as Map<String, dynamic>;
+                    
+                    String note = data['note'] ?? 'No Note';
+                    String reviewer = data['reviewerName'] ?? 'Unknown';
+                    Timestamp? ts = data['reviewedAt'];
+                    String dateStr = ts != null 
+                      ? DateFormat('yyyy-MM-dd hh:mm a').format(ts.toDate()) 
+                      : 'Unknown Date';
+
+                    return Card(
+                      color: Colors.grey[50],
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      child: ListTile(
+                        leading: const Icon(Icons.comment, color: Colors.blueAccent),
+                        title: Text(note, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text("By: $reviewer"),
+                            Text(dateStr, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   // --- Helper snackbar methods ---
   void _showErrorSnackBar(String message) {
@@ -344,10 +416,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
             final description = data['description'] ?? 'No description';
             final timestamp = data['createdAt'] as Timestamp?;
 
-            // Optional: You can also display the saved string dates if preferred
-            // final uploadDate = data['uploadDate'] ?? '';
-            // final uploadTime = data['uploadTime'] ?? '';
-
             String formattedDate = timestamp != null
                 ? 'Added on: ${timestamp.toDate().toString().split(' ')[0]}'
                 : 'Date N/A';
@@ -382,37 +450,46 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                       ],
                     ),
                     const Divider(height: 20),
+                    
+                    // --- ACTION BUTTONS ---
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Changed for better spacing
                       children: [
-                        // EDIT Button
+                        // 1. VIEW REVIEWS BUTTON (NEW)
                         TextButton.icon(
-                          icon: const Icon(Icons.edit, size: 20),
-                          label: const Text("Edit"),
-                          onPressed: () async {
-                            // Navigate to the same screen for editing
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddMasterPlanScreen(
-                                  schoolName: schoolName,
-                                  userNic: widget.userNic,
-                                  masterPlanId: masterPlanId, // PASS THE ID HERE
-                                ),
-                              ),
-                            );
+                          icon: const Icon(Icons.visibility, size: 20, color: Colors.orange),
+                          label: const Text("Reviews", style: TextStyle(color: Colors.orange)),
+                          onPressed: () {
+                            _showReviewsDialog(masterPlanId);
                           },
                         ),
-                        const SizedBox(width: 8),
 
-                        // DELETE Button
-                        TextButton.icon(
-                          icon: const Icon(Icons.delete,
-                              size: 20, color: Colors.red),
-                          label: const Text("Delete",
-                              style: TextStyle(color: Colors.red)),
-                          onPressed: () => _showDeleteConfirmationDialog(masterPlanId),
-                        ),
+                        // Right side: Edit and Delete
+                        Row(
+                          children: [
+                            // EDIT Button
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AddMasterPlanScreen(
+                                      schoolName: schoolName,
+                                      userNic: widget.userNic,
+                                      masterPlanId: masterPlanId,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            // DELETE Button
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                              onPressed: () => _showDeleteConfirmationDialog(masterPlanId),
+                            ),
+                          ],
+                        )
                       ],
                     )
                   ],
@@ -424,7 +501,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       },
     );
   }
-
 
   // 3. Build the UI
   @override
@@ -444,7 +520,7 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
         elevation: 1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.blue),
-          onPressed: () => Navigator.pop(context, true), // Pop and signal refresh
+          onPressed: () => Navigator.pop(context, true),
         ),
         actions: [
           // Save/Update Button

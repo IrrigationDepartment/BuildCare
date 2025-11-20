@@ -1,5 +1,5 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart'; // Required for Sound
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
 import 'add_school_master_plan_page.dart';
@@ -8,27 +8,35 @@ import 'settings_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'IssueDetailScreen.dart';
-import 'notification_page.dart'; // IMPORT THE NEW NOTIFICATION PAGE
+import 'notification_page.dart';
 
-class PrincipalDashboard extends StatelessWidget {
+class PrincipalDashboard extends StatefulWidget {
   final Map<String, dynamic>? userData;
 
   const PrincipalDashboard({super.key, required this.userData});
 
+  @override
+  State<PrincipalDashboard> createState() => _PrincipalDashboardState();
+}
+
+class _PrincipalDashboardState extends State<PrincipalDashboard> {
   static const Color _primaryColor = Color(0xFF53BDFF);
+  
+  // To track notification count for sound alert
+  int _previousUnreadCount = -1; 
 
   void _onItemTapped(BuildContext context, int index) {
     if (index == 0) {
       // Home
     } else if (index == 1) {
       // Profile
-      if (userData != null) {
-        final String principalId = userData!['uid'] ?? 'principal_doc_id_123';
+      if (widget.userData != null) {
+        final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ProfilePage(
-              userData: userData!,
+              userData: widget.userData!,
               userId: principalId,
             ),
           ),
@@ -47,20 +55,20 @@ class PrincipalDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (userData == null ||
-        userData!['name'] == null ||
-        userData!['schoolName'] == null ||
-        userData!['nic'] == null) {
+    if (widget.userData == null ||
+        widget.userData!['name'] == null ||
+        widget.userData!['schoolName'] == null ||
+        widget.userData!['nic'] == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("Error")),
         body: const Center(child: Text("Error loading data")),
       );
     }
 
-    final String userNic = userData!['nic'];
-    final String principalName = userData!['name'];
-    final String schoolName = userData!['schoolName'];
-    final String? profileImageUrl = userData!['profile_image'];
+    final String userNic = widget.userData!['nic'];
+    final String principalName = widget.userData!['name'];
+    final String schoolName = widget.userData!['schoolName'];
+    final String? profileImageUrl = widget.userData!['profile_image'];
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -72,7 +80,7 @@ class PrincipalDashboard extends StatelessWidget {
             children: [
               const SizedBox(height: 20),
               
-              // MODIFIED: Passed 'context' and 'userNic' to header for notifications
+              // Pass context and userNic to the header
               _buildWelcomeHeader(context, principalName, schoolName, profileImageUrl, userNic),
               
               const SizedBox(height: 30),
@@ -115,7 +123,7 @@ class PrincipalDashboard extends StatelessWidget {
                 icon: Icons.map_outlined,
                 text: 'Manage Master Plans',
                 onTap: () {
-                  final String schoolName = userData!['schoolName'];
+                  final String schoolName = widget.userData!['schoolName'];
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -155,7 +163,6 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- UPDATED HEADER WITH NOTIFICATION BELL ---
   Widget _buildWelcomeHeader(BuildContext context, String fullName, String schoolName, String? imageUrl, String userNic) {
     String firstName = fullName;
     if (fullName.contains(' ')) {
@@ -200,7 +207,6 @@ class PrincipalDashboard extends StatelessWidget {
           ),
           const SizedBox(width: 15),
           
-          // Name & Title
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +218,7 @@ class PrincipalDashboard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
-                  overflow: TextOverflow.ellipsis, // Prevents overflow if name is long
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 const Text(
@@ -227,17 +233,26 @@ class PrincipalDashboard extends StatelessWidget {
             ),
           ),
 
-          // --- NOTIFICATION ICON WITH BADGE ---
+          // --- NOTIFICATION ICON WITH BADGE AND SOUND ---
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
-                .where('receiverNic', isEqualTo: userNic) // Fetch notifications for this user
-                .where('isRead', isEqualTo: false) // Only count unread
+                .where('receiverNic', isEqualTo: userNic)
+                .where('isRead', isEqualTo: false) 
                 .snapshots(),
             builder: (context, snapshot) {
               int unreadCount = 0;
+              
               if (snapshot.hasData) {
                 unreadCount = snapshot.data!.docs.length;
+                
+                // SOUND LOGIC: If count increased, play sound
+                if (_previousUnreadCount != -1 && unreadCount > _previousUnreadCount) {
+                   // Play system sound (Click/Alert)
+                   SystemSound.play(SystemSoundType.click); 
+                }
+                // Update tracker
+                _previousUnreadCount = unreadCount;
               }
 
               return Stack(
@@ -245,14 +260,13 @@ class PrincipalDashboard extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined, size: 30, color: Colors.black54),
                     onPressed: () {
-                      // Navigate to Notification Page
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => NotificationPage(userNic: userNic)),
                       );
                     },
                   ),
-                  // If there are unread notifications, show Red Dot
+                  // Red Badge
                   if (unreadCount > 0)
                     Positioned(
                       right: 8,
@@ -287,7 +301,7 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // ... [Rest of your widgets: _buildActionButton, _buildIssueCard, _buildReportedIssuesSection remain unchanged] ...
+  // ... (Keep your other helper widgets: _buildActionButton, _buildIssueCard, etc. exactly as they were) ...
   
   Widget _buildActionButton({
     required IconData icon,

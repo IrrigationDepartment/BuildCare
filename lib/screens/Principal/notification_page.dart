@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -61,6 +60,8 @@ class NotificationPage extends StatelessWidget {
               final String title = data['title'] ?? 'Notification';
               final String message = data['message'] ?? '';
               final bool isRead = data['isRead'] ?? false;
+              // Check type to show review icon
+              final String type = data['type'] ?? 'general'; 
               
               // Format Timestamp
               String timeAgo = '';
@@ -69,12 +70,20 @@ class NotificationPage extends StatelessWidget {
                 timeAgo = DateFormat('MMM d, h:mm a').format(t.toDate());
               }
 
+              // Distinguish Review vs General
+              IconData iconData = Icons.notifications;
+              Color iconColor = const Color(0xFF53BDFF);
+              if (type == 'review') {
+                iconData = Icons.rate_review; // Special icon for reviews
+                iconColor = Colors.orange;
+              }
+
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                 tileColor: isRead ? Colors.white : Colors.blue[50], // Highlight unread
                 leading: CircleAvatar(
-                  backgroundColor: isRead ? Colors.grey[200] : const Color(0xFF53BDFF),
-                  child: Icon(Icons.notifications, 
+                  backgroundColor: isRead ? Colors.grey[200] : iconColor,
+                  child: Icon(iconData, 
                     color: isRead ? Colors.grey : Colors.white),
                 ),
                 title: Text(title, style: TextStyle(fontWeight: isRead ? FontWeight.normal : FontWeight.bold)),
