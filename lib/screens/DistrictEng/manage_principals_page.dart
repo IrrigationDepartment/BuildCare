@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 
 // --- IMPORTS FOR PRINCIPAL PAGES ---
-// Make sure you have created these pages or update these imports to your filenames
 import 'pending_Principal_approvals.dart'; 
 import 'manage_principals_list.dart'; 
 
@@ -20,6 +19,22 @@ class ManagePrincipalsPage extends StatelessWidget {
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
+  // --- NEW: Function to get the count of documents in a collection ---
+  Future<int> _getCollectionCount(String collectionName) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection(collectionName)
+          .count()
+          .get();
+      // Use the count property from the AggregateQuerySnapshot
+      return querySnapshot.count ?? 0; 
+    } catch (e) {
+      debugPrint('Error fetching count for $collectionName: $e');
+      return 0; // Return 0 on error
+    }
+  }
+  // -------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,52 +47,68 @@ class ManagePrincipalsPage extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Manage Principals', // Changed Title
+          'Manage Principals',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          // --- UPDATED QUERY: Get all users where userType is 'Principal' ---
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .where('userType', isEqualTo: 'Principal') 
-              .snapshots(),
-          builder: (context, snapshot) {
-            // 1. Handle Loading State
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        // --- 1. Fetch the total School Count first using FutureBuilder ---
+        child: FutureBuilder<int>(
+          future: _getCollectionCount('schools'), // Assuming the collection name is 'schools'
+          builder: (context, schoolSnapshot) {
+            
+            // Handle loading/error for school count
+            if (schoolSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // 2. Handle Error State
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
+            // Get the calculated school count, default to 0 if null
+            final totalSchools = schoolSnapshot.data ?? 0; 
 
-            // 3. Process Data
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-               // Show empty state with 0 counts if no data found
-               return _buildContent(context, 0, 0, 0);
-            }
+            // --- 2. Now, nest the StreamBuilder to fetch Principal data ---
+            return StreamBuilder<QuerySnapshot>(
+              // Query: Get all users where userType is 'Principal' (Live Data)
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('userType', isEqualTo: 'Principal') 
+                  .snapshots(),
+              builder: (context, userSnapshot) {
+                // Handle Loading State for Principals
+                if (userSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            final docs = snapshot.data!.docs;
-            final totalPrincipals = docs.length;
+                // Handle Error State
+                if (userSnapshot.hasError) {
+                  return Center(child: Text('Error: ${userSnapshot.error}'));
+                }
 
-            // Count Active (isActive == true)
-            final activePrincipals = docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['isActive'] == true;
-            }).length;
+                // Process Principal Data
+                if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                    // Show empty state with 0 counts if no Principal data found
+                    return _buildContent(context, 0, 0, 0, totalSchools);
+                }
 
-            // Count Inactive/Pending (isActive == false)
-            final pendingPrincipals = docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['isActive'] == false;
-            }).length;
+                final docs = userSnapshot.data!.docs;
+                final totalPrincipals = docs.length;
 
-            // 4. Return the Main UI with calculated data
-            return _buildContent(context, totalPrincipals, pendingPrincipals, activePrincipals);
+                // Count Active (isActive == true)
+                final activePrincipals = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['isActive'] == true;
+                }).length;
+
+                // Count Inactive/Pending (isActive == false)
+                final pendingPrincipals = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['isActive'] == false;
+                }).length;
+
+                // 4. Return the Main UI with calculated data (including totalSchools)
+                return _buildContent(context, totalPrincipals, pendingPrincipals, activePrincipals, totalSchools);
+              },
+            );
           },
         ),
       ),
@@ -107,17 +138,15 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
 
-  // Extracted the main content scrolling view to keep StreamBuilder clean
-  Widget _buildContent(BuildContext context, int total, int pending, int active) {
+  // Extracted the main content scrolling view (Added totalSchools parameter)
+  Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Pass the calculated numbers to the grid
-          _buildStatsGrid(context, total, pending, active), 
-          const SizedBox(height: 24),
-          _buildSearchBar(),
+          // Pass the calculated numbers to the grid (including totalSchools)
+          _buildStatsGrid(context, total, pending, active, totalSchools), 
           const SizedBox(height: 24),
           _buildManagementOptions(context),
         ],
@@ -125,14 +154,14 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
 
-  // Updated widget to accept dynamic data
-  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active) {
+  // Updated widget to accept dynamic data (Added totalSchools parameter)
+  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Total Principals
+            // Total Principals (LIVE DATA)
             _buildStatCard('Total Principals', total.toString(), Icons.group_outlined),
 
             // Pending / Inactive
@@ -172,8 +201,8 @@ class ManagePrincipalsPage extends StatelessWidget {
               },
             ),
             
-            // Schools Stat (Static or Separate Query)
-            _buildStatCard('Schools', '150', Icons.apartment_outlined),
+            // Schools Stat (NOW LIVE DATA)
+            _buildStatCard('Schools', totalSchools.toString(), Icons.apartment_outlined),
           ],
         ),
       ],
@@ -225,31 +254,6 @@ class ManagePrincipalsPage extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: const TextField(
-        decoration: InputDecoration(
-          hintText: 'Search Principals.......', // Changed Hint
-          border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.grey),
-          contentPadding: EdgeInsets.symmetric(vertical: 12),
         ),
       ),
     );
