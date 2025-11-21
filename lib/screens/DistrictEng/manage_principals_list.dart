@@ -1,5 +1,4 @@
 import 'dart:convert'; // For JSON decoding
-import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,7 +17,6 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
   static const Color _bgLight = Color(0xFFF3F4F6);
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _textDark = Color(0xFF1F2937);
-  static const Color _textLight = Color(0xFF6B7280);
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
