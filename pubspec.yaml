@@ -1,4 +1,4 @@
-name: buildcare
+name: BuildCare
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -39,8 +39,7 @@ dependencies:
 
   http: ^1.2.1
   http_parser: ^4.0.2
-  file_picker: ^6.0.0 # You already have this
-
+  file_picker: ^8.0.0 # Check pub.dev for the latest version and use a flexible constraint.
   
 dev_dependencies:
   flutter_test:
