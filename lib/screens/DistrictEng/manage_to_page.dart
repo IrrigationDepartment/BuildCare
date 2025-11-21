@@ -27,6 +27,22 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
+  // --- NEW: Function to get the count of documents in a collection ---
+  Future<int> _getCollectionCount(String collectionName) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection(collectionName)
+          .count()
+          .get();
+      return querySnapshot.count ?? 0;
+    } catch (e) {
+      // Handle error case, e.g., if the collection doesn't exist or permissions fail
+      debugPrint('Error fetching count for $collectionName: $e');
+      return 0; // Return 0 on error
+    }
+  }
+  // -------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,46 +61,61 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          // Query: Get all users where userType is 'Technical Officer'
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .where('userType', isEqualTo: 'Technical Officer')
-              .snapshots(),
-          builder: (context, snapshot) {
-            // 1. Handle Loading State
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        // --- 1. Fetch the total School Count first using FutureBuilder ---
+        child: FutureBuilder<int>(
+          future: _getCollectionCount('schools'), // Assuming the collection name is 'schools'
+          builder: (context, schoolSnapshot) {
+            
+            // Handle loading/error for school count
+            if (schoolSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // 2. Handle Error State
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
+            final totalSchools = schoolSnapshot.data ?? 0;
 
-            // 3. Process Data
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-               // Show empty state with 0 counts if no data found
-               return _buildContent(context, 0, 0, 0);
-            }
+            // --- 2. Now, build the StreamBuilder to fetch TO data ---
+            return StreamBuilder<QuerySnapshot>(
+              // Query: Get all users where userType is 'Technical Officer'
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('userType', isEqualTo: 'Technical Officer')
+                  .snapshots(),
+              builder: (context, userSnapshot) {
+                // 1. Handle Loading State
+                if (userSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            final docs = snapshot.data!.docs;
-            final totalTOs = docs.length;
+                // 2. Handle Error State
+                if (userSnapshot.hasError) {
+                  return Center(child: Text('Error: ${userSnapshot.error}'));
+                }
 
-            // Count Active (isActive == true)
-            final activeTOs = docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['isActive'] == true;
-            }).length;
+                // 3. Process TO Data
+                if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                    // Show empty state with 0 counts if no TO data found
+                    return _buildContent(context, 0, 0, 0, totalSchools);
+                }
 
-            // Count Inactive/Pending (isActive == false)
-            final pendingTOs = docs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              return data['isActive'] == false;
-            }).length;
+                final docs = userSnapshot.data!.docs;
+                final totalTOs = docs.length;
 
-            // 4. Return the Main UI with calculated data
-            return _buildContent(context, totalTOs, pendingTOs, activeTOs);
+                // Count Active (isActive == true)
+                final activeTOs = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['isActive'] == true;
+                }).length;
+
+                // Count Inactive/Pending (isActive == false)
+                final pendingTOs = docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data['isActive'] == false;
+                }).length;
+
+                // 4. Return the Main UI with calculated data (including totalSchools)
+                return _buildContent(context, totalTOs, pendingTOs, activeTOs, totalSchools);
+              },
+            );
           },
         ),
       ),
@@ -114,17 +145,15 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  // Extracted the main content scrolling view to keep StreamBuilder clean
-  Widget _buildContent(BuildContext context, int total, int pending, int active) {
+  // Extracted the main content scrolling view (Added totalSchools parameter)
+  Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Pass the calculated numbers to the grid
-          _buildStatsGrid(context, total, pending, active), 
-          const SizedBox(height: 24),
-          _buildSearchBar(),
+          _buildStatsGrid(context, total, pending, active, totalSchools), 
           const SizedBox(height: 24),
           _buildManagementOptions(context),
         ],
@@ -132,8 +161,8 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  // Updated widget to accept dynamic data
-  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active) {
+  // Updated widget to accept dynamic data (Added totalSchools parameter)
+  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools) {
     return Column(
       children: [
         Row(
@@ -178,9 +207,8 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               },
             ),
             
-            // Note: Schools data usually comes from a different collection ('schools').
-            // Keeping this hardcoded or fetch separately if needed.
-            _buildStatCard('Schools', '150', Icons.apartment_outlined),
+            // Schools Card (NOW LIVE DATA)
+            _buildStatCard('Schools', totalSchools.toString(), Icons.apartment_outlined),
           ],
         ),
       ],
@@ -232,31 +260,6 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: const TextField(
-        decoration: InputDecoration(
-          hintText: 'Search TOs.......',
-          border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.grey),
-          contentPadding: EdgeInsets.symmetric(vertical: 12),
         ),
       ),
     );
