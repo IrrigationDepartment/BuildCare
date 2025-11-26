@@ -1,4 +1,3 @@
-// screens/contract_details/contract_details_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -166,7 +165,7 @@ class ContractDetailsListScreen extends StatelessWidget {
   }
 }
 
-// screens/contract_details/contract_details_view_screen.dart
+
 
 class ContractDetailsViewScreen extends StatelessWidget {
   final String contractId;
@@ -259,11 +258,15 @@ class ContractDetailCard extends StatelessWidget {
 
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
-    if (date is Timestamp) {
-      final DateTime dateTime = date.toDate();
-      return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
+    try {
+      if (date is Timestamp) {
+        final DateTime dateTime = date.toDate();
+        return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
+      }
+      return date.toString();
+    } catch (e) {
+      return 'N/A';
     }
-    return date.toString();
   }
 
   String _formatCurrency(dynamic amount) {
@@ -336,7 +339,19 @@ class ContractDetailCard extends StatelessWidget {
           );
         }
 
-        final data = snapshot.data!.data() as Map<String, dynamic>;
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        
+        if (data == null) {
+          return Center(
+            child: Text(
+              'No data available',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 16,
+              ),
+            ),
+          );
+        }
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -398,7 +413,7 @@ class ContractDetailCard extends StatelessWidget {
                   const SizedBox(height: 16),
 
                   // Contract Details
-                   Text(
+                  const Text(
                     'Contract Information',
                     style: TextStyle(
                       fontSize: 18.0,
