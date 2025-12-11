@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-// ============================================================================
-// FULL SCREEN IMAGE VIEWER (NEW)
-// ============================================================================
+
 class FullScreenImageViewer extends StatefulWidget {
   final List<String> images;
   final int initialIndex;
@@ -163,9 +161,7 @@ class ViewIssuesPage extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// ISSUE DETAIL PAGE WITH IMAGE VIEWER SUPPORT
-// ============================================================================
+
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
 
@@ -402,6 +398,8 @@ class IssueDetailPage extends StatelessWidget {
       ),
     );
   }
+
+// ---------------- Detail Section Builder ----------------
 
   Widget _buildDetailSection(
     BuildContext context, {
