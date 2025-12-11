@@ -1,12 +1,66 @@
-// lib/view_issues.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; //
+import 'package:intl/intl.dart';
 
-// ----------------------------------------------------------------------------
-// --- Main View Issues Page (No change to this part) ---
-// ----------------------------------------------------------------------------
+// ============================================================================
+// FULL SCREEN IMAGE VIEWER (NEW)
+// ============================================================================
+class FullScreenImageViewer extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const FullScreenImageViewer({
+    super.key,
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
+  late PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+      ),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.images.length,
+        itemBuilder: (context, index) {
+          return Center(
+            child: InteractiveViewer(
+              clipBehavior: Clip.none,
+              minScale: 0.8,
+              maxScale: 4.0,
+              child: Image.network(
+                widget.images[index],
+                fit: BoxFit.contain,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// MAIN VIEW ISSUES PAGE
+// ============================================================================
 class ViewIssuesPage extends StatelessWidget {
   const ViewIssuesPage({super.key});
 
@@ -58,7 +112,7 @@ class ViewIssuesPage extends StatelessWidget {
             itemBuilder: (context, index) {
               final issueDoc = issues[index];
               final data = issueDoc.data() as Map<String, dynamic>;
-              
+
               final issueId = issueDoc.id;
               final issueTitle = data['issueTitle'] ?? 'No Title';
               final schoolName = data['schoolName'] ?? 'Unknown School';
@@ -80,18 +134,18 @@ class ViewIssuesPage extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          const Text('Status: ', style: TextStyle(fontWeight: FontWeight.w500)),
-                          Text(
-                            status,
-                            style: TextStyle(color: statusColor, fontWeight: FontWeight.bold),
-                          ),
+                          const Text('Status: ',
+                              style: TextStyle(fontWeight: FontWeight.w500)),
+                          Text(status,
+                              style: TextStyle(
+                                  color: statusColor, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black54),
+                  trailing:
+                      const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black54),
                   onTap: () {
-                    // Pass the Issue ID to the Detail Page
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -109,20 +163,18 @@ class ViewIssuesPage extends StatelessWidget {
   }
 }
 
-// ----------------------------------------------------------------------------
-// --- IssueDetailPage (Updated to display details in a Form-style layout) ---
-// ----------------------------------------------------------------------------
+// ============================================================================
+// ISSUE DETAIL PAGE WITH IMAGE VIEWER SUPPORT
+// ============================================================================
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
 
   const IssueDetailPage({super.key, required this.issueId});
 
-  // Helper function to fetch the specific issue document
   Future<DocumentSnapshot> _fetchIssueDetails() {
     return FirebaseFirestore.instance.collection('issues').doc(issueId).get();
   }
 
-  // Helper function to determine status color (Duplicated for consistency)
   Color _getStatusColor(String status) {
     switch (status) {
       case 'New':
@@ -151,46 +203,47 @@ class IssueDetailPage extends StatelessWidget {
       body: FutureBuilder<DocumentSnapshot>(
         future: _fetchIssueDetails(),
         builder: (context, snapshot) {
-          // 1. Loading state
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 2. Error state
           if (snapshot.hasError) {
             return Center(child: Text('Error loading details: ${snapshot.error}'));
           }
 
-          // 3. Data missing state
           if (!snapshot.hasData || !snapshot.data!.exists) {
             return const Center(
-                child: Text('Issue not found or has been deleted.', style: TextStyle(fontSize: 18)));
+              child: Text(
+                'Issue not found or has been deleted.',
+                style: TextStyle(fontSize: 18),
+              ),
+            );
           }
 
-          // 4. Data loaded state
           final data = snapshot.data!.data() as Map<String, dynamic>;
-          
           final issueTitle = data['issueTitle'] ?? 'N/A';
           final issueType = data['issueType'] ?? 'N/A';
           final description = data['description'] ?? 'No description provided.';
           final status = data['status'] ?? 'N/A';
           final schoolName = data['schoolName'] ?? 'N/A';
           final schoolId = data['schoolId'] ?? 'N/A';
-          
-          // Format timestamp
+
+          final List<String> imageUrls =
+              (data['imageUrls'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+
           final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
           final dateReported = timestamp != null
               ? DateFormat('dd-MM-yyyy @ HH:mm').format(timestamp)
               : 'N/A';
-          
+
           final statusColor = _getStatusColor(status);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // --- Title Card ---
+              children: [
+                // ---------------- Title Card ----------------
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -199,10 +252,11 @@ class IssueDetailPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          issueTitle,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue),
-                        ),
+                        Text(issueTitle,
+                            style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue)),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -210,10 +264,9 @@ class IssueDetailPage extends StatelessWidget {
                             Text(
                               status,
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: statusColor,
-                              ),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusColor),
                             ),
                           ],
                         ),
@@ -221,9 +274,10 @@ class IssueDetailPage extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 20),
 
-                // --- Description ---
+                // ---------------- Description ----------------
                 _buildDetailSection(
                   context,
                   title: 'Description',
@@ -231,9 +285,72 @@ class IssueDetailPage extends StatelessWidget {
                   icon: Icons.description_outlined,
                   isLongText: true,
                 ),
+
                 const SizedBox(height: 10),
-                
-                // --- Issue Type and School Details ---
+
+                // ---------------- Photos Section ----------------
+                if (imageUrls.isNotEmpty) ...[
+                  const Text(
+                    "Attached Photos",
+                    style: TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 8),
+
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: imageUrls.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 10.0),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FullScreenImageViewer(
+                                    images: imageUrls,
+                                    initialIndex: index,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                imageUrls[index],
+                                width: 120,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    width: 120,
+                                    color: Colors.grey.shade200,
+                                    child: const Center(child: CircularProgressIndicator()),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: 120,
+                                    color: Colors.grey.shade200,
+                                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                ],
+
+                // ---------------- Other Details ----------------
                 _buildDetailSection(
                   context,
                   title: 'Issue Type',
@@ -252,26 +369,20 @@ class IssueDetailPage extends StatelessWidget {
                   value: schoolId,
                   icon: Icons.vpn_key_outlined,
                 ),
-
-                // --- Timestamp ---
                 _buildDetailSection(
                   context,
                   title: 'Reported On',
                   value: dateReported,
                   icon: Icons.access_time_outlined,
                 ),
-                
-                // --- Action Buttons (Placeholder for future functionality) ---
+
                 const SizedBox(height: 30),
+
+                // ---------------- Button ----------------
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement Status Change logic (e.g., Change to 'In Progress')
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Status Change Button Pressed')),
-                      );
-                    },
+                    onPressed: () {},
                     icon: const Icon(Icons.refresh),
                     label: const Text('Update Status'),
                     style: ElevatedButton.styleFrom(
@@ -292,7 +403,6 @@ class IssueDetailPage extends StatelessWidget {
     );
   }
 
-  // --- Helper Widget for displaying individual details ---
   Widget _buildDetailSection(
     BuildContext context, {
     required String title,
@@ -325,9 +435,11 @@ class IssueDetailPage extends StatelessWidget {
                 ],
               ),
               const Divider(height: 10),
-              // Use a larger vertical padding for long descriptions
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: isLongText ? 4.0 : 0.0, vertical: 4.0),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isLongText ? 4.0 : 0.0,
+                  vertical: 4.0,
+                ),
                 child: Text(
                   value,
                   style: TextStyle(
