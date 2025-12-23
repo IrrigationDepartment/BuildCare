@@ -15,6 +15,9 @@ import 'add_principal.dart';
 import 'add_contractor_screen.dart';
 import 'add_contract.dart';
 
+// --- USER MANAGEMENT IMPORTS ---
+import 'user_management/user_list_page.dart';
+
 // -----------------------------------------------------------------------------
 // --- HELPER CLASS: ActivityItem ---
 // -----------------------------------------------------------------------------
@@ -149,33 +152,37 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 mainAxisSpacing: 12.0,
                 childAspectRatio: 1.1,
                 children: const <Widget>[
-                  // LINKING TO add_ce.dart
+                  // CHIEF ENGINEER CARD
                   UserCountBuilder(
                     title: 'Chief Engineer',
                     userType: 'Chief Engineer',
                     addPage: ChiefEngRegistrationPage(), 
                     icon: Icons.person_pin,
+                    color: Colors.blue,
                   ),
-                  // LINKING TO add_de.dart
+                  // DISTRICT ENGINEER CARD
                   UserCountBuilder(
                     title: 'District Engineer',
                     userType: 'District Engineer',
                     addPage: DistrictEngRegistrationPage(),
                     icon: Icons.engineering,
+                    color: Colors.green,
                   ),
-                  // LINKING TO add_to.dart
+                  // TECHNICAL OFFICER CARD
                   UserCountBuilder(
                     title: 'Technical Officer',
                     userType: 'Technical Officer',
                     addPage: TORegistrationPage(),
                     icon: Icons.build,
+                    color: Colors.orange,
                   ),
-                  // LINKING TO add_principal.dart
+                  // PRINCIPALS CARD
                   UserCountBuilder(
                     title: 'Principals',
                     userType: 'Principal',
                     addPage: PrincipalRegistrationPage(),
                     icon: Icons.school,
+                    color: Colors.purple,
                   ),
                 ],
               ),
@@ -195,7 +202,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                       collectionName: 'contractors',
                       icon: Icons.engineering,
                       color: Colors.teal.shade700,
-                      // Click Card -> View List
                       onTap: () {
                         Navigator.push(
                           context,
@@ -203,9 +209,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                               builder: (context) => const ContractorsListPage()),
                         );
                       },
-                      // Click Add -> Add Contractor Page
                       onAdd: () {
-                         Navigator.push(
+                        Navigator.push(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const AddContractorScreen()),
@@ -220,7 +225,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                       collectionName: 'contracts',
                       icon: Icons.description,
                       color: Colors.indigo.shade700,
-                      // Click Card -> View List
                       onTap: () {
                         Navigator.push(
                           context,
@@ -228,9 +232,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                               builder: (context) => const ContractListPage()),
                         );
                       },
-                      // Click Add -> Add Contract Page
                       onAdd: () {
-                         Navigator.push(
+                        Navigator.push(
                           context,
                           MaterialPageRoute(
                               builder: (context) => const AddContractScreen()),
@@ -312,13 +315,14 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- WIDGET: UserCountBuilder ---
+// --- WIDGET: UserCountBuilder (UPDATED) ---
 // -----------------------------------------------------------------------------
 class UserCountBuilder extends StatelessWidget {
   final String userType;
   final String title;
   final Widget addPage;
   final IconData icon;
+  final Color color;
 
   const UserCountBuilder({
     super.key,
@@ -326,6 +330,7 @@ class UserCountBuilder extends StatelessWidget {
     required this.title,
     required this.addPage,
     required this.icon,
+    required this.color,
   });
 
   @override
@@ -368,10 +373,15 @@ class UserCountBuilder extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
+                // Navigate to User List Page when card is clicked
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => AllUsersPage(userType: userType)),
+                    builder: (context) => UserListPage(
+                      userType: userType,
+                      title: title,
+                    ),
+                  ),
                 );
               },
               child: Padding(
@@ -380,7 +390,7 @@ class UserCountBuilder extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Icon(icon, size: 32, color: Colors.blue.shade600),
+                    Icon(icon, size: 32, color: color),
                     Text(
                       total.toString(),
                       style: const TextStyle(
@@ -419,14 +429,14 @@ class UserCountBuilder extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 20, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           '+ Add',
                           style: TextStyle(
                               fontSize: 12,
-                              color: Colors.blue.shade700,
+                              color: color,
                               fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -454,7 +464,7 @@ class UserCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- WIDGET: SimpleCountCard (Updated with Add Button support) ---
+// --- WIDGET: SimpleCountCard ---
 // -----------------------------------------------------------------------------
 class SimpleCountCard extends StatelessWidget {
   final String title;
@@ -462,7 +472,7 @@ class SimpleCountCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  final VoidCallback onAdd; // NEW CALLBACK
+  final VoidCallback onAdd;
 
   const SimpleCountCard({
     super.key,
@@ -485,7 +495,7 @@ class SimpleCountCard extends StatelessWidget {
         }
 
         return Container(
-          height: 130, // Increased height to fit Add button
+          height: 130,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -501,7 +511,7 @@ class SimpleCountCard extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
-              onTap: onTap, // View List
+              onTap: onTap,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
@@ -537,10 +547,9 @@ class SimpleCountCard extends StatelessWidget {
                         color: Colors.grey[800],
                       ),
                     ),
-                    // Add Button inside the card
                     Center(
                       child: InkWell(
-                        onTap: onAdd, // Go to Add Page
+                        onTap: onAdd,
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
                           margin: const EdgeInsets.only(top: 4),
@@ -571,9 +580,9 @@ class SimpleCountCard extends StatelessWidget {
   }
 }
 
-// --- Rest of the classes (ActivityItemCard, DashboardHeader, etc.) remain the same as your previous working version ---
-// Included purely for context so the file is complete.
-
+// -----------------------------------------------------------------------------
+// --- Other Widgets (unchanged) ---
+// -----------------------------------------------------------------------------
 class ActivityItemCard extends StatelessWidget {
   final ActivityItem item;
   const ActivityItemCard({super.key, required this.item});
@@ -800,11 +809,11 @@ class CustomBottomNavBar extends StatelessWidget {
       showUnselectedLabels: false,
       onTap: (index) {
         if (index == 0 && currentIndex != 0) {
-           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ProvincialEngDashboard()));
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ProvincialEngDashboard()));
         } else if (index == 1 && currentIndex != 1) {
-           Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage()));
         } else if (index == 2 && currentIndex != 2) {
-           Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
         }
       },
       items: const [
@@ -827,6 +836,13 @@ class IssueDetailPage extends StatelessWidget {
     );
   }
 }
-class ProfilePage extends StatelessWidget { const ProfilePage({super.key}); @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Profile"))); }
-class SettingsPage extends StatelessWidget { const SettingsPage({super.key}); @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Settings"))); }
-class AllUsersPage extends StatelessWidget { final String userType; const AllUsersPage({super.key, required this.userType}); @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: Text(userType))); }
+
+class ProfilePage extends StatelessWidget { 
+  const ProfilePage({super.key}); 
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Profile"))); 
+}
+
+class SettingsPage extends StatelessWidget { 
+  const SettingsPage({super.key}); 
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Settings"))); 
+}
