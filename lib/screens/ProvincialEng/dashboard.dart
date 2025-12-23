@@ -14,6 +14,7 @@ import 'add_to.dart';
 import 'add_principal.dart';
 import 'add_contractor_screen.dart';
 import 'add_contract.dart';
+import 'profile_management.dart';
 
 // --- USER MANAGEMENT IMPORTS ---
 import 'user_management/user_list_page.dart';
@@ -156,7 +157,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                   UserCountBuilder(
                     title: 'Chief Engineer',
                     userType: 'Chief Engineer',
-                    addPage: ChiefEngRegistrationPage(), 
+                    addPage: ChiefEngRegistrationPage(),
                     icon: Icons.person_pin,
                     color: Colors.blue,
                   ),
@@ -198,48 +199,49 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 children: [
                   Expanded(
                     child: SimpleCountCard(
-                      title: 'Contractors',
-                      collectionName: 'contractors',
-                      icon: Icons.engineering,
-                      color: Colors.teal.shade700,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ContractorsListPage()),
-                        );
-                      },
-                      onAdd: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const AddContractorScreen()),
-                        );
-                      }
-                    ),
+                        title: 'Contractors',
+                        collectionName: 'contractors',
+                        icon: Icons.engineering,
+                        color: Colors.teal.shade700,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const ContractorsListPage()),
+                          );
+                        },
+                        onAdd: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const AddContractorScreen()),
+                          );
+                        }),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: SimpleCountCard(
-                      title: 'Contracts',
-                      collectionName: 'contracts',
-                      icon: Icons.description,
-                      color: Colors.indigo.shade700,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ContractListPage()),
-                        );
-                      },
-                      onAdd: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const AddContractScreen()),
-                        );
-                      }
-                    ),
+                        title: 'Contracts',
+                        collectionName: 'contracts',
+                        icon: Icons.description,
+                        color: Colors.indigo.shade700,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const ContractListPage()),
+                          );
+                        },
+                        onAdd: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) =>
+                                    const AddContractScreen()),
+                          );
+                        }),
                   ),
                 ],
               ),
@@ -641,7 +643,9 @@ class ActivityItemCard extends StatelessWidget {
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle,
-            maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12)),
         trailing: showButton
             ? IconButton(
                 icon: const Icon(Icons.arrow_forward_ios,
@@ -755,7 +759,7 @@ class IssueCountBuilder extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF3E0), 
+              color: const Color(0xFFFFF3E0),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.orange.shade100),
             ),
@@ -809,11 +813,18 @@ class CustomBottomNavBar extends StatelessWidget {
       showUnselectedLabels: false,
       onTap: (index) {
         if (index == 0 && currentIndex != 0) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ProvincialEngDashboard()));
+          Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const ProvincialEngDashboard()));
         } else if (index == 1 && currentIndex != 1) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfilePage()));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const ProfileManagementPage()));
         } else if (index == 2 && currentIndex != 2) {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+          Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const SettingsPage()));
         }
       },
       items: const [
@@ -837,12 +848,16 @@ class IssueDetailPage extends StatelessWidget {
   }
 }
 
-class ProfilePage extends StatelessWidget { 
-  const ProfilePage({super.key}); 
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Profile"))); 
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      Scaffold(appBar: AppBar(title: const Text("Profile")));
 }
 
-class SettingsPage extends StatelessWidget { 
-  const SettingsPage({super.key}); 
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Settings"))); 
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key});
+  @override
+  Widget build(BuildContext context) =>
+      Scaffold(appBar: AppBar(title: const Text("Settings")));
 }
