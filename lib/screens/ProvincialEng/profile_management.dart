@@ -38,9 +38,8 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   bool _showPasswordFields = false;
   String? _userId;
 
-  // Your server endpoint for image upload
-  final String _serverUrl = 'https://buildcare.atigalle.x10.mx/profile/Provincial';
-
+  // Your server endpoint for image upload - use the correct endpoint
+     final String _serverUrl = 'https://buildcare.atigalle.x10.mx/';
   @override
   void initState() {
     super.initState();
@@ -71,7 +70,6 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
         setState(() {
           _nameController.text = data?['name'] ?? '';
           _emailController.text = data?['email'] ?? '';
-          // Handle both field names
           _mobilePhoneController.text = data?['mobilePhone'] ?? data?['mobitaphone'] ?? '';
           _officeController.text = data?['office'] ?? '';
           _officePhoneController.text = data?['officePhone'] ?? '';
@@ -87,7 +85,9 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
+        imageQuality: 70, // Lower quality for faster upload
+        maxWidth: 800, // Limit size
+        maxHeight: 800,
       );
       
       if (image != null) {
@@ -104,6 +104,7 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
             _selectedImageBase64 = null;
           });
         }
+        _showInfoSnackBar('Image selected. Click "Save Changes" to upload.');
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
@@ -112,74 +113,104 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   }
 
   Future<String?> _uploadImageToServer() async {
-    if (_selectedImage == null) return null;
+    if (_selectedImage == null) {
+      debugPrint('No image selected for upload');
+      return null;
+    }
     
     try {
       final userId = _userId ?? widget.userData?['id'];
       final email = _auth.currentUser?.email ?? widget.userData?['email'];
       
       if (userId == null) {
-        _showErrorSnackBar('User not found');
+        debugPrint('User ID is null');
         return null;
       }
       
-      debugPrint('Starting image upload for user: $userId');
+      debugPrint('=== Starting image upload ===');
+      debugPrint('User ID: $userId');
+      debugPrint('Email: $email');
+      debugPrint('Server URL: $_serverUrl');
       
-      String base64Image;
-      
+      // Read image bytes
+      List<int> imageBytes;
       if (kIsWeb) {
-        if (_selectedImageBase64 == null) {
-          final bytes = await _selectedImage!.readAsBytes();
-          base64Image = base64Encode(bytes);
+        if (_selectedImageBase64 != null) {
+          imageBytes = base64Decode(_selectedImageBase64!.split(',').last);
         } else {
-          base64Image = _selectedImageBase64!.split(',').last;
+          imageBytes = await _selectedImage!.readAsBytes();
         }
       } else {
-        final bytes = await _selectedImage!.readAsBytes();
-        base64Image = base64Encode(bytes);
+        imageBytes = await _selectedImage!.readAsBytes();
       }
       
-      // Prepare the request body
-      Map<String, dynamic> body = {
-        'user_id': userId,
-        'email': email,
-        'profile_image': base64Image,
-        'file_name': 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        'action': 'upload_profile_image'
-      };
+      debugPrint('Image size: ${imageBytes.length} bytes');
       
-      // Send the request
-      var response = await http.post(
-        Uri.parse(_serverUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(body),
-      ).timeout(const Duration(seconds: 30));
+      // Create multipart request (this is often better for file uploads)
+      var request = http.MultipartRequest('POST', Uri.parse(_serverUrl));
+      
+      // Add image as file
+      request.files.add(http.MultipartFile.fromBytes(
+        'profile_image', // Field name that server expects
+        imageBytes,
+        filename: 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      ));
+      
+      // Add other fields
+      request.fields['user_id'] = userId;
+      request.fields['email'] = email;
+      request.fields['action'] = 'upload_profile_image';
+      
+      // Send request
+      debugPrint('Sending multipart request...');
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
       
       debugPrint('Response status code: ${response.statusCode}');
+      debugPrint('Response headers: ${response.headers}');
+      debugPrint('Response body: ${response.body}');
       
       if (response.statusCode == 200) {
+        debugPrint('Upload successful!');
+        
+        // Try to parse response
         try {
           var jsonResponse = jsonDecode(response.body);
-          if (jsonResponse['success'] == true) {
-            return jsonResponse['image_url'] ?? jsonResponse['url'];
+          debugPrint('Parsed JSON response: $jsonResponse');
+          
+          // Check different possible response formats
+          if (jsonResponse['success'] == true || jsonResponse['status'] == 'success') {
+            String? imageUrl = jsonResponse['image_url'] ?? jsonResponse['url'] ?? jsonResponse['file_url'];
+            debugPrint('Got image URL: $imageUrl');
+            return imageUrl;
           } else if (jsonResponse['image_url'] != null) {
+            debugPrint('Got image URL from image_url field: ${jsonResponse['image_url']}');
             return jsonResponse['image_url'];
           }
         } catch (e) {
-          debugPrint('Error parsing JSON response: $e');
-          // Try to return response body as URL if it looks like one
-          if (response.body.startsWith('http')) {
-            return response.body;
+          debugPrint('Error parsing JSON: $e');
+          // Maybe the server returns just the URL as plain text
+          if (response.body.trim().startsWith('http')) {
+            debugPrint('Got URL as plain text: ${response.body.trim()}');
+            return response.body.trim();
+          }
+          // Check if response contains any URL
+          RegExp urlRegex = RegExp('r''https?://[^\s"\'<>]+');
+          var match = urlRegex.firstMatch(response.body);
+          if (match != null) {
+            debugPrint('Found URL in response: ${match.group(0)}');
+            return match.group(0);
           }
         }
+      } else {
+        debugPrint('Upload failed with status: ${response.statusCode}');
+        debugPrint('Response: ${response.body}');
       }
-      debugPrint('Failed to upload image. Response: ${response.body}');
+      
       return null;
     } catch (e) {
-      debugPrint('Error uploading image to server: $e');
+      debugPrint('Error in uploadImageToServer: $e');
+      debugPrint('Stack trace: ${e.toString()}');
       return null;
     }
   }
@@ -194,12 +225,17 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
 
     try {
       String? imageUrl = _profileImageUrl;
+      bool imageUploaded = false;
       
       // Upload image to server if selected
       if (_selectedImage != null) {
+        debugPrint('Attempting to upload image...');
+        _showInfoSnackBar('Uploading image...');
+        
         imageUrl = await _uploadImageToServer();
         if (imageUrl != null) {
           _showSuccessSnackBar('Image uploaded successfully!');
+          imageUploaded = true;
         } else {
           _showErrorSnackBar('Failed to upload image. Keeping existing image.');
           imageUrl = _profileImageUrl;
@@ -216,10 +252,10 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
         updateData['name'] = _nameController.text.trim();
       }
       
-      // Update mobile phone (handle both field names)
+      // Update mobile phone
       if (_mobilePhoneController.text.trim().isNotEmpty) {
         updateData['mobilePhone'] = _mobilePhoneController.text.trim();
-        updateData['mobitaphone'] = _mobilePhoneController.text.trim(); // Update both for consistency
+        updateData['mobitaphone'] = _mobilePhoneController.text.trim();
       }
       
       // Update office phone if provided
@@ -228,25 +264,35 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       }
       
       // Update image URL if new image uploaded
-      if (imageUrl != null && imageUrl.isNotEmpty) {
+      if (imageUrl != null && imageUrl.isNotEmpty && imageUploaded) {
         updateData['profile_image'] = imageUrl;
       }
 
-      // Update in Firestore
-      await _firestore.collection('users').doc(_userId).update(updateData);
-      
-      // Update local state
-      setState(() {
-        _profileImageUrl = imageUrl;
-        _selectedImage = null;
-        _selectedImageBase64 = null;
-      });
+      // Only update if there are changes
+      if (updateData.length > 1 || (imageUploaded && imageUrl != null)) {
+        debugPrint('Updating Firestore with: $updateData');
+        await _firestore.collection('users').doc(_userId).update(updateData);
+        
+        // Update local state
+        if (imageUploaded && imageUrl != null) {
+          setState(() {
+            _profileImageUrl = imageUrl;
+            _selectedImage = null;
+            _selectedImageBase64 = null;
+          });
+        }
 
-      _showSuccessSnackBar('Profile updated successfully!');
-      Navigator.pop(context, updateData);
+        _showSuccessSnackBar('Profile updated successfully!');
+        // Delay navigation to show success message
+        await Future.delayed(const Duration(seconds: 1));
+        Navigator.pop(context, updateData);
+      } else {
+        _showInfoSnackBar('No changes to save');
+      }
       
     } catch (e) {
-      _showErrorSnackBar('Error updating profile: ${e.toString()}');
+      debugPrint('Error in updateProfile: $e');
+      _showErrorSnackBar('Error: ${e.toString()}');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -302,9 +348,16 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
       )
     );
   }
@@ -312,9 +365,16 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   void _showSuccessSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       )
     );
   }
@@ -322,9 +382,16 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   void _showInfoSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            const Icon(Icons.info, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: Colors.blue,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
       )
     );
   }
@@ -400,6 +467,16 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       return Image.network(
         _profileImageUrl!,
         fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          );
+        },
         errorBuilder: (context, error, stackTrace) {
           return _buildDefaultAvatar();
         },
@@ -547,6 +624,16 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
                         fontSize: 14,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    if (_selectedImage != null)
+                      Text(
+                        'New image selected',
+                        style: TextStyle(
+                          color: Colors.green.shade600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -557,11 +644,11 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
               _buildSection('Account Information'),
               _buildInfoCard('Email', _emailController.text),
               
-              if (widget.userData?['office'] != null && widget.userData?['office'] != '')
+              if (_officeController.text.isNotEmpty)
                 Column(
                   children: [
                     const SizedBox(height: 12),
-                    _buildInfoCard('Office', widget.userData?['office'] ?? 'Not set'),
+                    _buildInfoCard('Office', _officeController.text),
                   ],
                 ),
               
