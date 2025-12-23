@@ -141,6 +141,7 @@ class _UserListPageState extends State<UserListPage> {
                     final createdAt = userData['createdAt'] != null
                         ? (userData['createdAt'] as Timestamp).toDate()
                         : null;
+                    final profileImageUrl = userData['profile_image'] ?? '';
 
                     return Card(
                       margin: const EdgeInsets.symmetric(
@@ -150,16 +151,7 @@ class _UserListPageState extends State<UserListPage> {
                         borderRadius: BorderRadius.circular(12.0),
                       ),
                       child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.blue.shade100,
-                          child: Text(
-                            userName.isNotEmpty ? userName[0].toUpperCase() : '?',
-                            style: const TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                        leading: _buildUserAvatar(profileImageUrl, userName),
                         title: Text(
                           userName,
                           style: const TextStyle(
@@ -220,5 +212,41 @@ class _UserListPageState extends State<UserListPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildUserAvatar(String profileImageUrl, String userName) {
+    if (profileImageUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: Colors.blue.shade50,
+        backgroundImage: NetworkImage(profileImageUrl),
+        onBackgroundImageError: (exception, stackTrace) {
+          // If image fails to load, show initials as fallback
+        },
+        child: profileImageUrl.isEmpty
+            ? Text(
+                userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              )
+            : null,
+      );
+    } else {
+      return CircleAvatar(
+        radius: 24,
+        backgroundColor: Colors.blue.shade50,
+        child: Text(
+          userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: Colors.blue.shade700,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      );
+    }
   }
 }
