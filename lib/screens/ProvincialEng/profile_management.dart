@@ -1,4 +1,3 @@
-// profile_management.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,19 +26,15 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   late TextEditingController _mobilePhoneController;
   late TextEditingController _officeController;
   late TextEditingController _officePhoneController;
-  late TextEditingController _currentPasswordController;
-  late TextEditingController _newPasswordController;
-  late TextEditingController _confirmPasswordController;
 
   String? _profileImageUrl;
   XFile? _selectedImage;
   String? _selectedImageBase64;
   bool _isLoading = false;
-  bool _showPasswordFields = false;
   String? _userId;
 
-  // Your server endpoint for image upload - use the correct endpoint
-     final String _serverUrl = 'https://buildcare.atigalle.x10.mx/';
+  final String _serverUrl = 'https://buildcare.atigalle.x10.mx/';
+
   @override
   void initState() {
     super.initState();
@@ -55,9 +50,6 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     _mobilePhoneController = TextEditingController(text: widget.userData?['mobilePhone'] ?? widget.userData?['mobitaphone'] ?? '');
     _officeController = TextEditingController(text: widget.userData?['office'] ?? '');
     _officePhoneController = TextEditingController(text: widget.userData?['officePhone'] ?? '');
-    _currentPasswordController = TextEditingController();
-    _newPasswordController = TextEditingController();
-    _confirmPasswordController = TextEditingController();
   }
 
   Future<void> _loadUserData() async {
@@ -85,8 +77,8 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 70, // Lower quality for faster upload
-        maxWidth: 800, // Limit size
+        imageQuality: 70,
+        maxWidth: 800,
         maxHeight: 800,
       );
       
@@ -104,11 +96,11 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
             _selectedImageBase64 = null;
           });
         }
-        _showInfoSnackBar('Image selected. Click "Save Changes" to upload.');
+        _showSnackBar('Image selected. Click "Save Changes" to upload.', Colors.blue);
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
-      _showErrorSnackBar('Error selecting image: ${e.toString()}');
+      _showSnackBar('Error selecting image', Colors.red);
     }
   }
 
@@ -128,11 +120,7 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       }
       
       debugPrint('=== Starting image upload ===');
-      debugPrint('User ID: $userId');
-      debugPrint('Email: $email');
-      debugPrint('Server URL: $_serverUrl');
       
-      // Read image bytes
       List<int> imageBytes;
       if (kIsWeb) {
         if (_selectedImageBase64 != null) {
@@ -144,80 +132,44 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
         imageBytes = await _selectedImage!.readAsBytes();
       }
       
-      debugPrint('Image size: ${imageBytes.length} bytes');
-      
-      // Create multipart request (this is often better for file uploads)
       var request = http.MultipartRequest('POST', Uri.parse(_serverUrl));
       
-      // Add image as file
       request.files.add(http.MultipartFile.fromBytes(
-        'profile_image', // Field name that server expects
+        'profile_image',
         imageBytes,
         filename: 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
       ));
       
-      // Add other fields
       request.fields['user_id'] = userId;
       request.fields['email'] = email;
       request.fields['action'] = 'upload_profile_image';
       
-      // Send request
-      debugPrint('Sending multipart request...');
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
       
-      debugPrint('Response status code: ${response.statusCode}');
-      debugPrint('Response headers: ${response.headers}');
-      debugPrint('Response body: ${response.body}');
-      
       if (response.statusCode == 200) {
-        debugPrint('Upload successful!');
-        
-        // Try to parse response
         try {
           var jsonResponse = jsonDecode(response.body);
-          debugPrint('Parsed JSON response: $jsonResponse');
-          
-          // Check different possible response formats
           if (jsonResponse['success'] == true || jsonResponse['status'] == 'success') {
-            String? imageUrl = jsonResponse['image_url'] ?? jsonResponse['url'] ?? jsonResponse['file_url'];
-            debugPrint('Got image URL: $imageUrl');
-            return imageUrl;
+            return jsonResponse['image_url'] ?? jsonResponse['url'] ?? jsonResponse['file_url'];
           } else if (jsonResponse['image_url'] != null) {
-            debugPrint('Got image URL from image_url field: ${jsonResponse['image_url']}');
             return jsonResponse['image_url'];
           }
         } catch (e) {
           debugPrint('Error parsing JSON: $e');
-          // Maybe the server returns just the URL as plain text
-          if (response.body.trim().startsWith('http')) {
-            debugPrint('Got URL as plain text: ${response.body.trim()}');
-            return response.body.trim();
-          }
-          // Check if response contains any URL
-          RegExp urlRegex = RegExp('r''https?://[^\s"\'<>]+');
-          var match = urlRegex.firstMatch(response.body);
-          if (match != null) {
-            debugPrint('Found URL in response: ${match.group(0)}');
-            return match.group(0);
-          }
         }
-      } else {
-        debugPrint('Upload failed with status: ${response.statusCode}');
-        debugPrint('Response: ${response.body}');
       }
       
       return null;
     } catch (e) {
       debugPrint('Error in uploadImageToServer: $e');
-      debugPrint('Stack trace: ${e.toString()}');
       return null;
     }
   }
 
   Future<void> _updateProfile() async {
     if (_userId == null) {
-      _showErrorSnackBar('User not found');
+      _showSnackBar('User not found', Colors.red);
       return;
     }
 
@@ -227,53 +179,43 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       String? imageUrl = _profileImageUrl;
       bool imageUploaded = false;
       
-      // Upload image to server if selected
       if (_selectedImage != null) {
-        debugPrint('Attempting to upload image...');
-        _showInfoSnackBar('Uploading image...');
+        _showSnackBar('Uploading image...', Colors.blue);
         
         imageUrl = await _uploadImageToServer();
         if (imageUrl != null) {
-          _showSuccessSnackBar('Image uploaded successfully!');
+          _showSnackBar('Image uploaded successfully!', Colors.green);
           imageUploaded = true;
         } else {
-          _showErrorSnackBar('Failed to upload image. Keeping existing image.');
+          _showSnackBar('Failed to upload image', Colors.orange);
           imageUrl = _profileImageUrl;
         }
       }
       
-      // Prepare update data
       Map<String, dynamic> updateData = {
         'LastUpdated': Timestamp.now(),
       };
       
-      // Update name if changed
       if (_nameController.text.trim().isNotEmpty) {
         updateData['name'] = _nameController.text.trim();
       }
       
-      // Update mobile phone
       if (_mobilePhoneController.text.trim().isNotEmpty) {
         updateData['mobilePhone'] = _mobilePhoneController.text.trim();
         updateData['mobitaphone'] = _mobilePhoneController.text.trim();
       }
       
-      // Update office phone if provided
       if (_officePhoneController.text.trim().isNotEmpty) {
         updateData['officePhone'] = _officePhoneController.text.trim();
       }
       
-      // Update image URL if new image uploaded
       if (imageUrl != null && imageUrl.isNotEmpty && imageUploaded) {
         updateData['profile_image'] = imageUrl;
       }
 
-      // Only update if there are changes
       if (updateData.length > 1 || (imageUploaded && imageUrl != null)) {
-        debugPrint('Updating Firestore with: $updateData');
         await _firestore.collection('users').doc(_userId).update(updateData);
         
-        // Update local state
         if (imageUploaded && imageUrl != null) {
           setState(() {
             _profileImageUrl = imageUrl;
@@ -282,116 +224,31 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
           });
         }
 
-        _showSuccessSnackBar('Profile updated successfully!');
-        // Delay navigation to show success message
+        _showSnackBar('Profile updated successfully!', Colors.green);
         await Future.delayed(const Duration(seconds: 1));
         Navigator.pop(context, updateData);
       } else {
-        _showInfoSnackBar('No changes to save');
+        _showSnackBar('No changes to save', Colors.blue);
       }
       
     } catch (e) {
       debugPrint('Error in updateProfile: $e');
-      _showErrorSnackBar('Error: ${e.toString()}');
+      _showSnackBar('Error: ${e.toString()}', Colors.red);
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _changePassword() async {
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showErrorSnackBar('New passwords do not match!');
-      return;
-    }
-
-    if (_newPasswordController.text.length < 6) {
-      _showErrorSnackBar('Password must be at least 6 characters!');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        final cred = EmailAuthProvider.credential(
-          email: _emailController.text,
-          password: _currentPasswordController.text,
-        );
-        
-        await user.reauthenticateWithCredential(cred);
-        await user.updatePassword(_newPasswordController.text);
-        
-        _showSuccessSnackBar('Password changed successfully!');
-        
-        // Clear password fields
-        _currentPasswordController.clear();
-        _newPasswordController.clear();
-        _confirmPasswordController.clear();
-        setState(() => _showPasswordFields = false);
-      }
-    } on FirebaseAuthException catch (e) {
-      String message = 'Error changing password';
-      if (e.code == 'wrong-password') {
-        message = 'Current password is incorrect';
-      } else if (e.code == 'weak-password') {
-        message = 'Password is too weak';
-      }
-      _showErrorSnackBar(message);
-    } catch (e) {
-      _showErrorSnackBar('Error: ${e.toString()}');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
+  void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      )
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green,
+        content: Text(message),
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
-      )
-    );
-  }
-
-  void _showInfoSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.info, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-        backgroundColor: Colors.blue,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
       )
     );
   }
@@ -399,70 +256,92 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   Widget _buildProfileImage() {
     return GestureDetector(
       onTap: _pickImage,
-      child: Stack(
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.blue.shade100,
-                width: 2,
-              ),
-            ),
-            child: ClipOval(
-              child: _buildImagePreview(),
-            ),
+      child: Container(
+        width: 130,
+        height: 130,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            colors: [
+              Colors.blue.shade600,
+              Colors.purple.shade600,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Container(
+              width: 126,
+              height: 126,
+              margin: const EdgeInsets.all(2),
               decoration: BoxDecoration(
-                color: Colors.blue.shade700,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                size: 20,
                 color: Colors.white,
               ),
+              child: ClipOval(
+                child: _buildImagePreview(),
+              ),
             ),
-          ),
-        ],
+            Positioned(
+              bottom: 6,
+              right: 6,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.blue.shade700,
+                      Colors.purple.shade700,
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.camera_alt,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildImagePreview() {
-    // Show newly selected image
     if (_selectedImage != null) {
       if (kIsWeb && _selectedImageBase64 != null) {
         return Image.memory(
           base64Decode(_selectedImageBase64!.split(',').last),
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildDefaultAvatar();
-          },
+          errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
         );
       } else if (!kIsWeb) {
         return Image.file(
           File(_selectedImage!.path),
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildDefaultAvatar();
-          },
+          errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
         );
       }
     }
     
-    // Show existing profile image
     if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
       return Image.network(
         _profileImageUrl!,
@@ -474,26 +353,33 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
               value: loadingProgress.expectedTotalBytes != null
                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                   : null,
+              color: Colors.blue,
             ),
           );
         },
-        errorBuilder: (context, error, stackTrace) {
-          return _buildDefaultAvatar();
-        },
+        errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
       );
     }
     
-    // Default avatar
     return _buildDefaultAvatar();
   }
 
   Widget _buildDefaultAvatar() {
     return Container(
-      color: Colors.blue.shade50,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.blue.shade100,
+            Colors.purple.shade100,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: const Icon(
         Icons.person,
         size: 60,
-        color: Colors.blue,
+        color: Colors.white,
       ),
     );
   }
@@ -503,89 +389,125 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     required TextEditingController controller,
     TextInputType keyboardType = TextInputType.text,
     bool readOnly = false,
-    bool obscureText = false,
     IconData? prefixIcon,
     String? hintText,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        readOnly: readOnly,
-        obscureText: obscureText,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hintText,
-          floatingLabelBehavior: FloatingLabelBehavior.always,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade400),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade400),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.blue.shade700, width: 2),
-          ),
-          filled: true,
-          fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
-          prefixIcon: prefixIcon != null
-              ? Icon(prefixIcon, color: Colors.grey.shade600)
-              : null,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSection(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey.shade700,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(String label, String value) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
+              letterSpacing: 0.5,
             ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextFormField(
+              controller: controller,
+              keyboardType: keyboardType,
+              readOnly: readOnly,
+              style: TextStyle(
                 fontSize: 16,
+                color: readOnly ? Colors.grey.shade600 : Colors.black,
                 fontWeight: FontWeight.w500,
               ),
+              decoration: InputDecoration(
+                hintText: hintText,
+                filled: true,
+                fillColor: readOnly ? Colors.grey.shade50 : Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: Colors.blue.shade600,
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                prefixIcon: prefixIcon != null
+                    ? Icon(
+                        prefixIcon,
+                        color: Colors.grey.shade600,
+                        size: 22,
+                      )
+                    : null,
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(String label, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -595,218 +517,221 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Profile Management'),
+        title: const Text(
+          'Profile Settings',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
+        ),
+        shape: Border(
+          bottom: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
         ),
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile Image Section
+              // Profile Header
               Center(
                 child: Column(
                   children: [
                     _buildProfileImage(),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Text(
                       'Tap to change photo',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     if (_selectedImage != null)
-                      Text(
-                        'New image selected',
-                        style: TextStyle(
-                          color: Colors.green.shade600,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.green.shade100,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 16,
+                              color: Colors.green.shade600,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'New image selected',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],
                 ),
               ),
               
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               
-              // Read-only Information Section
-              _buildSection('Account Information'),
-              _buildInfoCard('Email', _emailController.text),
+              // Account Information Section
+              Text(
+                'Account Information',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              _buildInfoItem('Email', _emailController.text),
               
               if (_officeController.text.isNotEmpty)
-                Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    _buildInfoCard('Office', _officeController.text),
+                _buildInfoItem('Office', _officeController.text),
+              
+              const SizedBox(height: 40),
+              
+              // Update Information Section
+              Text(
+                'Update Information',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
                 ),
-              
-              const SizedBox(height: 24),
-              
-              // Editable Information Section
-              _buildSection('Update Your Information'),
-              Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      _buildInputField(
-                        label: 'Full Name',
-                        controller: _nameController,
-                        prefixIcon: Icons.person_outline,
-                        hintText: 'Enter your name',
-                      ),
-                      _buildInputField(
-                        label: 'Mobile Phone',
-                        controller: _mobilePhoneController,
-                        keyboardType: TextInputType.phone,
-                        prefixIcon: Icons.phone_android_outlined,
-                        hintText: 'Enter your mobile number',
-                      ),
-                      _buildInputField(
-                        label: 'Office Phone',
-                        controller: _officePhoneController,
-                        keyboardType: TextInputType.phone,
-                        prefixIcon: Icons.phone_outlined,
-                        hintText: 'Optional',
-                      ),
-                    ],
-                  ),
+                child: Column(
+                  children: [
+                    _buildInputField(
+                      label: 'Full Name',
+                      controller: _nameController,
+                      prefixIcon: Icons.person_outline_rounded,
+                      hintText: 'Enter your full name',
+                    ),
+                    _buildInputField(
+                      label: 'Mobile Phone',
+                      controller: _mobilePhoneController,
+                      keyboardType: TextInputType.phone,
+                      prefixIcon: Icons.phone_iphone_rounded,
+                      hintText: 'Enter mobile number',
+                    ),
+                    _buildInputField(
+                      label: 'Office Phone',
+                      controller: _officePhoneController,
+                      keyboardType: TextInputType.phone,
+                      prefixIcon: Icons.phone_rounded,
+                      hintText: 'Enter office number (optional)',
+                    ),
+                  ],
                 ),
               ),
               
-              const SizedBox(height: 24),
+              const SizedBox(height: 40),
               
-              // Change Password Section
-              _buildSection('Security'),
-              Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+              // Save Button
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.blue.shade600,
+                      Colors.purple.shade600,
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _isLoading ? null : _updateProfile,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            'Change Password',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade800,
+                          if (_isLoading)
+                            const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          else ...[
+                            const Icon(
+                              Icons.check_circle_outline_rounded,
+                              color: Colors.white,
+                              size: 22,
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              _showPasswordFields
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
-                              color: Colors.blue.shade700,
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Save Changes',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _showPasswordFields = !_showPasswordFields;
-                              });
-                            },
-                          ),
+                          ],
                         ],
                       ),
-                      
-                      if (_showPasswordFields) ...[
-                        const SizedBox(height: 16),
-                        _buildInputField(
-                          label: 'Current Password',
-                          controller: _currentPasswordController,
-                          obscureText: true,
-                          prefixIcon: Icons.lock_outline,
-                        ),
-                        _buildInputField(
-                          label: 'New Password',
-                          controller: _newPasswordController,
-                          obscureText: true,
-                          prefixIcon: Icons.lock_reset,
-                        ),
-                        _buildInputField(
-                          label: 'Confirm New Password',
-                          controller: _confirmPasswordController,
-                          obscureText: true,
-                          prefixIcon: Icons.lock_reset,
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _changePassword,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange.shade400,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text(
-                              'Update Password',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Update Profile Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _updateProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    elevation: 2,
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
               ),
               
@@ -825,9 +750,6 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     _mobilePhoneController.dispose();
     _officeController.dispose();
     _officePhoneController.dispose();
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 }
