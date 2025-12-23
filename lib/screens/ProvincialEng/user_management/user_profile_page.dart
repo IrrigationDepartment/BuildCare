@@ -149,11 +149,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final nameController =
         TextEditingController(text: widget.userData['name'] ?? '');
     final phoneController =
-        TextEditingController(text: widget.userData['phone'] ?? '');
-    final districtController =
-        TextEditingController(text: widget.userData['district'] ?? '');
-    final provinceController =
-        TextEditingController(text: widget.userData['province'] ?? '');
+        TextEditingController(text: widget.userData['mobilePhone'] ?? '');
+    final emailController =
+        TextEditingController(text: widget.userData['email'] ?? '');
+    final nicController =
+        TextEditingController(text: widget.userData['nic'] ?? '');
+    final officeController =
+        TextEditingController(text: widget.userData['office'] ?? '');
+    final officePhoneController =
+        TextEditingController(text: widget.userData['officePhone'] ?? '');
 
     await showModalBottomSheet(
       context: context,
@@ -200,28 +204,46 @@ class _UserProfilePageState extends State<UserProfilePage> {
               ),
               const SizedBox(height: 16),
               
-              // Phone Field
+              // Email Field
               _buildModernTextField(
-                label: 'Phone Number',
+                label: 'Email Address',
+                controller: emailController,
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              
+              // Mobile Phone Field
+              _buildModernTextField(
+                label: 'Mobile Phone',
                 controller: phoneController,
-                icon: Icons.phone_outlined,
+                icon: Icons.phone_android_outlined,
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 16),
               
-              // District Field
+              // NIC Field
               _buildModernTextField(
-                label: 'District',
-                controller: districtController,
-                icon: Icons.location_on_outlined,
+                label: 'NIC Number',
+                controller: nicController,
+                icon: Icons.badge_outlined,
               ),
               const SizedBox(height: 16),
               
-              // Province Field
+              // Office Field
               _buildModernTextField(
-                label: 'Province',
-                controller: provinceController,
-                icon: Icons.map_outlined,
+                label: 'Office',
+                controller: officeController,
+                icon: Icons.work_outline,
+              ),
+              const SizedBox(height: 16),
+              
+              // Office Phone Field
+              _buildModernTextField(
+                label: 'Office Phone',
+                controller: officePhoneController,
+                icon: Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 32),
               
@@ -232,9 +254,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                   onPressed: () async {
                     final updatedData = {
                       'name': nameController.text.trim(),
-                      'phone': phoneController.text.trim(),
-                      'district': districtController.text.trim(),
-                      'province': provinceController.text.trim(),
+                      'email': emailController.text.trim(),
+                      'mobilePhone': phoneController.text.trim(),
+                      'nic': nicController.text.trim(),
+                      'office': officeController.text.trim(),
+                      'officePhone': officePhoneController.text.trim(),
                       'updatedAt': Timestamp.now(),
                     };
                     
@@ -423,6 +447,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
     final updatedAt = widget.userData['updatedAt'] != null
         ? (widget.userData['updatedAt'] as Timestamp).toDate()
         : null;
+    
+    final profileImageUrl = widget.userData['profile_image'] ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -457,21 +483,44 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     ),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 40,
-                          backgroundColor: Colors.white,
-                          child: Text(
-                            widget.userData['name'] != null &&
-                                    widget.userData['name'].isNotEmpty
-                                ? widget.userData['name'][0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade700,
-                            ),
-                          ),
-                        ),
+                        // Profile Image
+                        profileImageUrl.isNotEmpty
+                            ? CircleAvatar(
+                                radius: 40,
+                                backgroundColor: Colors.white,
+                                backgroundImage: NetworkImage(profileImageUrl),
+                                onBackgroundImageError: (exception, stackTrace) {
+                                  // If image fails to load, show initials
+                                },
+                                child: profileImageUrl.isEmpty
+                                    ? Text(
+                                        widget.userData['name'] != null &&
+                                                widget.userData['name'].isNotEmpty
+                                            ? widget.userData['name'][0].toUpperCase()
+                                            : '?',
+                                        style: TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue.shade700,
+                                        ),
+                                      )
+                                    : null,
+                              )
+                            : CircleAvatar(
+                                radius: 40,
+                                backgroundColor: Colors.white,
+                                child: Text(
+                                  widget.userData['name'] != null &&
+                                          widget.userData['name'].isNotEmpty
+                                      ? widget.userData['name'][0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ),
                         const SizedBox(width: 20),
                         Expanded(
                           child: Column(
@@ -539,21 +588,39 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       ),
                       const Divider(height: 1),
                       _buildInfoItem(
-                        'Phone Number',
-                        widget.userData['phone'] ?? '',
+                        'Mobile Phone',
+                        widget.userData['mobilePhone'] ?? '',
+                        Icons.phone_android_outlined,
+                      ),
+                      const Divider(height: 1),
+                      _buildInfoItem(
+                        'NIC Number',
+                        widget.userData['nic'] ?? '',
+                        Icons.badge_outlined,
+                      ),
+                      const Divider(height: 1),
+                      _buildInfoItem(
+                        'Office',
+                        widget.userData['office'] ?? '',
+                        Icons.work_outline,
+                      ),
+                      const Divider(height: 1),
+                      _buildInfoItem(
+                        'Office Phone',
+                        widget.userData['officePhone'] ?? '',
                         Icons.phone_outlined,
                       ),
                       const Divider(height: 1),
                       _buildInfoItem(
-                        'District',
-                        widget.userData['district'] ?? '',
-                        Icons.location_on_outlined,
+                        'Security Question (Nickname)',
+                        widget.userData['securityQuestionNickname'] ?? '',
+                        Icons.security_outlined,
                       ),
                       const Divider(height: 1),
                       _buildInfoItem(
-                        'Province',
-                        widget.userData['province'] ?? '',
-                        Icons.map_outlined,
+                        'Security Question (Pet)',
+                        widget.userData['securityQuestionPet'] ?? '',
+                        Icons.pets_outlined,
                       ),
                     ],
                   ),
@@ -584,6 +651,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                           Icons.update_outlined,
                         ),
                       ],
+                      const Divider(height: 1),
+                      _buildInfoItem(
+                        'Profile Image URL',
+                        profileImageUrl.isNotEmpty 
+                            ? '${profileImageUrl.substring(0, 30)}...' 
+                            : 'Not set',
+                        Icons.image_outlined,
+                      ),
                     ],
                   ),
 
