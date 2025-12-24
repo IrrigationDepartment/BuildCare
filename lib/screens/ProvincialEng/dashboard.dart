@@ -15,6 +15,7 @@ import 'add_principal.dart';
 import 'add_contractor_screen.dart';
 import 'add_contract.dart';
 import 'profile_management.dart';
+import 'app_settings.dart' as settings;
 
 // --- USER MANAGEMENT IMPORTS ---
 import 'user_management/user_list_page.dart';
@@ -824,7 +825,7 @@ class CustomBottomNavBar extends StatelessWidget {
                   builder: (context) => const ProfileManagementPage()));
         } else if (index == 2 && currentIndex != 2) {
           Navigator.push(context,
-              MaterialPageRoute(builder: (context) => const SettingsPage()));
+              MaterialPageRoute(builder: (context) => const settings.SettingsPage()));
         }
       },
       items: const [
