@@ -802,38 +802,125 @@ class IssueCountBuilder extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// --- NEW: CustomBottomNavBar (Simple design matching the image) ---
+// -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   const CustomBottomNavBar({super.key, required this.currentIndex});
+
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      selectedItemColor: Colors.blue.shade800,
-      unselectedItemColor: Colors.grey,
-      showUnselectedLabels: false,
-      onTap: (index) {
-        if (index == 0 && currentIndex != 0) {
-          Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const ProvincialEngDashboard()));
-        } else if (index == 1 && currentIndex != 1) {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const ProfileManagementPage()));
-        } else if (index == 2 && currentIndex != 2) {
-          Navigator.push(context,
-              MaterialPageRoute(builder: (context) => const settings.SettingsPage()));
-        }
-      },
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-      ],
+    return Container(
+      height: 70,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: Color(0xFFEEEEEE),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Home
+          _buildNavItem(
+            context,
+            index: 0,
+            icon: Icons.home_rounded,
+            label: 'Home',
+            isActive: currentIndex == 0,
+          ),
+          
+          // Profile
+          _buildNavItem(
+            context,
+            index: 1,
+            icon: Icons.person_rounded,
+            label: 'Profile',
+            isActive: currentIndex == 1,
+          ),
+          
+          // Settings
+          _buildNavItem(
+            context,
+            index: 2,
+            icon: Icons.settings_rounded,
+            label: 'Settings',
+            isActive: currentIndex == 2,
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context, {
+    required int index,
+    required IconData icon,
+    required String label,
+    required bool isActive,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        _onTabTapped(context, index);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isActive ? Colors.black : Colors.grey,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isActive ? Colors.black : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onTabTapped(BuildContext context, int index) {
+    if (currentIndex == index) return; // Already on this tab
+    
+    switch (index) {
+      case 0:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProvincialEngDashboard(),
+          ),
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProfileManagementPage(),
+          ),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const settings.SettingsPage(),
+          ),
+        );
+        break;
+    }
   }
 }
 
