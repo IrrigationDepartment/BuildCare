@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // Import necessary pages to use in the Bottom Navigation Bar
-// IMPORTANT: This import allows us to use 'CustomBottomNavBar' from dashboard
 import 'dashboard.dart';
 import 'profile_management.dart';
 
@@ -151,17 +150,11 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ),
-          
-          // --- UPDATED BOTTOM NAVIGATION BAR ---
-          // Using currentIndex: 2 to highlight 'Settings'
-          const SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: 8),
-              child: CustomBottomNavBar(currentIndex: 2),
-            ),
-          ),
         ],
       ),
+      // --- UPDATED AND FIXED BOTTOM NAVIGATION BAR ---
+      // scaffold එකේ කෙලින්ම bottomNavigationBar එක භාවිතා කිරීමෙන් එය තිරයේ පහළටම සෙට් වේ.
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 2),
     );
   }
 
@@ -204,7 +197,7 @@ class SettingsPage extends StatelessWidget {
           subtitle,
           style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
         ),
-        trailing: const Icon(Icons.chevron_right, color: Color.fromARGB(255, 140, 64, 64)),
+        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: onTap,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -243,7 +236,7 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-// --- SUB PAGES STUBS (To prevent errors if not already defined) ---
+// --- SUB PAGES STUBS ---
 class ChangePasswordPage extends StatelessWidget {
   const ChangePasswordPage({super.key});
   @override

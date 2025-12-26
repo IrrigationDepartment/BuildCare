@@ -15,7 +15,6 @@ import 'add_principal.dart';
 import 'add_contractor_screen.dart';
 import 'add_contract.dart';
 import 'profile_management.dart';
-// Note: 'as settings' is used to avoid naming conflicts if necessary
 import 'app_settings.dart' as settings;
 
 // --- USER MANAGEMENT IMPORTS ---
@@ -155,6 +154,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 mainAxisSpacing: 12.0,
                 childAspectRatio: 1.1,
                 children: const <Widget>[
+                  // CHIEF ENGINEER CARD
                   UserCountBuilder(
                     title: 'Chief Engineer',
                     userType: 'Chief Engineer',
@@ -162,6 +162,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     icon: Icons.person_pin,
                     color: Colors.blue,
                   ),
+                  // DISTRICT ENGINEER CARD
                   UserCountBuilder(
                     title: 'District Engineer',
                     userType: 'District Engineer',
@@ -169,6 +170,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     icon: Icons.engineering,
                     color: Colors.green,
                   ),
+                  // TECHNICAL OFFICER CARD
                   UserCountBuilder(
                     title: 'Technical Officer',
                     userType: 'Technical Officer',
@@ -176,6 +178,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     icon: Icons.build,
                     color: Colors.orange,
                   ),
+                  // PRINCIPALS CARD
                   UserCountBuilder(
                     title: 'Principals',
                     userType: 'Principal',
@@ -189,7 +192,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 
             const SizedBox(height: 20),
 
-            // 3. --- Project Management ---
+            // 3. --- Project Management (Contractors & Contracts) ---
             _buildSectionTitle('Project Management'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -256,7 +259,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 
             const SizedBox(height: 20),
 
-            // 5. --- Latest Updates ---
+            // 5. --- "Latest Updates" Section ---
             _buildSectionTitle('Latest Updates'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -294,7 +297,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           ],
         ),
       ),
-      // Dashboard uses index 0
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
@@ -316,9 +318,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- SHARED COMPONENTS (UserCountBuilder, SimpleCountCard, etc.) ---
+// --- WIDGET: UserCountBuilder (UPDATED) ---
 // -----------------------------------------------------------------------------
-
 class UserCountBuilder extends StatelessWidget {
   final String userType;
   final String title;
@@ -375,6 +376,7 @@ class UserCountBuilder extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
+                // Navigate to User List Page when card is clicked
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -419,6 +421,7 @@ class UserCountBuilder extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
+                    // + Add Button
                     InkWell(
                       onTap: () {
                         Navigator.push(context,
@@ -463,6 +466,9 @@ class UserCountBuilder extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// --- WIDGET: SimpleCountCard ---
+// -----------------------------------------------------------------------------
 class SimpleCountCard extends StatelessWidget {
   final String title;
   final String collectionName;
@@ -577,6 +583,9 @@ class SimpleCountCard extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// --- Other Widgets (unchanged) ---
+// -----------------------------------------------------------------------------
 class ActivityItemCard extends StatelessWidget {
   final ActivityItem item;
   const ActivityItemCard({super.key, required this.item});
@@ -642,8 +651,7 @@ class ActivityItemCard extends StatelessWidget {
             style: const TextStyle(fontSize: 12)),
         trailing: showButton
             ? IconButton(
-                icon: const Icon(Icons.arrow_forward_ios, size: 16,
-                    color: Colors.grey),
+                icon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -772,8 +780,7 @@ class IssueCountBuilder extends StatelessWidget {
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: const Icon(Icons.warning_amber_rounded,
-                    color: Colors.red, size: 30),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -799,8 +806,7 @@ class IssueCountBuilder extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const ViewIssuesPage()),
+                    MaterialPageRoute(builder: (context) => const ViewIssuesPage()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -822,7 +828,7 @@ class IssueCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- CUSTOM BOTTOM NAVIGATION BAR (USED BY SETTINGS TOO) ---
+// --- Custom Bottom Navigation Bar ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -873,7 +879,7 @@ class CustomBottomNavBar extends StatelessWidget {
 
   void _onTabTapped(BuildContext context, int index) {
     if (currentIndex == index) return; // Already on this tab
-
+    
     switch (index) {
       case 0:
         Navigator.pushReplacement(
