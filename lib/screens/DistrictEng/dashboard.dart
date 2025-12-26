@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 // Imports for dashboard logic and UI components
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
-import 'profile.dart'; // Ensure profile.dart is imported
+import 'profile.dart'; 
+import 'settings.dart'; // Import the settings file
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -72,6 +73,14 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
         context,
         MaterialPageRoute(
           builder: (context) => const ProfilePage(),
+        ),
+      );
+    } else if (index == 2) {
+      // Navigate to Settings Screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SettingsScreen(),
         ),
       );
     } else {
