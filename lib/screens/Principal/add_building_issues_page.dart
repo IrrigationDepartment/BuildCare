@@ -42,9 +42,9 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   // Switched to XFile for cross-platform image handling
   final List<XFile> _selectedNewImages =
-      []; // ⭐ Renamed for clarity: new images picked
+      []; //  Renamed for clarity: new images picked
   final List<String> _existingImageUrls =
-      []; // ⭐ NEW: For images already in Firebase
+      []; //  NEW: For images already in Firebase
   final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false; // Added loading state
@@ -100,7 +100,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate!);
       }
 
-      // ⭐ Populate existing image URLs
+      // Populate existing image URLs
       if (widget.issueData!['imageUrls'] is List) {
         _existingImageUrls
             .addAll(List<String>.from(widget.issueData!['imageUrls']));
@@ -137,7 +137,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     });
   }
 
-  // ⭐ NEW: Image Remover Function for EXISTING network images ---
+  //  NEW: Image Remover Function for EXISTING network images ---
   void _removeExistingImage(int index) {
     setState(() {
       _existingImageUrls.removeAt(index);
@@ -149,7 +149,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   // --- 1. Upload Images to Server Function (Copied from add_issue_screen.dart) ---
   Future<List<String>> _uploadNewImages() async {
-    // ⭐ Renamed to reflect it uploads NEW images
+    //  Renamed to reflect it uploads NEW images
     if (_selectedNewImages.isEmpty) {
       return [];
     }
@@ -222,7 +222,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         }
       }
 
-      // ⭐ Combine existing and newly uploaded image URLs
+      //  Combine existing and newly uploaded image URLs
       List<String> allImageUrls =
           List.from(_existingImageUrls); // Start with existing
       allImageUrls.addAll(newlyUploadedImageUrls); // Add newly uploaded
@@ -240,7 +240,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
         'addedByNic': widget.userNic,
         'timestamp': FieldValue.serverTimestamp(), // Update timestamp on save
-        'imageUrls': allImageUrls, // ⭐ Save ALL current image URLs
+        'imageUrls': allImageUrls, //  Save ALL current image URLs
       };
 
       // If editing, preserve status; if creating new, set to Pending
@@ -273,7 +273,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
             backgroundColor: Colors.green,
           ),
         );
-        // ⭐ Pass true back to indicate a change, prompting dashboard to refresh
+        //  Pass true back to indicate a change, prompting dashboard to refresh
         Navigator.of(context).pop(true);
       }
     } catch (e) {
@@ -360,7 +360,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                     child: Text(
                       isEditing
                           ? "Update"
-                          : "Save", // ⭐ Text changes based on mode
+                          : "Save", //  Text changes based on mode
                       style: TextStyle(
                           color: _primaryColor,
                           fontSize: 14,
@@ -595,14 +595,14 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
             ),
             validator: (value) => value == null || value.isEmpty
                 ? 'Please select $label'
-                : null, // ⭐ Handle null value
+                : null, //  Handle null value
           ),
         ],
       ),
     );
   }
 
-  /// ⭐ MODIFIED: Builder for the Upload Images section. Displays existing and new images.
+  ///  MODIFIED: Builder for the Upload Images section. Displays existing and new images.
   Widget _buildUploadImagesSection() {
     // Combine both lists for display purposes
     final List<dynamic> allImagesForDisplay = [
@@ -739,7 +739,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                 border: Border.all(
                   color: (allImagesForDisplay.isEmpty)
                       ? Colors.transparent
-                      : _primaryColor, // ⭐ Border logic
+                      : _primaryColor, //  Border logic
                   width: 1.5,
                 ),
               ),
