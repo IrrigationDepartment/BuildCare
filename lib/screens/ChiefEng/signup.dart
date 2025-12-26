@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChiefEngRegistrationPage extends StatefulWidget {
   const ChiefEngRegistrationPage({super.key});
@@ -11,10 +12,12 @@ class ChiefEngRegistrationPage extends StatefulWidget {
 
 class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
-  // Controllers for all the fields
+  
   final _userTypeController =
-      TextEditingController(text: 'Chief Engineer'); // Pre-filled
+      TextEditingController(text: 'Chief Engineer');
   final _nameController = TextEditingController();
   final _nicController = TextEditingController();
   final _emailController = TextEditingController();
@@ -62,7 +65,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     _nicknameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-
     _passwordController.removeListener(_validatePassword);
     _passwordFocusNode.dispose();
     super.dispose();
@@ -81,44 +83,144 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
 
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      try {
-        await FirebaseFirestore.instance.collection('users').add({
-          'name': _nameController.text.trim(),
-          'nic': _nicController.text.trim().toUpperCase(),
-          'email': _emailController.text.trim(),
-          'office': _selectedOffice,
-          'officePhone': _officePhoneController.text.trim(),
-          'mobilePhone': _mobileController.text.trim(),
-          'securityQuestionPet': _petNameController.text.trim(),
-          'securityQuestionNickname': _nicknameController.text.trim(),
-          'password': _passwordController.text.trim(), // Consider hashing this!
-          'userType': 'Chief Engineer',
-          'isActive': false,
-          'createdAt': Timestamp.now(),
-        });
+    
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                backgroundColor: Colors.green,
-                content: Text('Registration successful!')),
-          );
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted) {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            }
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              backgroundColor: Colors.red,
-              content: Text('Registration failed: $e')));
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+    setState(() => _isLoading = true);
+
+    try {
+      
+      final UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      
+      final String uid = userCredential.user!.uid;
+
+     
+      await userCredential.user!.updateDisplayName(_nameController.text.trim());
+
+      
+      await _firestore.collection('users').doc(uid).set({
+        'uid': uid, 
+        'name': _nameController.text.trim(),
+        'nic': _nicController.text.trim().toUpperCase(),
+        'email': _emailController.text.trim(),
+        'office': _selectedOffice,
+        'officePhone': _officePhoneController.text.trim(),
+        'mobilePhone': _mobileController.text.trim(),
+        'securityQuestionPet': _petNameController.text.trim(),
+        'securityQuestionNickname': _nicknameController.text.trim(),
+        'userType': 'Chief Engineer',
+        'isActive': false, 
+        'emailVerified': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
+      
+      await userCredential.user!.sendEmailVerification();
+
+      if (mounted) {
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.green,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '✓ Registration Successful!',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Verification email sent to ${_emailController.text.trim()}',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+
+        
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      
+      String errorMessage = 'Registration failed';
+      String errorDetails = '';
+
+      switch (e.code) {
+        case 'weak-password':
+          errorMessage = 'Weak Password';
+          errorDetails = 'The password provided is too weak.';
+          break;
+        case 'email-already-in-use':
+          errorMessage = 'Email Already Exists';
+          errorDetails = 'An account already exists with this email address.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Invalid Email';
+          errorDetails = 'The email address format is invalid.';
+          break;
+        case 'operation-not-allowed':
+          errorMessage = 'Operation Not Allowed';
+          errorDetails = 'Email/password accounts are not enabled. Contact admin.';
+          break;
+        case 'network-request-failed':
+          errorMessage = 'Network Error';
+          errorDetails = 'Please check your internet connection.';
+          break;
+        default:
+          errorMessage = 'Registration Failed';
+          errorDetails = e.message ?? 'An unknown error occurred.';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  errorMessage,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(errorDetails, style: const TextStyle(fontSize: 14)),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Unexpected error: ${e.toString()}'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -151,7 +253,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // --- Form Fields ---
                         _buildLabeledTextField(
                             label: 'User Type',
                             isReadOnly: true,
@@ -185,7 +286,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                                 setState(() => _selectedOffice = newValue)),
                         _buildLabeledTextField(
                             label: 'Email',
-                            hint: 'Enter Your Email Adress',
+                            hint: 'Enter Your Email Address',
                             controller: _emailController,
                             icon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
@@ -233,8 +334,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                             label: 'Childhood nickname',
                             hint: 'Enter Your Childhood nickname',
                             controller: _nicknameController),
-
-                        // Password Field
                         _buildLabeledTextField(
                             label: 'Enter Your Password',
                             hint: 'Enter Your Password',
@@ -248,7 +347,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                               if (value == null || value.isEmpty) {
                                 return 'Password cannot be empty';
                               }
-
                               if (!_has8Chars ||
                                   !_hasLowercase ||
                                   !_hasUppercase ||
@@ -258,14 +356,12 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                               }
                               return null;
                             }),
-
                         if (_isPasswordFocused)
                           Padding(
                             padding: const EdgeInsets.only(
                                 top: 8.0, bottom: 8.0, left: 4.0),
                             child: _buildPasswordValidationUI(),
                           ),
-
                         _buildLabeledTextField(
                             label: 'Re-Enter Your Password',
                             hint: 'Re-Enter Your Password',
@@ -301,8 +397,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                                   child: const Text('Sign Up',
                                       style: TextStyle(
                                           fontSize: 18,
-                                          color: Color.fromARGB(
-                                              255, 255, 255, 255),
+                                          color: Colors.white,
                                           fontWeight: FontWeight.bold)),
                                 ),
                               ),
@@ -315,25 +410,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           ),
         ),
       ),
-    );
-  }
-
-  void _showInfoDialog(BuildContext context, String title, String content) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(content),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          actions: <Widget>[
-            TextButton(
-                child: const Text('OK'),
-                onPressed: () => Navigator.of(context).pop())
-          ],
-        );
-      },
     );
   }
 
@@ -384,7 +460,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     bool isReadOnly = false,
     VoidCallback? onVisibilityToggle,
     TextInputType? keyboardType,
-    String? infoMessage,
     String? Function(String?)? validator,
     FocusNode? focusNode,
   }) {
@@ -393,23 +468,9 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
-              if (infoMessage != null)
-                IconButton(
-                  icon: Icon(Icons.info_outline,
-                      color: Colors.grey.shade500, size: 20),
-                  onPressed: () =>
-                      _showInfoDialog(context, 'Password Guide', infoMessage),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                )
-            ],
-          ),
+          Text(label,
+              style: const TextStyle(
+                  color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
               controller: controller,
