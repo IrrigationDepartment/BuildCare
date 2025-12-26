@@ -15,7 +15,6 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  
   final _userTypeController =
       TextEditingController(text: 'Chief Engineer');
   final _nameController = TextEditingController();
@@ -81,9 +80,67 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     });
   }
 
+  
+  Future<bool> _checkNicExists(String nic) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('nic', isEqualTo: nic.toUpperCase())
+          .limit(1)
+          .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('Error checking NIC: $e');
+      return false;
+    }
+  }
+
+  
+  Future<bool> _checkEmailExistsInFirestore(String email) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email.trim().toLowerCase())
+          .limit(1)
+          .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('Error checking email in Firestore: $e');
+      return false;
+    }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 28),
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: Text(message, style: const TextStyle(fontSize: 16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK', style: TextStyle(fontSize: 16)),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
-    
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -91,6 +148,29 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     setState(() => _isLoading = true);
 
     try {
+      
+      final nicExists = await _checkNicExists(_nicController.text.trim());
+      if (nicExists) {
+        setState(() => _isLoading = false);
+        _showErrorDialog(
+          'NIC Already Exists',
+          'A user with NIC number "${_nicController.text.trim().toUpperCase()}" is already registered. Please use a different NIC or contact support.',
+        );
+        return;
+      }
+
+      
+      final emailExistsInFirestore =
+          await _checkEmailExistsInFirestore(_emailController.text.trim());
+      if (emailExistsInFirestore) {
+        setState(() => _isLoading = false);
+        _showErrorDialog(
+          'Email Already Registered',
+          'An account with email "${_emailController.text.trim()}" already exists. Please login or use a different email address.',
+        );
+        return;
+      }
+
       
       final UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
@@ -104,19 +184,19 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
      
       await userCredential.user!.updateDisplayName(_nameController.text.trim());
 
-      
+     
       await _firestore.collection('users').doc(uid).set({
-        'uid': uid, 
+        'uid': uid,
         'name': _nameController.text.trim(),
         'nic': _nicController.text.trim().toUpperCase(),
-        'email': _emailController.text.trim(),
+        'email': _emailController.text.trim().toLowerCase(),
         'office': _selectedOffice,
         'officePhone': _officePhoneController.text.trim(),
         'mobilePhone': _mobileController.text.trim(),
         'securityQuestionPet': _petNameController.text.trim(),
         'securityQuestionNickname': _nicknameController.text.trim(),
         'userType': 'Chief Engineer',
-        'isActive': false, 
+        'isActive': false,
         'emailVerified': false,
         'createdAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
@@ -126,7 +206,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
       await userCredential.user!.sendEmailVerification();
 
       if (mounted) {
-        
+        // Success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.green,
@@ -149,7 +229,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           ),
         );
 
-        
+       
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
             Navigator.of(context).popUntil((route) => route.isFirst);
@@ -158,7 +238,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
       }
     } on FirebaseAuthException catch (e) {
       
-      String errorMessage = 'Registration failed';
+      String errorMessage = 'Registration Failed';
       String errorDetails = '';
 
       switch (e.code) {
@@ -168,7 +248,8 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           break;
         case 'email-already-in-use':
           errorMessage = 'Email Already Exists';
-          errorDetails = 'An account already exists with this email address.';
+          errorDetails =
+              'An account already exists with this email address. Please login or use a different email.';
           break;
         case 'invalid-email':
           errorMessage = 'Invalid Email';
@@ -176,7 +257,8 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           break;
         case 'operation-not-allowed':
           errorMessage = 'Operation Not Allowed';
-          errorDetails = 'Email/password accounts are not enabled. Contact admin.';
+          errorDetails =
+              'Email/password accounts are not enabled. Contact admin.';
           break;
         case 'network-request-failed':
           errorMessage = 'Network Error';
@@ -188,34 +270,14 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red,
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  errorMessage,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                const SizedBox(height: 4),
-                Text(errorDetails, style: const TextStyle(fontSize: 14)),
-              ],
-            ),
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        _showErrorDialog(errorMessage, errorDetails);
       }
     } catch (e) {
-      
+      // General errors
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('Unexpected error: ${e.toString()}'),
-            duration: const Duration(seconds: 4),
-          ),
+        _showErrorDialog(
+          'Registration Failed',
+          'An unexpected error occurred: ${e.toString()}',
         );
       }
     } finally {
@@ -229,8 +291,10 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
