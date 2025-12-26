@@ -1,17 +1,15 @@
-// [----- ADD THIS IMPORT -----]
-import 'screens/forgot_password_flow.dart'; // Import the new screen
-// [-----------------------------]
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-// Corrected imports to match your folder structure
+
 import 'screens/ProvincialEng/dashboard.dart';
 import 'screens/ChiefEng/dashboard.dart';
 import 'screens/DistrictEng/dashboard.dart';
 import 'screens/Principal/dashboard.dart';
 import 'screens/TO/dashboard.dart';
 import 'screens/role_selection.dart';
+import 'screens/forgot_password_flow.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -21,125 +19,177 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Controllers for the text fields
   final TextEditingController _nicController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
-  // State for password visibility
   bool _isPasswordVisible = false;
-  // State for loading indicator
   bool _isLoading = false;
-
-  /// Shows a dialog message to the user.
-  void _showMessage(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Okay'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
-          )
-        ],
-      ),
-    );
-  }
-
-  /// Handles the login logic when the button is pressed.
-  Future<void> _login() async {
-    // Basic validation
-    if (_nicController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showMessage('Error', 'Please enter both NIC and Password.');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final usersCollection =
-          FirebaseFirestore.instance.collection('users');
-      final querySnapshot = await usersCollection
-          .where('nic', isEqualTo: _nicController.text.trim())
-          .where('password', isEqualTo: _passwordController.text.trim())
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        // --- FIX: Get the document itself to access both data and ID ---
-        final userDoc = querySnapshot.docs.first;
-        final userData = userDoc.data();
-        final userId = userDoc.id; // Get the document ID
-        final userType = userData['userType'] as String?;
-
-        // --- ADDED: Check if user is active ---
-        final bool isActive = userData['isActive'] as bool? ?? false;
-
-        if (isActive) {
-          // --- User is active, proceed with login ---
-          Widget destination;
-          switch (userType) {
-            case 'Provincial Engineer':
-              destination = ProvincialEngDashboard(userData: userData);
-              break;
-            case 'Chief Engineer':
-              destination = ChiefEngDashboard(userData: userData);
-              break;
-            case 'District Engineer':
-              destination = DistrictEngDashboard(userData: userData);
-              break;
-            case 'Principal':
-              destination = PrincipalDashboard(userData: userData);
-              break;
-            case 'Technical Officer':
-              destination = TODashboard(userData: userData); 
-              break;
-            default:
-              _showMessage('Login Error',
-                  'Could not determine user role. Please contact support.');
-              setState(() {
-                _isLoading = false;
-              });
-              return;
-          }
-
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => destination),
-            );
-          }
-        } else {
-          // --- ADDED: User is not active, show error ---
-          _showMessage(
-              'Login Failed',
-              'Your account is not active. Please contact an administrator.');
-        }
-
-      } else {
-        _showMessage(
-            'Login Failed', 'Invalid NIC or Password. Please try again.');
-      }
-    } catch (e) {
-      _showMessage('Error', 'An error occurred during login: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   void dispose() {
     _nicController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _showMessage(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Okay'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          )
+        ],
+      ),
+    );
+  }
+
+  
+  Future<void> _login() async {
+    print('🔵 Login started');
+    
+    
+    if (_nicController.text.trim().isEmpty || 
+        _passwordController.text.trim().isEmpty) {
+      _showMessage('Error', 'Please enter both NIC and Password.');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      print('📝 NIC entered: ${_nicController.text.trim()}');
+      
+     
+      print('🔍 Searching for user in Firestore...');
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('nic', isEqualTo: _nicController.text.trim().toUpperCase())
+          .limit(1)
+          .get();
+
+      print(' Query result: ${querySnapshot.docs.length} documents found');
+
+      if (querySnapshot.docs.isEmpty) {
+        print(' No user found with this NIC');
+        _showMessage('Login Failed', 'Invalid NIC or Password. Please try again.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      
+      final userDoc = querySnapshot.docs.first;
+      final userData = userDoc.data();
+      final email = userData['email'] as String;
+      final isActive = userData['isActive'] as bool? ?? false;
+      final userType = userData['userType'] as String?;
+
+      print(' User found!');
+      print(' Email: $email');
+      print(' isActive: $isActive');
+      print(' userType: $userType');
+
+      
+      if (!isActive) {
+        print(' User account is not active');
+        _showMessage(
+          'Account Not Active',
+          'Your account is not active. Please contact an administrator for activation.',
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Step 4: Authenticate with Firebase Auth using email and password
+      print(' Attempting Firebase Auth login...');
+      await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: _passwordController.text.trim(),
+      );
+
+      print(' Login successful!');
+
+      
+      if (!mounted) return;
+
+      Widget destination;
+      switch (userType) {
+        case 'Provincial Engineer':
+          destination = ProvincialEngDashboard(userData: userData);
+          break;
+        case 'Chief Engineer':
+          destination = ChiefEngDashboard(userData: userData);
+          break;
+        case 'District Engineer':
+          destination = DistrictEngDashboard(userData: userData);
+          break;
+        case 'Principal':
+          destination = PrincipalDashboard(userData: userData);
+          break;
+        case 'Technical Officer':
+          destination = TODashboard(userData: userData);
+          break;
+        default:
+          print(' Unknown user type: $userType');
+          _showMessage(
+            'Login Error',
+            'Could not determine user role. Please contact support.',
+          );
+          setState(() => _isLoading = false);
+          return;
+      }
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => destination),
+      );
+
+    } on FirebaseAuthException catch (e) {
+      print(' FirebaseAuthException: ${e.code}');
+      print(' Message: ${e.message}');
+
+      String errorMessage = 'Login Failed';
+      String errorDetails = '';
+
+      switch (e.code) {
+        case 'wrong-password':
+          errorDetails = 'Invalid NIC or Password. Please try again.';
+          break;
+        case 'user-not-found':
+          errorDetails = 'Invalid NIC or Password. Please try again.';
+          break;
+        case 'user-disabled':
+          errorDetails = 'This account has been disabled. Contact support.';
+          break;
+        case 'invalid-email':
+          errorDetails = 'Invalid account credentials. Please try again.';
+          break;
+        case 'network-request-failed':
+          errorDetails = 'Network error. Please check your internet connection.';
+          break;
+        case 'too-many-requests':
+          errorDetails = 'Too many failed attempts. Please try again later.';
+          break;
+        default:
+          errorDetails = e.message ?? 'An error occurred. Please try again.';
+      }
+
+      _showMessage(errorMessage, errorDetails);
+      
+    } catch (e) {
+      print(' General error: $e');
+      _showMessage('Error', 'An unexpected error occurred: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -187,8 +237,6 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
                 _buildPasswordField(),
                 const SizedBox(height: 12),
-
-                // [----- ADD THIS WIDGET -----]
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -206,8 +254,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-                // [-----------------------------]
-
                 const SizedBox(height: 20),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -239,8 +285,9 @@ class _LoginPageState extends State<LoginPage> {
                       child: const Text(
                         'Sign Up',
                         style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blueAccent),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueAccent,
+                        ),
                       ),
                     ),
                   ],
