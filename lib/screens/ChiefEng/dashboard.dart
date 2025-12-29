@@ -79,7 +79,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Welcome Card
+            
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -110,10 +110,10 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                     ),
                   ),
                   const SizedBox(width: 20),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Welcome !',
                         style: TextStyle(
                           fontSize: 24,
@@ -121,10 +121,10 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                           color: Colors.black,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Chief Engineer',
-                        style: TextStyle(
+                        "ChiefEng-: ${widget.userData['name'] ?? 'Chief Engineer'}",
+                        style: const TextStyle(
                           fontSize: 16,
                           color: Colors.grey,
                         ),
@@ -421,7 +421,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               _buildProfileCard(
                 icon: Icons.phone,
                 title: 'Phone',
-                value: widget.userData['phone'] ?? 'N/A',
+                value: widget.userData['mobilePhone'] ?? 'N/A',
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -1287,8 +1287,6 @@ class TechnicalOfficerDashboardCardStream extends StatelessWidget {
     );
   }
 }
-
-//todo:distric
 
 class DistrictEngineerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
