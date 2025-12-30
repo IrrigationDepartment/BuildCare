@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
-// Imports for dashboard logic and UI components
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
 import 'profile.dart'; 
 import 'settings.dart'; 
-import 'notifications.dart'; // නිවේදන පිටුව සඳහා නව import එක
+import 'notifications.dart'; 
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -31,7 +30,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   @override
   void initState() {
     super.initState();
-    // Get NIC from passed user data
     userNic = widget.userData['nic'] ?? 'No NIC Found';
     _fetchData(); 
   }
@@ -62,7 +60,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     }
   }
 
-  // Handle Bottom Navigation Clicks
   void _onItemTapped(int index) {
     if (index == 0) {
       setState(() => _selectedIndex = index);
@@ -70,16 +67,12 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     } else if (index == 1) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => const ProfilePage(),
-        ),
+        MaterialPageRoute(builder: (context) => const ProfilePage()),
       );
     } else if (index == 2) {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => const SettingsScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const SettingsScreen()),
       );
     } else {
       setState(() => _selectedIndex = index);
@@ -100,31 +93,33 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header සහ Notification Icon එක පෙන්වන Row එක
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Stack is used to place the icon in the header 
+                  Stack(
                     children: [
-                      Expanded(
-                        child: DashboardHeader(userData: widget.userData),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.notifications_outlined, 
-                          color: Colors.black87,
-                          size: 28,
+                      DashboardHeader(userData: widget.userData),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.notifications_active_outlined, 
+                            color: Colors.black87, 
+                            size: 26,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const NotificationPage(),
+                              ),
+                            );
+                          },
                         ),
-                        onPressed: () {
-                          // Notification Page එකට navigate වීම
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const NotificationPage(),
-                            ),
-                          );
-                        },
                       ),
                     ],
                   ),
+                  // -----------------------------------------------------------
+
                   const SizedBox(height: 24),
                   DashboardOverview(
                     isLoading: _isLoading,
