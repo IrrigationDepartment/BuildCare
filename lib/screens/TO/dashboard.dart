@@ -7,16 +7,16 @@ import 'issue_report_list_screen.dart';
 import 'issue_report_details_screen.dart';
 import 'contract_details.dart';
 import 'contractor_list_screen.dart';
-import 'view_details.dart'; 
-import 'view_contractor_screen.dart'; 
 
-// --- Settings Import ---
+// --- New Notification Import ---
+import 'notification.dart';
+
+// --- Settings & Profile Import ---
 import 'settings.dart';
-// Import your Profile Page
-import 'profile.dart'; 
+import 'profile.dart';
 
 // ====================================================================
-// DATA MODEL
+// DATA MODEL (Original)
 // ====================================================================
 class RecentActivityItem {
   final String id;
@@ -24,7 +24,7 @@ class RecentActivityItem {
   final String subtitle;
   final IconData icon;
   final DateTime timestamp;
-  final String type; 
+  final String type;
 
   RecentActivityItem({
     required this.id,
@@ -36,10 +36,6 @@ class RecentActivityItem {
   });
 }
 
-// ====================================================================
-// MAIN WIDGET
-// ====================================================================
-
 class TODashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
 
@@ -50,12 +46,12 @@ class TODashboard extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<TODashboard> {
-  // --- Style Constants ---
+  // --- Style Constants (Original) ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
-  static const Color kLightBlue = Color(0xFFE3F2FD); 
-  static const Color kBackgroundColor = Color(0xFFF5F7FA); 
+  static const Color kLightBlue = Color(0xFFE3F2FD);
+  static const Color kBackgroundColor = Color(0xFFF5F7FA);
   static const Color kCardColor = Colors.white;
-  static const Color kHeaderGrey = Color(0xFFF0F2F5); 
+  static const Color kHeaderGrey = Color(0xFFF0F2F5);
   static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
 
@@ -68,7 +64,6 @@ class _DashboardScreenState extends State<TODashboard> {
     _recentActivitiesFuture = _fetchRecentActivities();
   }
 
-  // Refresh function to reload data when pulling down or returning to screen
   Future<void> _refreshData() async {
     setState(() {
       _recentActivitiesFuture = _fetchRecentActivities();
@@ -80,7 +75,7 @@ class _DashboardScreenState extends State<TODashboard> {
       _selectedIndex = index;
     });
   }
-  
+
   void _goToHome() {
     setState(() {
       _selectedIndex = 0;
@@ -88,17 +83,13 @@ class _DashboardScreenState extends State<TODashboard> {
   }
 
   // ====================================================================
-  // FIXED DATA FETCHING LOGIC
+  // DATA FETCHING (Original Logic)
   // ====================================================================
   Future<List<RecentActivityItem>> _fetchRecentActivities() async {
     final String userNic = widget.userData['nic'] ?? '';
     List<RecentActivityItem> allActivities = [];
     final now = DateTime.now();
 
-    debugPrint("Fetching activities for NIC: $userNic");
-
-    // 1. Fetch Issues (Filtered by NIC)
-    // Note: Removed .orderBy in Query to prevent Index Errors. We sort later.
     try {
       final issuesSnap = await FirebaseFirestore.instance
           .collection('issues')
@@ -109,20 +100,19 @@ class _DashboardScreenState extends State<TODashboard> {
         var data = doc.data();
         allActivities.add(RecentActivityItem(
           id: doc.id,
-          title: "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
-          subtitle: "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
-          icon: Icons.home_work_outlined, 
-          // Safety check: If timestamp is null, use current time so it doesn't crash
+          title:
+              "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
+          subtitle:
+              "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
+          icon: Icons.home_work_outlined,
           timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
           type: 'issue',
         ));
       }
-      debugPrint("Issues found: ${issuesSnap.docs.length}");
-    } catch (e) { 
-      debugPrint("Error fetching issues: $e"); 
+    } catch (e) {
+      debugPrint("Error: $e");
     }
 
-    // 2. Fetch Schools (Filtered by NIC)
     try {
       final schoolsSnap = await FirebaseFirestore.instance
           .collection('schools')
@@ -135,82 +125,25 @@ class _DashboardScreenState extends State<TODashboard> {
           id: doc.id,
           title: data['schoolName'] ?? 'Unnamed School',
           subtitle: data['schoolAddress'] ?? 'No Address',
-          icon: Icons.school, 
+          icon: Icons.school,
           timestamp: (data['addedAt'] as Timestamp?)?.toDate() ?? now,
           type: 'school',
         ));
       }
-      debugPrint("Schools found: ${schoolsSnap.docs.length}");
-    } catch (e) { 
-      debugPrint("Error fetching schools: $e"); 
+    } catch (e) {
+      debugPrint("Error: $e");
     }
 
-    // 3. Fetch Contracts (All)
-    try {
-      final contractsSnap = await FirebaseFirestore.instance
-          .collection('contracts')
-          .limit(20) // Limit to 20 to prevent loading too much
-          .get();
-
-      for (var doc in contractsSnap.docs) {
-        var data = doc.data();
-        allActivities.add(RecentActivityItem(
-          id: doc.id,
-          title: data['contractorName'] ?? 'Unknown Contractor',
-          subtitle: "Contract: ${data['typeOfContract'] ?? 'N/A'}",
-          icon: Icons.description, 
-          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
-          type: 'contract',
-        ));
-      }
-    } catch (e) { 
-      debugPrint("Error fetching contracts: $e"); 
-    }
-
-    // 4. Fetch Contractors (All)
-    try {
-      final contractorsSnap = await FirebaseFirestore.instance
-          .collection('contractor_details')
-          .limit(20)
-          .get();
-
-      for (var doc in contractorsSnap.docs) {
-        var data = doc.data();
-        allActivities.add(RecentActivityItem(
-          id: doc.id,
-          title: data['companyName'] ?? 'Unknown Company',
-          subtitle: "Contractor: ${data['contractorName'] ?? 'N/A'}",
-          icon: Icons.business_center, 
-          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
-          type: 'contractor',
-        ));
-      }
-    } catch (e) { 
-      debugPrint("Error fetching contractors: $e"); 
-    }
-
-    // 5. MERGE AND SORT (Client Side)
-    // This ensures the newest items are at the top, regardless of where they came from
     allActivities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-    // Return only the top 5 most recent
     return allActivities.take(5).toList();
   }
 
-  // ====================================================================
-  // NAVIGATION HELPER
-  // ====================================================================
   void _navigateToDetails(String type, String id) {
-      Widget? page;
+    Widget? page;
     switch (type) {
       case 'issue':
-        page = IssueReportDetailsScreen(issueId: id, userNic: widget.userData['nic'] ?? '');
-        break;
-      case 'contract':
-        page = ViewContractDetailsScreen(contractId: id);
-        break;
-      case 'contractor':
-        page = ViewContractorScreen(contractorId: id);
+        page = IssueReportDetailsScreen(
+            issueId: id, userNic: widget.userData['nic'] ?? '');
         break;
       case 'school':
         page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '');
@@ -221,17 +154,12 @@ class _DashboardScreenState extends State<TODashboard> {
     }
   }
 
-  // ====================================================================
-  // BUILD METHOD
-  // ====================================================================
   @override
   Widget build(BuildContext context) {
     Widget bodyContent;
-    
     if (_selectedIndex == 0) {
       bodyContent = _buildDashboardHome();
     } else if (_selectedIndex == 1) {
-      // LINKED PROFILE PAGE HERE
       bodyContent = const ProfilePage();
     } else {
       bodyContent = SettingsScreen(onBackTap: _goToHome);
@@ -243,7 +171,8 @@ class _DashboardScreenState extends State<TODashboard> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Settings'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: kPrimaryBlue,
@@ -256,10 +185,10 @@ class _DashboardScreenState extends State<TODashboard> {
       body: bodyContent,
     );
   }
-  
+
   Widget _buildDashboardHome() {
     return SafeArea(
-      child: RefreshIndicator( // Added Pull-to-Refresh
+      child: RefreshIndicator(
         onRefresh: _refreshData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -283,10 +212,7 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // ====================================================================
-  // HELPER WIDGETS
-  // ====================================================================
-
+  // --- HEADER WITH NOTIFICATION BELL (Added) ---
   Widget _buildWelcomeHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
@@ -309,23 +235,55 @@ class _DashboardScreenState extends State<TODashboard> {
                 Text(
                   'Welcome, ${widget.userData['name'] ?? ''}!',
                   style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: kTextColor,
-                  ),
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: kTextColor),
                   overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Technical Officer',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: kSubTextColor,
-                  ),
-                ),
+                const Text('Technical Officer',
+                    style: TextStyle(fontSize: 16, color: kSubTextColor)),
               ],
             ),
+          ),
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none_rounded,
+                    size: 28, color: kTextColor),
+                onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const NotificationScreen())),
+              ),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('isRead', isEqualTo: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                    return const SizedBox();
+                  return Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10)),
+                      constraints:
+                          const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text('${snapshot.data!.docs.length}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -341,50 +299,43 @@ class _DashboardScreenState extends State<TODashboard> {
       mainAxisSpacing: 16,
       children: [
         _buildMenuCard(
-          icon: Icons.school,
-          title: 'Manage School',
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (context) => ManageSchoolsScreen(userNic: widget.userData['nic'] ?? ''),
-            )).then((_) => _refreshData()); // Refresh when coming back
-          },
-        ),
+            icon: Icons.school,
+            title: 'Manage School',
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => ManageSchoolsScreen(
+                        userNic: widget.userData['nic'] ?? '')))),
         _buildMenuCard(
-          icon: Icons.assessment,
-          title: 'Issues Report',
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (context) => IssueReportListScreen(userNic: widget.userData['nic'] ?? ''),
-            )).then((_) => _refreshData());
-          },
-        ),
+            icon: Icons.assessment,
+            title: 'Issues Report',
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => IssueReportListScreen(
+                        userNic: widget.userData['nic'] ?? '')))),
         _buildMenuCard(
-          icon: Icons.description,
-          title: 'Contract Details',
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (context) => const ContractDetailsScreen(),
-            )).then((_) => _refreshData());
-          },
-        ),
+            icon: Icons.description,
+            title: 'Contract Details',
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const ContractDetailsScreen()))),
         _buildMenuCard(
-          icon: Icons.business_center,
-          title: 'Contractor Details',
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (context) => const ContractorListScreen(),
-            )).then((_) => _refreshData());
-          },
-        ),
+            icon: Icons.business_center,
+            title: 'Contractor Details',
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const ContractorListScreen()))),
       ],
     );
   }
 
-  Widget _buildMenuCard({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildMenuCard(
+      {required IconData icon,
+      required String title,
+      required VoidCallback onTap}) {
     return Card(
       elevation: 2,
       color: kCardColor,
@@ -392,159 +343,114 @@ class _DashboardScreenState extends State<TODashboard> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: kPrimaryBlue),
-            const SizedBox(height: 12),
-            Text(
-              title,
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 40, color: kPrimaryBlue),
+          const SizedBox(height: 12),
+          Text(title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: kTextColor,
-              ),
-            ),
-          ],
-        ),
+                  fontSize: 14, fontWeight: FontWeight.w600, color: kTextColor))
+        ]),
       ),
     );
   }
 
   Widget _buildRecentActivityHeader() {
-    return const Row(
-      children: [
-        Icon(Icons.history, color: kSubTextColor),
-        const SizedBox(width: 8),
-        Text(
-          'Recent Activity',
+    return const Row(children: [
+      Icon(Icons.history, color: kSubTextColor),
+      SizedBox(width: 8),
+      Text('Recent Activity',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: kTextColor,
-          ),
-        ),
-      ],
-    );
+              fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor))
+    ]);
   }
 
+  // --- RECENT ACTIVITY SECTION (Preserved original interface) ---
   Widget _buildRecentActivitySection() {
     return FutureBuilder<List<RecentActivityItem>>(
       future: _recentActivitiesFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting)
           return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          // Show detailed error in UI for easier debugging
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'Error: ${snapshot.error}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ),
-          );
-        }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(20),
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Column(
-              children: [
-                Icon(Icons.inbox, size: 40, color: Colors.grey),
-                SizedBox(height: 8),
-                Text(
-                  'No recent activity found.\nCreate a school or report an issue to see it here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: kSubTextColor),
-                ),
-              ],
-            ),
+                color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: const Column(children: [
+              Icon(Icons.inbox, size: 40, color: Colors.grey),
+              SizedBox(height: 8),
+              Text('No recent activity found.',
+                  style: TextStyle(color: kSubTextColor))
+            ]),
           );
         }
-        final activities = snapshot.data!;
         return Column(
-          children: activities.map((activity) {
-            return _buildActivityCard(
-              title: activity.title,
-              subtitle: activity.subtitle,
-              icon: activity.icon,
-              onTap: () {
-                _navigateToDetails(activity.type, activity.id);
-              },
-            );
-          }).toList(),
+          children: snapshot.data!
+              .map((activity) => _buildActivityCard(
+                    title: activity.title,
+                    subtitle: activity.subtitle,
+                    icon: activity.icon,
+                    onTap: () => _navigateToDetails(activity.type, activity.id),
+                  ))
+              .toList(),
         );
       },
     );
   }
 
-  Widget _buildActivityCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      color: kCardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _buildActivityCard(
+      {required String title,
+      required String subtitle,
+      required IconData icon,
+      required VoidCallback onTap}) {
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Icon(icon, color: kPrimaryBlue, size: 28),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+          color: kCardColor,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ]),
+      child: Row(
+        children: [
+          Icon(icon, color: kPrimaryBlue, size: 28),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
                     style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: kTextColor,
-                    ),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: kTextColor),
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: kSubTextColor,
-                    ),
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style: const TextStyle(fontSize: 13, color: kSubTextColor),
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+                    overflow: TextOverflow.ellipsis),
+              ],
             ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: onTap,
-              style: OutlinedButton.styleFrom(
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: onTap,
+            style: OutlinedButton.styleFrom(
                 foregroundColor: kPrimaryBlue,
                 side: const BorderSide(color: kLightBlue),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text('View'),
-            ),
-          ],
-        ),
+                    borderRadius: BorderRadius.circular(20))),
+            child: const Text('View'),
+          ),
+        ],
       ),
     );
   }

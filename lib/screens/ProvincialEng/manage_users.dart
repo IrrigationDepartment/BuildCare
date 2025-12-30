@@ -18,7 +18,7 @@ class ManageUsersPage extends StatefulWidget {
 
 class _ManageUsersPageState extends State<ManageUsersPage> {
   // --- Dummy Data for Pending Approvals Section (Top List) ---
-  
+
   final List<Map<String, String>> pendingUsers = [
     {
       "name": "Pasidu Rajapaksha",
@@ -44,7 +44,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
   ];
 
   // --- Dummy Data for Lower Approvals Section (UserCard List) ---
- 
+
   final List<Map<String, dynamic>> lowerApprovalUsers = [
     {
       "name": "Nimal Bandara",
@@ -72,7 +72,8 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
           children: [
             // --- 1. Top Title Bar (Role Title) ---
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -130,7 +131,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                       // Padding(
                       //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       //   child: ListView.builder(
-                      //     physics: const NeverScrollableScrollPhysics(), 
+                      //     physics: const NeverScrollableScrollPhysics(),
                       //     shrinkWrap: true,
                       //     itemCount: pendingUsers.length,
                       //     itemBuilder: (context, index) {
@@ -143,24 +144,26 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                       // const SizedBox(height: 20),
                       // const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16),
                       // const SizedBox(height: 20),
-                      
+
                       /* ------------------------------------------------------------------
                        * --- START: General Pending User Approvals Section
                        * ------------------------------------------------------------------ */
-                      
+
                       // Back Button and Title for General Approvals
                       Padding(
-                        padding: const EdgeInsets.only(left: 4.0, right: 16.0, top: 20.0, bottom: 8.0),
+                        padding: const EdgeInsets.only(
+                            left: 4.0, right: 16.0, top: 20.0, bottom: 8.0),
                         child: Row(
                           children: [
                             // Back button
                             IconButton(
-                              icon: const Icon(Icons.arrow_back, color: Colors.black),
+                              icon: const Icon(Icons.arrow_back,
+                                  color: Colors.black),
                               onPressed: () => Navigator.pop(context),
                             ),
                             const SizedBox(width: 6),
                             const Text(
-                              'General Pending Approvals', 
+                              'General Pending Approvals',
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -169,14 +172,14 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                           ],
                         ),
                       ),
-                      
+
                       // UserCard Widgets (Bottom List)
                       ...lowerApprovalUsers.map((user) => UserCard(
                             userName: user['name'],
                             userRole: user['role'],
                             isApproved: user['isApproved'],
                           )),
-                      
+
                       const SizedBox(height: 20),
                       /* ------------------------------------------------------------------
                        * --- END: General Pending User Approvals Section
@@ -196,8 +199,9 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
   }
 
   // --- Helper Widgets (Kept as is) ---
-  
+
   // This helper is now only technically necessary if you uncomment the top list later.
+  // ignore: unused_element
   Widget _buildUserCard(Map<String, String> user) {
     return Card(
       elevation: 2,
@@ -239,7 +243,6 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
               ],
             ),
             const Divider(height: 24),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -275,7 +278,6 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
               ],
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
@@ -373,15 +375,15 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
         children: [
           IconButton(
             icon: const Icon(Icons.home, color: Colors.grey, size: 30),
-            onPressed: () { /* Home action */ },
+            onPressed: () {/* Home action */},
           ),
           IconButton(
             icon: Icon(Icons.person, color: Colors.blue[700], size: 30),
-            onPressed: () { /* Person action */ },
+            onPressed: () {/* Person action */},
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.grey, size: 30),
-            onPressed: () { /* Settings action */ },
+            onPressed: () {/* Settings action */},
           ),
         ],
       ),
@@ -431,7 +433,8 @@ class UserCard extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  const Icon(Icons.account_circle, size: 40, color: Colors.blueGrey),
+                  const Icon(Icons.account_circle,
+                      size: 40, color: Colors.blueGrey),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -439,12 +442,14 @@ class UserCard extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           userName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           userRole,
-                          style: const TextStyle(fontSize: 14, color: Colors.black54),
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.black54),
                         ),
                       ],
                     ),
@@ -463,7 +468,8 @@ class UserCard extends StatelessWidget {
                   _ActionButton(
                     text: 'View',
                     color: Colors.blue,
-                    onPressed: () => _navigateToBlankPage(context, 'View Details'),
+                    onPressed: () =>
+                        _navigateToBlankPage(context, 'View Details'),
                   ),
                   _ActionButton(
                     text: 'Edit',
@@ -474,7 +480,8 @@ class UserCard extends StatelessWidget {
                     _ActionButton(
                       text: 'Approve',
                       color: Colors.green,
-                      onPressed: () => _navigateToBlankPage(context, 'Approve User'),
+                      onPressed: () =>
+                          _navigateToBlankPage(context, 'Approve User'),
                     ),
                 ],
               ),
@@ -509,8 +516,10 @@ class _ActionButton extends StatelessWidget {
             backgroundColor: color,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle:
+                const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             elevation: 1,
           ),
           child: Text(text),
@@ -527,7 +536,8 @@ class BlankActionPage extends StatelessWidget {
   final String action;
   final String target;
 
-  const BlankActionPage({super.key, required this.action, required this.target});
+  const BlankActionPage(
+      {super.key, required this.action, required this.target});
 
   @override
   Widget build(BuildContext context) {

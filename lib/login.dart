@@ -96,14 +96,12 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       // --- 3. SIGN IN WITH FIREBASE AUTH ---
-      UserCredential userCredential;
       try {
-        userCredential =
-            await FirebaseAuth.instance.signInWithEmailAndPassword(
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: _passwordController.text.trim(),
         );
-      } on FirebaseAuthException catch (e) {
+      } on FirebaseAuthException {
         // This catches wrong password, user-not-found (which shouldn't happen here), etc.
         _showMessage(
             'Login Failed', 'Invalid NIC or Password. Please try again.');
@@ -112,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       // --- 4. AUTH SUCCEEDED, NOW CHECK FIRESTORE FOR 'isActive' ---
-      
+
       // We can re-use the userData we fetched earlier
       final bool isActive = userData['isActive'] as bool? ?? false;
       final userType = userData['userType'] as String?;
@@ -125,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
           'nic': loggedInNic, // Ensure NIC is passed
           'uid': uid, // Pass the user's ID
         };
-        
+
         Widget destination;
         switch (userType) {
           case 'Provincial Engineer':
@@ -161,13 +159,11 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         // --- User is not active, show error ---
-        _showMessage(
-            'Login Failed',
+        _showMessage('Login Failed',
             'Your account is not active. Please contact an administrator.');
         // Sign the user out again, as they are not allowed in
         await FirebaseAuth.instance.signOut();
       }
-
     } catch (e) {
       _showMessage('Error', 'An unexpected error occurred: $e');
     } finally {

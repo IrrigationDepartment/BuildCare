@@ -6,9 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 // --- Imports ---
-// ForgotPasswordFlow lives in lib/screens/, so reference one level up
-import '../forgot_password_flow.dart';
-import 'dashboard.dart'; // Required to navigate back to TODashboard
+import 'dashboard.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -21,17 +19,12 @@ class _ProfilePageState extends State<ProfilePage> {
   final User? currentUser = FirebaseAuth.instance.currentUser;
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
 
-  // State variables
   String? _profileImageUrl;
   String? _email;
   String? _userType;
-  String? _officePhone;
-
-  // We need to store the full data map to pass it back to the Dashboard
   Map<String, dynamic>? _userDataMap;
 
   bool _isLoading = true;
@@ -50,10 +43,8 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  /// Fetches user document from Firestore: users/{uid}
   Future<void> _fetchUserData() async {
     if (currentUser == null) return;
-
     try {
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -63,16 +54,13 @@ class _ProfilePageState extends State<ProfilePage> {
       if (userDoc.exists) {
         Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
         setState(() {
-          // Store the full map for navigation
           _userDataMap = data;
-
-          // Populate UI fields
           _nameController.text = data['name'] ?? '';
           _mobileController.text = data['mobilePhone'] ?? '';
           _profileImageUrl = data['profile_image'];
           _email = data['email'];
           _userType = data['userType'];
-          _officePhone = data['officePhone'];
+
           _isLoading = false;
         });
       }
@@ -84,7 +72,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Pick image from gallery and upload
+  /// FIXED: Profile Picture Update function using your custom URL
   Future<void> _updateProfilePicture() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -94,54 +82,60 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isUpdating = true);
 
     try {
-      // Replace with your actual upload API endpoint
-      var uri = Uri.parse('https://your-server.com/api/upload');
+      var uri = Uri.parse('http://buildcare.atigalle.x10.mx/profile/TO');
 
       var request = http.MultipartRequest('POST', uri);
-      request.files.add(await http.MultipartFile.fromPath('file', image.path));
+
+      final byteData = await image.readAsBytes();
+
+      var multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        byteData,
+        filename: image.name,
+      );
+
+      request.files.add(multipartFile);
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
-        String downloadUrl = jsonResponse['url'];
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(currentUser!.uid)
-            .update({'profile_image': downloadUrl});
+        String downloadUrl = jsonResponse['url'] ?? '';
 
-        // Update local state and the main data map
-        setState(() {
-          _profileImageUrl = downloadUrl;
-          if (_userDataMap != null) {
-            _userDataMap!['profile_image'] = downloadUrl;
-          }
-          _isUpdating = false;
-        });
+        if (downloadUrl.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser!.uid)
+              .update({'profile_image': downloadUrl});
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile picture updated!')),
-        );
+          setState(() {
+            _profileImageUrl = downloadUrl;
+            if (_userDataMap != null) {
+              _userDataMap!['profile_image'] = downloadUrl;
+            }
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile picture updated!')),
+          );
+        }
       } else {
-        throw Exception('Server upload failed: ${response.statusCode}');
+        throw Exception('Server error: ${response.statusCode}');
       }
     } catch (e) {
-      setState(() => _isUpdating = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to upload image: $e')),
       );
+    } finally {
+      setState(() => _isUpdating = false);
     }
   }
 
-  /// Update Name and Mobile Phone in Firestore
   Future<void> _updateProfileData() async {
     if (!_formKey.currentState!.validate()) return;
-    if (currentUser == null) return;
-
     setState(() => _isUpdating = true);
-
     try {
       await FirebaseFirestore.instance
           .collection('users')
@@ -151,22 +145,20 @@ class _ProfilePageState extends State<ProfilePage> {
         'mobilePhone': _mobileController.text.trim(),
       });
 
-      // Update the local data map so the dashboard gets the new name immediately
       if (_userDataMap != null) {
         _userDataMap!['name'] = _nameController.text.trim();
         _userDataMap!['mobilePhone'] = _mobileController.text.trim();
       }
 
-      setState(() => _isUpdating = false);
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully!')),
       );
     } catch (e) {
-      setState(() => _isUpdating = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating profile: $e')),
       );
+    } finally {
+      setState(() => _isUpdating = false);
     }
   }
 
@@ -180,25 +172,19 @@ class _ProfilePageState extends State<ProfilePage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.blue),
           onPressed: () {
-            // --- Navigation Logic ---
             if (_userDataMap != null) {
-              // If we have data, restart the Dashboard with it
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => TODashboard(userData: _userDataMap!),
-                ),
+                    builder: (context) => TODashboard(userData: _userDataMap!)),
               );
             } else {
-              // Fallback if data hasn't loaded yet (rare)
               Navigator.of(context).pop();
             }
           },
         ),
-        title: const Text(
-          'Edit Profile',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Edit Profile',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: _isLoading
@@ -208,9 +194,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- Profile Image Section ---
                     Center(
                       child: Stack(
                         children: [
@@ -224,8 +208,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                       _profileImageUrl!.isNotEmpty
                                   ? DecorationImage(
                                       image: NetworkImage(_profileImageUrl!),
-                                      fit: BoxFit.cover,
-                                    )
+                                      fit: BoxFit.cover)
                                   : null,
                             ),
                             child: _profileImageUrl == null ||
@@ -238,15 +221,21 @@ class _ProfilePageState extends State<ProfilePage> {
                             bottom: 0,
                             right: 0,
                             child: InkWell(
-                              onTap: _updateProfilePicture,
+                              onTap: _isUpdating ? null : _updateProfilePicture,
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: const BoxDecoration(
-                                  color: Colors.black,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.camera_alt,
-                                    color: Colors.white, size: 20),
+                                    color: Colors.black,
+                                    shape: BoxShape.circle),
+                                child: _isUpdating
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2))
+                                    : const Icon(Icons.camera_alt,
+                                        color: Colors.white, size: 20),
                               ),
                             ),
                           ),
@@ -254,78 +243,23 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 30),
-
-                    // --- Personal Information ---
-                    const Text(
-                      'Personal Information',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 15),
                     _buildTextField(
-                      controller: _nameController,
-                      label: 'Full name',
-                      icon: Icons.person_outline,
-                    ),
+                        controller: _nameController,
+                        label: 'Full name',
+                        icon: Icons.person_outline),
                     const SizedBox(height: 10),
                     _buildReadOnlyField(
-                      label: 'Title',
-                      value: _userType ?? 'N/A',
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // --- Contact Information ---
-                    const Text(
-                      'Contact Information',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 15),
+                        label: 'Title', value: _userType ?? 'N/A'),
+                    const SizedBox(height: 10),
                     _buildReadOnlyField(
-                      label: 'Work Email',
-                      value: _email ?? 'N/A',
-                    ),
+                        label: 'Work Email', value: _email ?? 'N/A'),
                     const SizedBox(height: 10),
                     _buildTextField(
-                      controller: _mobileController,
-                      label: 'Mobile Phone',
-                      icon: Icons.phone_android,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 10),
-                    _buildReadOnlyField(
-                      label: 'Office Phone',
-                      value: _officePhone ?? 'N/A',
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // --- Account Setting ---
-                    const Text(
-                      'Account Setting',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 10),
-
-                    _buildSettingsTile(
-                        title: 'Change password',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ForgotPasswordFlow(),
-                            ),
-                          );
-                        }),
-
-                    _buildSettingsTile(
-                        title: 'Manage Notifications', onTap: () {}),
-
+                        controller: _mobileController,
+                        label: 'Mobile Phone',
+                        icon: Icons.phone_android,
+                        keyboardType: TextInputType.phone),
                     const SizedBox(height: 40),
-
-                    // --- Update Button ---
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -334,24 +268,16 @@ class _ProfilePageState extends State<ProfilePage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue[400],
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          elevation: 2,
+                              borderRadius: BorderRadius.circular(30)),
                         ),
                         child: _isUpdating
                             ? const CircularProgressIndicator(
                                 color: Colors.white)
-                            : const Text(
-                                'Update Profile',
+                            : const Text('Update Profile',
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                                    color: Colors.white, fontSize: 18)),
                       ),
                     ),
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -359,74 +285,43 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Helper widget for editable text fields
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    IconData? icon,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
+  Widget _buildTextField(
+      {required TextEditingController controller,
+      required String label,
+      IconData? icon,
+      TextInputType keyboardType = TextInputType.text}) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 5,
-              spreadRadius: 1),
-        ],
-      ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 5)
+          ]),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
         decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: icon != null ? Icon(icon, color: Colors.grey) : null,
-          border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        ),
-        validator: (value) => value!.isEmpty ? 'Please enter $label' : null,
+            labelText: label,
+            prefixIcon: Icon(icon),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.all(15)),
       ),
     );
   }
 
-  // Helper widget for read-only fields
   Widget _buildReadOnlyField({required String label, required String value}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(height: 5),
-          Text(value,
-              style: const TextStyle(color: Colors.black87, fontSize: 16)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsTile(
-      {required String title, required VoidCallback onTap}) {
-    return Container(
       margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        title: Text(title, style: const TextStyle(color: Colors.black54)),
-        trailing:
-            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-        onTap: onTap,
-      ),
+          color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        Text(value,
+            style: const TextStyle(color: Colors.black87, fontSize: 16)),
+      ]),
     );
   }
 }
