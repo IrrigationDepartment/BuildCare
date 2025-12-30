@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-// Import your school details page
-import 'school_details_page.dart'; 
+
+// --- Destination Imports ---
+import 'school_details_page.dart';
+import 'issue_report_details_screen.dart';
+import 'view_details.dart'; // Contains ViewContractDetailsScreen
+import 'view_contractor_screen.dart'; // Contains ViewContractorScreen
 
 class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
@@ -36,7 +40,6 @@ class NotificationScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // Fetch notifications ordered by latest first
         stream: FirebaseFirestore.instance
             .collection('notifications')
             .orderBy('timestamp', descending: true)
@@ -56,7 +59,14 @@ class NotificationScreen extends StatelessWidget {
               var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
               String docId = snapshot.data!.docs[index].id;
               bool isRead = data['isRead'] ?? false;
+              
+              // Extract routing metadata
+              String? type = data['type']; 
               String? schoolId = data['schoolId'];
+              String? issueId = data['issueId'];
+              String? contractId = data['contractId'];
+              String? contractorId = data['contractorId'];
+              String userNic = data['addedByNic'] ?? '';
 
               return Container(
                 decoration: BoxDecoration(
@@ -67,7 +77,7 @@ class NotificationScreen extends StatelessWidget {
                   leading: CircleAvatar(
                     backgroundColor: isRead ? Colors.grey[200] : kPrimaryBlue.withOpacity(0.1),
                     child: Icon(
-                      Icons.school_rounded,
+                      _getIconForType(type),
                       color: isRead ? Colors.grey : kPrimaryBlue,
                     ),
                   ),
@@ -99,17 +109,47 @@ class NotificationScreen extends StatelessWidget {
                         .doc(docId)
                         .update({'isRead': true});
 
-                    // 2. Navigate to SchoolDetailsPage with the linked schoolId
-                    if (schoolId != null && context.mounted) {
+                    if (!context.mounted) return;
+
+                    // 2. Intelligent Routing based on 'type'
+                    if (type == 'issue' && issueId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => IssueReportDetailsScreen(
+                            issueId: issueId,
+                            userNic: userNic,
+                          ),
+                        ),
+                      );
+                    } else if (type == 'contract' && contractId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ViewContractDetailsScreen(
+                            contractId: contractId,
+                          ),
+                        ),
+                      );
+                    } else if (type == 'contractor' && contractorId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ViewContractorScreen(
+                            contractorId: contractorId,
+                          ),
+                        ),
+                      );
+                    } else if (type == 'school' && schoolId != null) {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => SchoolDetailsPage(schoolId: schoolId),
                         ),
                       );
-                    } else if (context.mounted) {
+                    } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("No linked school details found.")),
+                        const SnackBar(content: Text("Error: Link destination not found.")),
                       );
                     }
                   },
@@ -125,14 +165,30 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  // --- Helper: Format Firestore Timestamp ---
-  String _formatTimestamp(dynamic timestamp) {
-    if (timestamp == null) return '';
-    DateTime date = (timestamp as Timestamp).toDate();
-    return DateFormat.yMMMd().add_jm().format(date);
+  // Helper to pick icons based on context
+  IconData _getIconForType(String? type) {
+    switch (type) {
+      case 'issue':
+        return Icons.report_problem_rounded;
+      case 'contract':
+        return Icons.assignment_rounded;
+      case 'contractor':
+        return Icons.business_center_rounded;
+      case 'school':
+      default:
+        return Icons.school_rounded;
+    }
   }
 
-  // --- Helper: UI for empty notifications ---
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return '';
+    if (timestamp is Timestamp) {
+      DateTime date = timestamp.toDate();
+      return DateFormat.yMMMd().add_jm().format(date);
+    }
+    return '';
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -140,16 +196,12 @@ class NotificationScreen extends StatelessWidget {
         children: [
           Icon(Icons.notifications_none_rounded, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          const Text(
-            'No notifications yet',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-          ),
+          const Text('No notifications yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
         ],
       ),
     );
   }
 
-  // --- Helper: Bulk update isRead status ---
   Future<void> _markAllAsRead() async {
     final batch = FirebaseFirestore.instance.batch();
     final query = await FirebaseFirestore.instance

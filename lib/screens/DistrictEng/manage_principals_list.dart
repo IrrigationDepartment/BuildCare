@@ -1,5 +1,4 @@
 import 'dart:convert'; // For JSON decoding
-import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,7 +17,6 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
   static const Color _bgLight = Color(0xFFF3F4F6);
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _textDark = Color(0xFF1F2937);
-  static const Color _textLight = Color(0xFF6B7280);
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
@@ -187,7 +185,6 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
             ),
             const SizedBox(height: 16),
             const Divider(height: 1),
-            
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -330,16 +327,17 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
       // Ensure your server address is correct
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://buildcare.atigalle.x10.mx/index.php'), 
+        Uri.parse('https://buildcare.atigalle.x10.mx/index.php'),
       );
 
-      // 3. Add File 
+      // 3. Add File
       // Field name 'profile_image' triggers logic in PHP
       request.files.add(
         http.MultipartFile.fromBytes(
-          'profile_image', 
+          'profile_image',
           bytes,
-          filename: 'upload.jpg', // PHP ignores this and generates a unique name
+          filename:
+              'upload.jpg', // PHP ignores this and generates a unique name
         ),
       );
 
@@ -351,9 +349,9 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
         // Try to parse JSON
         Map<String, dynamic> jsonResponse;
         try {
-             jsonResponse = jsonDecode(response.body);
+          jsonResponse = jsonDecode(response.body);
         } catch (e) {
-             throw Exception("Invalid JSON from server: ${response.body}");
+          throw Exception("Invalid JSON from server: ${response.body}");
         }
 
         if (jsonResponse['status'] == 'success') {
@@ -366,7 +364,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
               .doc(widget.docId)
               .update({'profile_image': newImageUrl});
 
-          _refreshData(); 
+          _refreshData();
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -522,19 +520,20 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
                 _buildInfoRow(Icons.map_outlined, "Region/Zone", region),
               ],
             ),
-            
+
             const SizedBox(height: 30),
-            
+
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                   backgroundColor: const Color(0xFF1E88E5),
-                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
-                ),
+                    backgroundColor: const Color(0xFF1E88E5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
                 onPressed: () => _showEditDialog(context),
-                child: const Text("Edit Profile Details", style: TextStyle(fontSize: 16)),
+                child: const Text("Edit Profile Details",
+                    style: TextStyle(fontSize: 16)),
               ),
             )
           ],
@@ -557,7 +556,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
   Widget _buildInfoContainer({required List<Widget> children}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA), 
+        color: const Color(0xFFF8F9FA),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(children: children),
@@ -612,7 +611,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
                   controller: nameCtrl,
                   decoration: const InputDecoration(labelText: "Full Name")),
               const SizedBox(height: 10),
-              
+
               // NIC LOCKED
               TextField(
                   controller: nicCtrl,
@@ -628,7 +627,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
               TextField(
                   controller: regionCtrl,
                   enabled: false, // LOCKED
-                  style: TextStyle(color: Colors.grey.shade600), 
+                  style: TextStyle(color: Colors.grey.shade600),
                   decoration: InputDecoration(
                       labelText: "Region/Zone (Cannot Edit)",
                       filled: true,
@@ -666,7 +665,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
                 });
                 if (mounted) {
                   Navigator.pop(context);
-                  _refreshData(); 
+                  _refreshData();
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Profile Updated")));
                 }
