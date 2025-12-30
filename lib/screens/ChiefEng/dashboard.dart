@@ -79,64 +79,126 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF64B5F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Welcome !',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "ChiefEng-: ${widget.userData['name'] ?? 'Chief Engineer'}",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
+            Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: 2,
                       ),
                     ],
                   ),
-                ],
-              ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF64B5F6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Welcome !',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "ChiefEng-: ${widget.userData['name'] ?? 'Chief Engineer'}",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 5,
+                  right: 5,
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('notifications')
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      int count = 0;
+                      if (snapshot.hasData) {
+                        count = snapshot.data!.docs.length;
+                      }
+                      return Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.notifications,
+                              color: Color(0xFF64B5F6),
+                              size: 32,
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const NotificationsPage(),
+                                ),
+                              );
+                            },
+                          ),
+                          if (count > 0)
+                            Positioned(
+                              right: 3,
+                              top: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-
             const SizedBox(height: 20),
-
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -168,7 +230,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
             RecentActivitySection(),
             const SizedBox(height: 20),
@@ -240,9 +301,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
             _buildActionButton(
               'View District Engineer Details',
               Icons.engineering,
@@ -1361,6 +1420,61 @@ class DistrictEngineerDashboardCardStream extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+//notification page
+class NotificationsPage extends StatelessWidget {
+  const NotificationsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        backgroundColor: const Color(0xFF64B5F6),
+        foregroundColor: Colors.white,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('notifications')
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('Error loading notifications'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No notifications'));
+          }
+
+          return ListView(
+            children: snapshot.data!.docs.map((doc) {
+              var data = doc.data() as Map<String, dynamic>;
+
+              return ListTile(
+                leading: const Icon(Icons.notifications),
+                title: Text(data['title'] ?? 'No Title'),
+                subtitle: Text(data['message'] ?? ''),
+                trailing: Text(
+                  data['timestamp'] != null
+                      ? (data['timestamp'] as Timestamp).toDate().toString()
+                      : '',
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+                onTap: () async {
+                  // mark as seen when tapped
+                  await FirebaseFirestore.instance
+                      .collection('notifications')
+                      .doc(doc.id)
+                      .update({'seen': true});
+                },
+              );
+            }).toList(),
+          );
+        },
       ),
     );
   }
