@@ -1,26 +1,20 @@
-import 'dart:convert'; // For jsonDecode
-import 'package:flutter/foundation.dart'; // For debugPrint, Uint8List
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart'; // For XFile
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart'; // For Uint8List, though imported via foundation above, good for clarity
-
-// --- REMOVED dart:io as we use XFile/Uint8List for cross-platform support ---
+import 'package:flutter/services.dart';
 
 class AddBuildingIssuesPage extends StatefulWidget {
-  // Added userNic parameter, consistent with add_issue_screen.dart
   final String userNic;
-  // Optional parameters for editing
   final String? issueId;
-  final Map<String, dynamic>? issueData;
 
   const AddBuildingIssuesPage({
     super.key,
     required this.userNic,
     this.issueId,
-    this.issueData,
   });
 
   @override
@@ -30,6 +24,7 @@ class AddBuildingIssuesPage extends StatefulWidget {
 class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   final _formKey = GlobalKey<FormState>();
 
+  // --- UI Controllers ---
   final TextEditingController _schoolNameController = TextEditingController();
   final TextEditingController _floorsController = TextEditingController();
   final TextEditingController _classroomsController = TextEditingController();
@@ -40,71 +35,38 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   String? _selectedDamageType;
   DateTime? _selectedDate;
 
-  // Switched to XFile for cross-platform image handling
-  final List<XFile> _selectedNewImages =
-      []; //  Renamed for clarity: new images picked
-  final List<String> _existingImageUrls =
-      []; //  NEW: For images already in Firebase
+  // Logic flags
+  bool get _isEditMode => widget.issueId != null;
+  bool _isLoading = false;
+  bool _isPageLoading = false;
+
+  // Image Management
+  final List<XFile> _selectedImages = [];
+  List<String> _existingImageUrls = [];
   final ImagePicker _picker = ImagePicker();
 
-  bool _isLoading = false; // Added loading state
-
+  // Color Palette
   static const Color _primaryColor = Color(0xFF53BDFF);
   static const Color _textFieldBackgroundColor = Color(0xFFF3F3F3);
 
+  // Dropdown Options
   final List<String> _buildingTypes = [
-    'Academic Classroom',
-    'Office',
-    'Science Lab',
-    'Technology Lab',
-    'Library',
-    'Hostel',
-    'Computer Lab',
-    'Dahampasala Lab',
-    'Store Room',
-    'Auditorium',
-    'Main Hall',
-    'Changing Room',
-    'Security Room',
-    'Wash Room',
-    'Boundary Wall'
+    'Academic Classroom', 'Office', 'Science Lab', 'Technology Lab', 'Library',
+    'Hostel', 'Computer Lab', 'Dahampasala Lab', 'Store Room', 'Auditorium',
+    'Main Hall', 'Changing Room', 'Security Room', 'Wash Room', 'Boundary Wall'
   ];
 
   final List<String> _damageTypes = [
-    'Foundation & Wall Damage',
-    'Roofing Damage',
-    'Utility Damage (Electricity/Water)',
-    'Floor Damage',
-    'Plumbing/Draining Structural Issue',
-    'Windows/Doors Frame Damage',
+    'Foundation & Wall Damage', 'Roofing Damage', 'Utility Damage (Electricity/Water)',
+    'Floor Damage', 'Plumbing/Draining Structural Issue', 'Windows/Doors Frame Damage',
     'Staircase & Corridor Damage'
   ];
 
   @override
   void initState() {
     super.initState();
-    // If editing, populate the fields with existing data
-    if (widget.issueId != null && widget.issueData != null) {
-      _schoolNameController.text = widget.issueData!['schoolName'] ?? '';
-      _floorsController.text = (widget.issueData!['numFloors'] ?? 0).toString();
-      _classroomsController.text =
-          (widget.issueData!['numClassrooms'] ?? 0).toString();
-      _descriptionController.text = widget.issueData!['description'] ?? '';
-      _selectedBuilding = widget.issueData!['buildingName'];
-      _selectedDamageType = widget.issueData!['damageType'];
-
-      // Handle date
-      if (widget.issueData!['dateOfOccurance'] != null) {
-        final Timestamp timestamp = widget.issueData!['dateOfOccurance'];
-        _selectedDate = timestamp.toDate();
-        _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate!);
-      }
-
-      // Populate existing image URLs
-      if (widget.issueData!['imageUrls'] is List) {
-        _existingImageUrls
-            .addAll(List<String>.from(widget.issueData!['imageUrls']));
-      }
+    if (_isEditMode) {
+      _loadIssueData();
     }
   }
 
@@ -118,205 +80,160 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     super.dispose();
   }
 
-  // --- Image Picker Function (MODIFIED for multi-select) ---
+  // --- Fetch existing data if in Edit Mode ---
+  Future<void> _loadIssueData() async {
+    setState(() => _isPageLoading = true);
+    try {
+      final doc = await FirebaseFirestore.instance.collection('issues').doc(widget.issueId!).get();
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        _schoolNameController.text = data['schoolName'] ?? '';
+        _floorsController.text = data['numFloors']?.toString() ?? '';
+        _classroomsController.text = data['numClassrooms']?.toString() ?? '';
+        _descriptionController.text = data['description'] ?? '';
+        _selectedBuilding = data['buildingName'];
+        _selectedDamageType = data['damageType'];
+        if (data['dateOfOccurance'] != null) {
+          _selectedDate = (data['dateOfOccurance'] as Timestamp).toDate();
+          _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate!);
+        }
+        _existingImageUrls = List<String>.from(data['imageUrls'] ?? []);
+      }
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+    } finally {
+      if (mounted) setState(() => _isPageLoading = false);
+    }
+  }
+
+  // --- Image Handling Logic ---
   Future<void> _pickImages() async {
-    // Allows picking multiple images
-    final List<XFile> pickedFiles =
-        await _picker.pickMultiImage(imageQuality: 70);
+    final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 70);
     if (pickedFiles.isNotEmpty) {
-      setState(() {
-        _selectedNewImages.addAll(pickedFiles); // Add to new images list
-      });
+      setState(() => _selectedImages.addAll(pickedFiles));
     }
   }
 
-  // --- Image Remover Function for NEWLY selected images ---
-  void _removeNewImage(int index) {
-    setState(() {
-      _selectedNewImages.removeAt(index);
-    });
-  }
+  void _removeNewImage(int index) => setState(() => _selectedImages.removeAt(index));
+  void _removeExistingImage(int index) => setState(() => _existingImageUrls.removeAt(index));
 
-  //  NEW: Image Remover Function for EXISTING network images ---
-  void _removeExistingImage(int index) {
-    setState(() {
-      _existingImageUrls.removeAt(index);
-    });
-    // NOTE: The actual deletion from storage (e.g., Firebase Storage)
-    // would typically happen when you save/update the issue, not immediately here,
-    // to allow the user to cancel changes. For now, it just removes from the list.
-  }
-
-  // --- 1. Upload Images to Server Function (Copied from add_issue_screen.dart) ---
-  Future<List<String>> _uploadNewImages() async {
-    //  Renamed to reflect it uploads NEW images
-    if (_selectedNewImages.isEmpty) {
-      return [];
-    }
-
-    // --- REPLACE WITH YOUR NEW LINK ---
+  // --- Upload images to External PHP Hosting ---
+  Future<List<String>> _uploadImages() async {
+    if (_selectedImages.isEmpty) return [];
     var uri = Uri.parse("https://buildcare.atigalle.x10.mx/index.php");
     var request = http.MultipartRequest("POST", uri);
 
-    for (var imageFile in _selectedNewImages) {
+    for (var imageFile in _selectedImages) {
       var fileBytes = await imageFile.readAsBytes();
-      var file = http.MultipartFile.fromBytes(
-        'images[]', // This key 'images[]' MUST match the PHP script
-        fileBytes,
-        filename: imageFile.name,
-      );
-      request.files.add(file);
+      request.files.add(http.MultipartFile.fromBytes('images[]', fileBytes, filename: imageFile.name));
     }
-
     try {
       var response = await request.send();
-
       if (response.statusCode == 200) {
         var responseBody = await response.stream.bytesToString();
         var decodedResponse = jsonDecode(responseBody);
-
-        if (decodedResponse['status'] == 'success') {
-          List<String> imageUrls =
-              List<String>.from(decodedResponse['imageUrls']);
-          return imageUrls;
-        } else {
-          debugPrint('Server error: ${decodedResponse['message']}');
-          return [];
-        }
-      } else {
-        debugPrint('HTTP error: ${response.statusCode}');
-        return [];
+        return decodedResponse['status'] == 'success' ? List<String>.from(decodedResponse['imageUrls']) : [];
       }
+      return [];
     } catch (e) {
-      debugPrint('An error occurred during upload: $e');
       return [];
     }
   }
 
-  // --- 2. Main Save Function (UPDATED to support editing) ---
-  Future<void> _saveIssue() async {
-    // 1. Validation
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-    if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please select a date of occurance.'),
-            backgroundColor: Colors.red),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Step 1: Upload NEW images (only if new images are selected)
-      List<String> newlyUploadedImageUrls = [];
-      if (_selectedNewImages.isNotEmpty) {
-        newlyUploadedImageUrls = await _uploadNewImages();
-        if (newlyUploadedImageUrls.isEmpty && _selectedNewImages.isNotEmpty) {
-          // Only throw if there were new images but none uploaded successfully
-          throw Exception(
-              'Failed to upload new images. Please check server connection.');
-        }
-      }
-
-      //  Combine existing and newly uploaded image URLs
-      List<String> allImageUrls =
-          List.from(_existingImageUrls); // Start with existing
-      allImageUrls.addAll(newlyUploadedImageUrls); // Add newly uploaded
-
-      // Step 2: Prepare Data
-      final issueData = {
-        'schoolName': _schoolNameController.text.trim(),
-        'buildingName': _selectedBuilding, // From Dropdown
-        'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
-        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
-        'damageType': _selectedDamageType, // From Dropdown
-        'issueTitle':
-            '$_selectedBuilding - $_selectedDamageType', // Generated Title
-        'description': _descriptionController.text.trim(),
-        'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
-        'addedByNic': widget.userNic,
-        'timestamp': FieldValue.serverTimestamp(), // Update timestamp on save
-        'imageUrls': allImageUrls, //  Save ALL current image URLs
-      };
-
-      // If editing, preserve status; if creating new, set to Pending
-      if (widget.issueId == null) {
-        issueData['status'] = 'Pending'; // Default status for new issues
-      } else {
-        // When editing, keep the original status unless changed by an admin later
-        issueData['status'] = widget.issueData!['status'] ?? 'Pending';
-      }
-
-      // Step 3: Save or Update to 'issues' collection
-      if (widget.issueId != null) {
-        // UPDATE existing issue
-        await FirebaseFirestore.instance
-            .collection('issues')
-            .doc(widget.issueId)
-            .update(issueData);
-      } else {
-        // CREATE new issue
-        await FirebaseFirestore.instance.collection('issues').add(issueData);
-      }
-
-      // Step 4: Success
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.issueId != null
-                ? 'Issue Updated Successfully!'
-                : 'Building Issue Reported Successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        //  Pass true back to indicate a change, prompting dashboard to refresh
-        Navigator.of(context).pop(true);
-      }
-    } catch (e) {
-      // Step 5: Error
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.issueId != null
-                ? 'Failed to update issue: $e'
-                : 'Failed to report issue: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      // Step 6: Reset loading state
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  // --- Form Submission Logic ---
+  Future<void> _handleSubmit() async {
+    if (_isEditMode) {
+      await _updateIssue();
+    } else {
+      await _addNewIssue();
     }
   }
 
-  // Function to show the Date Picker (Unchanged, except for renaming the function)
+  // Create New Record
+  Future<void> _addNewIssue() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a date.')));
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      List<String> uploadedImageUrls = await _uploadImages();
+      final issueData = {
+        'schoolName': _schoolNameController.text.trim(),
+        'buildingName': _selectedBuilding,
+        'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
+        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
+        'damageType': _selectedDamageType,
+        'issueTitle': '$_selectedBuilding - $_selectedDamageType',
+        'description': _descriptionController.text.trim(),
+        'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
+        'imageUrls': uploadedImageUrls,
+        'status': 'Pending',
+        'addedByNic': widget.userNic,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      DocumentReference issueRef = await FirebaseFirestore.instance.collection('issues').add(issueData);
+
+      // Trigger Cloud Notification for Admins
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': 'New Building Issue Reported',
+        'subtitle': '${_schoolNameController.text.trim()}: $_selectedDamageType',
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'type': 'issue',
+        'issueId': issueRef.id,
+        'addedByNic': widget.userNic,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reported Successfully!'), backgroundColor: Colors.green));
+        Navigator.of(context).pop(true); // Return true to trigger refresh
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Update Existing Record
+  Future<void> _updateIssue() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      List<String> newlyUploadedImageUrls = await _uploadImages();
+      List<String> finalImageUrls = [..._existingImageUrls, ...newlyUploadedImageUrls];
+
+      final issueData = {
+        'schoolName': _schoolNameController.text.trim(),
+        'buildingName': _selectedBuilding,
+        'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
+        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
+        'damageType': _selectedDamageType,
+        'issueTitle': '$_selectedBuilding - $_selectedDamageType',
+        'description': _descriptionController.text.trim(),
+        'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
+        'imageUrls': finalImageUrls,
+        'lastUpdatedTimestamp': FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance.collection('issues').doc(widget.issueId!).update(issueData);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      debugPrint('Update Error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: _primaryColor,
-              onPrimary: Colors.white,
-              onSurface: Colors.black87,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      context: context, initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2000), lastDate: DateTime.now(),
     );
-    if (picked != null && picked != _selectedDate) {
+    if (picked != null) {
       setState(() {
         _selectedDate = picked;
         _dateController.text = DateFormat('yyyy-MM-dd').format(picked);
@@ -326,100 +243,40 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isEditing = widget.issueId != null;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isEditing ? "Edit Building Issue" : "Add your school building Issues",
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
-        ),
+        backgroundColor: Colors.white, elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)),
+        title: Text(_isEditMode ? "Edit Building Issue" : "Add school building Issues", 
+            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 18)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: _primaryColor))
-                : OutlinedButton(
-                    onPressed: _saveIssue, // Calls the Firebase save function
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: _primaryColor, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                    ),
-                    child: Text(
-                      isEditing
-                          ? "Update"
-                          : "Save", //  Text changes based on mode
-                      style: TextStyle(
-                          color: _primaryColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
+            child: _isLoading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : OutlinedButton(
+              onPressed: _handleSubmit,
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: _primaryColor)),
+              child: Text(_isEditMode ? "Update" : "Save", style: const TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: _isPageLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTextField("School Name", "Enter Your School name",
-                    _schoolNameController,
-                    isNumber: false),
-                _buildDropdown(
-                  "Select Damage Building",
-                  "select Type of Damage Building",
-                  _buildingTypes,
-                  _selectedBuilding,
-                  (String? value) {
-                    setState(() {
-                      _selectedBuilding = value;
-                    });
-                  },
-                ),
-                _buildTextField("Number of Floors",
-                    "Enter number of floors in building", _floorsController,
-                    isNumber: true),
-                _buildTextField("Number of Classrooms",
-                    "Enter Number of rooms in building", _classroomsController,
-                    isNumber: true),
-                _buildDropdown(
-                  "Type Of Damage",
-                  "select Type of Damage",
-                  _damageTypes,
-                  _selectedDamageType,
-                  (String? value) {
-                    setState(() {
-                      _selectedDamageType = value;
-                    });
-                  },
-                ),
-                _buildDescriptionField(
-                    "Description of Issue",
-                    "Describe your School building Issue",
-                    _descriptionController),
-                // --- MODIFIED: Uses new XFile-based logic ---
+                _buildTextField("School Name", "Enter Your School name", _schoolNameController, isNumber: false),
+                _buildDropdown("Select Damage Building", "select Type of Damage Building", _buildingTypes, _selectedBuilding, (val) => setState(() => _selectedBuilding = val)),
+                _buildTextField("Number of Floors", "Enter number of floors in building", _floorsController, isNumber: true),
+                _buildTextField("Number of Classrooms", "Enter Number of rooms in building", _classroomsController, isNumber: true),
+                _buildDropdown("Type Of Damage", "select Type of Damage", _damageTypes, _selectedDamageType, (val) => setState(() => _selectedDamageType = val)),
+                _buildDescriptionField("Description of Issue", "Describe your School building Issue", _descriptionController),
                 _buildUploadImagesSection(),
-                _buildDateField(
-                    "Date Of Damage Occurance",
-                    "Enter Date Of Damage Occurance",
-                    _dateController,
-                    _selectDate),
+                _buildDateField("Date Of Damage Occurance", "Enter Date Of Damage Occurance", _dateController, _selectDate),
               ],
             ),
           ),
@@ -428,346 +285,120 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     );
   }
 
-  // --- Helper Widgets (Unchanged structure) ---
+  // --- Helper Widgets to keep UI clean ---
 
-  /// Reusable Text Field builder
-  Widget _buildTextField(
-      String label, String hint, TextEditingController controller,
-      {required bool isNumber}) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Colors.black87),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-            inputFormatters: isNumber
-                ? [FilteringTextInputFormatter.digitsOnly]
-                : null, // ⭐ Only allow digits for number fields
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              filled: true,
-              fillColor: _textFieldBackgroundColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                // ⭐ Handle null value
-                return 'Please enter $label';
-              }
-              if (isNumber && int.tryParse(value) == null) {
-                return 'Please enter a valid number';
-              }
-              return null;
-            },
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+          decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12)),
+          validator: (v) => v!.isEmpty ? 'Required' : null,
+        ),
+      ]),
     );
   }
 
-  /// Reusable Dropdown Field builder
-  Widget _buildDropdown(String label, String hint, List<String> items,
-      String? currentValue, Function(String? value) onChanged) {
+  Widget _buildDropdown(String label, String hint, List<String> items, String? val, Function(String?) onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Colors.black87),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: currentValue,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              filled: true,
-              fillColor: _textFieldBackgroundColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12)
-                  .copyWith(top: 14, bottom: 14),
-            ),
-            isExpanded: true,
-            items: items.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-            onChanged: onChanged,
-            validator: (value) => value == null ? 'Please select $label' : null,
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          value: val, items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
+          onChanged: onChanged, decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14)),
+          validator: (v) => v == null ? 'Required' : null,
+        ),
+      ]),
     );
   }
 
-  /// Specific builder for the Description field (Multiline Text Field).
-  Widget _buildDescriptionField(
-      String label, String hint, TextEditingController controller) {
+  Widget _buildDescriptionField(String label, String hint, TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Colors.black87),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            maxLines: 4, // Allow multiline input
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              filled: true,
-              fillColor: _textFieldBackgroundColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-            ),
-            validator: (value) => value == null || value.isEmpty
-                ? 'Please enter $label'
-                : null, // ⭐ Handle null value
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+        const SizedBox(height: 8),
+        TextFormField(controller: controller, maxLines: 4, decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(12))),
+      ]),
     );
   }
 
-  /// Builder for the Date Of Damage Occurance field.
-  Widget _buildDateField(String label, String hint,
-      TextEditingController controller, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600, color: Colors.black87),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            readOnly: true, // Prevent manual typing
-            onTap: onTap, // Open date picker on tap
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              filled: true,
-              fillColor: _textFieldBackgroundColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-              // Calendar icon at the end
-              suffixIcon:
-                  const Icon(Icons.calendar_today_outlined, color: Colors.grey),
-            ),
-            validator: (value) => value == null || value.isEmpty
-                ? 'Please select $label'
-                : null, //  Handle null value
-          ),
-        ],
-      ),
-    );
-  }
-
-  ///  MODIFIED: Builder for the Upload Images section. Displays existing and new images.
   Widget _buildUploadImagesSection() {
-    // Combine both lists for display purposes
-    final List<dynamic> allImagesForDisplay = [
-      ..._existingImageUrls,
-      ..._selectedNewImages
-    ];
-
+    bool hasImages = _existingImageUrls.isNotEmpty || _selectedImages.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Upload Images (JPG/PNG)',
-            style:
-                TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
-          ),
-          const SizedBox(height: 8),
-
-          // --- Image Preview Grid (Displays existing network images AND newly picked local images) ---
-          if (allImagesForDisplay.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: SizedBox(
-                height: 100, // Fixed height for the horizontal list
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: allImagesForDisplay.length,
-                  itemBuilder: (context, index) {
-                    final item = allImagesForDisplay[index];
-
-                    Widget imageWidget;
-                    VoidCallback? removeAction;
-
-                    if (item is String) {
-                      // This is an existing network image URL
-                      imageWidget = Image.network(
-                        item,
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (c, w, p) => p == null
-                            ? w
-                            : const Center(
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2)),
-                        errorBuilder: (c, o, s) => const Icon(
-                            Icons.broken_image,
-                            size: 60,
-                            color: Colors.grey),
-                      );
-                      removeAction = () => _removeExistingImage(index);
-                    } else if (item is XFile) {
-                      // This is a newly selected local image (XFile)
-                      // Use FutureBuilder to read the image bytes asynchronously
-                      imageWidget = FutureBuilder<Uint8List>(
-                        future: item.readAsBytes(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                                  ConnectionState.done &&
-                              snapshot.hasData) {
-                            // Display the image from memory
-                            return Image.memory(
-                              snapshot.data!,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            );
-                          }
-                          // Show a loading spinner while reading the file
-                          return const SizedBox(
-                            width: 100,
-                            height: 100,
-                            child: Center(
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2)),
-                          );
-                        },
-                      );
-                      // Calculate index relative to _selectedNewImages
-                      final newImageIndex = index - _existingImageUrls.length;
-                      removeAction = () => _removeNewImage(newImageIndex);
-                    } else {
-                      imageWidget =
-                          const Icon(Icons.error, size: 60, color: Colors.red);
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: imageWidget,
-                          ),
-                          if (removeAction !=
-                              null) // Only show remove button if action exists
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: GestureDetector(
-                                onTap: removeAction,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: Colors.white, width: 2),
-                                  ),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-
-          // --- Upload Button ---
-          InkWell(
-            onTap: _pickImages, // Call the image picker function
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-              decoration: BoxDecoration(
-                color: _textFieldBackgroundColor,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: (allImagesForDisplay.isEmpty)
-                      ? Colors.transparent
-                      : _primaryColor, //  Border logic
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.cloud_upload_outlined,
-                      size: 28,
-                      color: allImagesForDisplay.isEmpty
-                          ? Colors.grey
-                          : _primaryColor),
-                  const SizedBox(width: 10),
-                  Text(
-                    allImagesForDisplay.isEmpty
-                        ? 'Tap to Upload Building Damage Photos'
-                        : 'Tap to Add More Photos (${allImagesForDisplay.length} selected)',
-                    style: TextStyle(
-                        color: allImagesForDisplay.isEmpty
-                            ? Colors.grey
-                            : Colors.black87,
-                        fontSize: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Upload Images (JPG/PNG)', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+        const SizedBox(height: 8),
+        if (hasImages)
+          SizedBox(
+            height: 100,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _existingImageUrls.length + _selectedImages.length,
+              itemBuilder: (context, index) {
+                // Display images already stored in Cloud
+                if (index < _existingImageUrls.length) {
+                  return _buildImagePreview(onRemove: () => _removeExistingImage(index), child: Image.network(_existingImageUrls[index], width: 100, height: 100, fit: BoxFit.cover));
+                }
+                // Display images newly picked from Device
+                final newIdx = index - _existingImageUrls.length;
+                return _buildImagePreview(
+                  onRemove: () => _removeNewImage(newIdx),
+                  child: FutureBuilder<Uint8List>(
+                    future: _selectedImages[newIdx].readAsBytes(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) return Image.memory(snapshot.data!, width: 100, height: 100, fit: BoxFit.cover);
+                      return const SizedBox(width: 100, child: Center(child: CircularProgressIndicator()));
+                    },
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
-        ],
-      ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _pickImages,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(color: _textFieldBackgroundColor, borderRadius: BorderRadius.circular(10), border: Border.all(color: hasImages ? _primaryColor : Colors.transparent)),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.cloud_upload_outlined, color: Colors.grey), SizedBox(width: 10), Text('Tap to Upload Building Damage Photos', style: TextStyle(color: Colors.grey))]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildImagePreview({required Widget child, required VoidCallback onRemove}) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
+      child: Stack(children: [
+        ClipRRect(borderRadius: BorderRadius.circular(8), child: child),
+        Positioned(right: 0, child: GestureDetector(onTap: onRemove, child: Container(decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle), child: const Icon(Icons.close, size: 18, color: Colors.white)))),
+      ]),
+    );
+  }
+
+  Widget _buildDateField(String label, String hint, TextEditingController controller, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller, 
+          readOnly: true, 
+          onTap: onTap, 
+          decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), suffixIcon: const Icon(Icons.calendar_today_outlined, color: Colors.grey), contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12)),
+          validator: (v) => v!.isEmpty ? 'Required' : null,
+        ),
+      ]),
     );
   }
 }

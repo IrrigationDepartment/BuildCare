@@ -395,7 +395,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                     builder: (context) => AddBuildingIssuesPage(
                       userNic: widget.userNic,
                       issueId: widget.issueId,
-                      issueData: widget.issueData,
                     ),
                   ),
                 ).then((result) {

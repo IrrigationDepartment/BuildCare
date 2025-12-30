@@ -262,7 +262,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => NotificationPage(userNic: userNic)),
+                        MaterialPageRoute(builder: (context) => const NotificationScreen()),
                       );
                     },
                   ),

@@ -2,241 +2,201 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-class NotificationPage extends StatelessWidget {
-  final String userNic; // This is the Current Logged in User's NIC
+// Import destination screens
+import 'add_school_details_page.dart';
+import 'IssueDetailScreen.dart';
 
-  const NotificationPage({super.key, required this.userNic});
+class NotificationScreen extends StatelessWidget {
+  const NotificationScreen({super.key});
 
-  // --- 1. New function to show the review details dialog ---
-  void _showReviewDetailsDialog(BuildContext context, String planId) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          // Modern, rounded design
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Review Details",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E88E5)),
-                ),
-                const Divider(height: 15, color: Colors.grey),
-                
-                // Fetch and display the review details
-                _buildReviewFetcher(planId), 
-                
-                const SizedBox(height: 20),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Close"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- 2. Widget to fetch the latest review from Firestore ---
-  Widget _buildReviewFetcher(String planId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schoolMasterPlans')
-          .doc(planId)
-          .collection('reviews')
-          // Assuming you want to show the latest review
-          .orderBy('reviewedAt', descending: true) 
-          .limit(1)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: CircularProgressIndicator(),
-          ));
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Text("Review details not available or deleted.", style: TextStyle(color: Colors.red));
-        }
-
-        final reviewData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-        
-        final String note = reviewData['note'] ?? 'No note provided.';
-        final String reviewerName = reviewData['reviewerName'] ?? 'Anonymous';
-        final Timestamp? ts = reviewData['reviewedAt'];
-        final String dateStr = ts != null 
-            ? DateFormat('MMM dd, yyyy h:mm a').format(ts.toDate()) 
-            : 'Unknown Date';
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 10),
-            Text(
-              '"$note"',
-              style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Colors.black87),
-            ),
-            const SizedBox(height: 15),
-            Row(
-              children: [
-                const Icon(Icons.person, size: 18, color: Colors.grey),
-                const SizedBox(width: 5),
-                Text("By: $reviewerName", style: const TextStyle(fontWeight: FontWeight.w600)),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                const SizedBox(width: 5),
-                Text("On: $dateStr", style: const TextStyle(fontSize: 13, color: Colors.grey)),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
+  // --- Style Constants ---
+  static const Color kPrimaryBlue = Color(0xFF42A5F5);
+  static const Color kBackgroundColor = Color(0xFFF5F7FA);
+  static const Color kTextColor = Color(0xFF333333);
+  static const Color kSubTextColor = Color(0xFF757575);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
-          "Notifications",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          'Notifications',
+          style: TextStyle(color: kTextColor, fontWeight: FontWeight.bold),
         ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: kTextColor),
+        actions: [
+          TextButton(
+            onPressed: () => _markAllAsRead(),
+            child: const Text(
+              'Mark all as read',
+              style: TextStyle(color: kPrimaryBlue, fontWeight: FontWeight.w600),
+            ),
+          )
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
+        // Listen to notifications ordered by most recent
         stream: FirebaseFirestore.instance
             .collection('notifications')
-            .where('receiverNic', isEqualTo: userNic) 
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          // ... (Loading, Error, Empty State logic remains the same) ...
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.notifications_off_outlined,
-                      size: 60, color: Colors.grey[300]),
-                  const SizedBox(height: 10),
-                  Text("No notifications yet",
-                      style: TextStyle(color: Colors.grey[500])),
-                ],
-              ),
-            );
+            return _buildEmptyState();
           }
 
-          final docs = snapshot.data!.docs;
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            separatorBuilder: (ctx, i) => const Divider(height: 1),
+          return ListView.builder(
+            itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final String notificationDocId = docs[index].id;
-
-              // Data needed for navigation
-              final String type = data['type'] ?? 'general';
-              final String? relatedPlanId = data['relatedPlanId']; // IMPORTANT!
-
-              // --- (Formatting and UI variables remain the same) ---
-              final String title = data['title'] ?? 'Notification';
-              final String message = data['message'] ?? 'You have a new update';
-              final bool isRead = data['isRead'] ?? false;
+              var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              String docId = snapshot.data!.docs[index].id;
+              bool isRead = data['isRead'] ?? false;
               
-              String timeAgo = 'Just now';
-              if (data['timestamp'] != null) {
-                Timestamp t = data['timestamp'];
-                timeAgo = DateFormat('MMM d, h:mm a').format(t.toDate());
-              }
+              // Extract metadata for routing and seen-receipts
+              String? type = data['type']; // 'school', 'issue', or 'seen_receipt'
+              String? schoolId = data['schoolId'];
+              String? issueId = data['issueId'];
+              String? userNic = data['addedByNic'] ?? '';
 
-              IconData iconData = Icons.notifications;
-              Color iconColor = const Color(0xFF53BDFF);
-              
-              if (type == 'review') {
-                iconData = Icons.rate_review;
-                iconColor = Colors.orange;
-              }
-              // --- (End Formatting) ---
-
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                tileColor: isRead ? Colors.white : Colors.blue[50],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              return Container(
+                decoration: BoxDecoration(
+                  color: isRead ? Colors.white : kPrimaryBlue.withOpacity(0.05),
+                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
                 ),
-                leading: CircleAvatar(
-                  backgroundColor: isRead ? Colors.grey[200] : iconColor,
-                  child: Icon(iconData,
-                      color: isRead ? Colors.grey : Colors.white),
-                ),
-                title: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Text(
-                      message,
-                      style: TextStyle(color: Colors.black87),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                child: ListTile(
+                  leading: CircleAvatar(
+                    // Different colors based on read status and notification type
+                    backgroundColor: isRead 
+                        ? Colors.grey[200] 
+                        : (type == 'seen_receipt' ? Colors.green.withOpacity(0.1) : kPrimaryBlue.withOpacity(0.1)),
+                    child: Icon(
+                      type == 'seen_receipt' 
+                          ? Icons.done_all_rounded // Double tick for seen status
+                          : (type == 'issue' ? Icons.report_problem_rounded : Icons.school_rounded),
+                      color: isRead 
+                          ? Colors.grey 
+                          : (type == 'seen_receipt' ? Colors.green : kPrimaryBlue),
                     ),
-                    const SizedBox(height: 4),
-                    Text(timeAgo,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                  ],
+                  ),
+                  title: Text(
+                    data['title'] ?? 'Notification',
+                    style: TextStyle(
+                      fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                      color: kTextColor,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data['subtitle'] ?? '',
+                        style: const TextStyle(fontSize: 13, color: kSubTextColor),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTimestamp(data['timestamp']),
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                  onTap: () async {
+                    // 1. Mark notification as read in Admin's view
+                    await FirebaseFirestore.instance
+                        .collection('notifications')
+                        .doc(docId)
+                        .update({'isRead': true});
+
+                    // 2. TRIGGER SEEN NOTIFICATION FOR PRINCIPAL
+                    // Only send if it hasn't been read before
+                    if (isRead == false && type != 'seen_receipt') {
+                      await FirebaseFirestore.instance.collection('notifications').add({
+                        'title': 'Report Seen by Admin',
+                        'subtitle': 'Admin viewed: ${data['title']}',
+                        'timestamp': FieldValue.serverTimestamp(),
+                        'isRead': false,
+                        'type': 'seen_receipt',
+                        'targetNic': userNic, // The Principal who will see this
+                        'addedByNic': 'ADMIN',
+                      });
+                    }
+
+                    if (!context.mounted) return;
+
+                    // 3. Navigation Logic
+                    if (type == 'issue' && issueId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => IssueDetailScreen(
+                            issueData: data,
+                            issueId: issueId,
+                            userNic: userNic!,
+                          ),
+                        ),
+                      );
+                    } else if (type == 'school' && schoolId != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AddSchoolDetailsPage(userNic: userNic!),
+                        ),
+                      );
+                    }
+                  },
+                  trailing: !isRead 
+                      ? const Icon(Icons.circle, size: 12, color: kPrimaryBlue) 
+                      : null,
                 ),
-                onTap: () {
-                  // 1. Mark notification as read
-                  FirebaseFirestore.instance
-                      .collection('notifications')
-                      .doc(notificationDocId)
-                      .update({'isRead': true});
-                  
-                  // 2. Check type and navigate/show dialog
-                  if (type == 'review' && relatedPlanId != null) {
-                    _showReviewDetailsDialog(context, relatedPlanId);
-                  } 
-                  // Add else if for other notification types here
-                },
               );
             },
           );
         },
       ),
     );
+  }
+
+  // Helper: Convert Firestore Timestamp to readable string
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return '';
+    DateTime date = (timestamp as Timestamp).toDate();
+    return DateFormat.yMMMd().add_jm().format(date);
+  }
+
+  // UI for empty list state
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notifications_none_rounded, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          const Text(
+            'No notifications yet',
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Batch update all unread notifications to read status
+  Future<void> _markAllAsRead() async {
+    final batch = FirebaseFirestore.instance.batch();
+    final query = await FirebaseFirestore.instance
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    for (var doc in query.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
   }
 }
