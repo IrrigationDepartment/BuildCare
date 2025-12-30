@@ -828,7 +828,7 @@ class IssueCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- Custom Bottom Navigation Bar ---
+// --- Custom Bottom Navigation Bar (UPDATED for Stack Navigation) ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -882,15 +882,18 @@ class CustomBottomNavBar extends StatelessWidget {
     
     switch (index) {
       case 0:
-        Navigator.pushReplacement(
+        // Home: Clear entire stack and go back to Dashboard
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder: (context) => const ProvincialEngDashboard(),
           ),
+          (route) => false,
         );
         break;
       case 1:
-        Navigator.pushReplacement(
+        // Profile: Push so back button works
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => const ProfileManagementPage(),
@@ -898,7 +901,8 @@ class CustomBottomNavBar extends StatelessWidget {
         );
         break;
       case 2:
-        Navigator.pushReplacement(
+        // Settings: Push so back button works
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => const settings.SettingsPage(),
@@ -919,11 +923,4 @@ class IssueDetailPage extends StatelessWidget {
       body: Center(child: Text("Details for $issueId")),
     );
   }
-}
-
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      Scaffold(appBar: AppBar(title: const Text("Profile")));
 }
