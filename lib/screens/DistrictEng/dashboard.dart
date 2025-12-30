@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
 import 'profile.dart'; 
-import 'settings.dart'; // Import the settings file
+import 'settings.dart'; 
+import 'notifications.dart'; // නිවේදන පිටුව සඳහා නව import එක
 
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -64,11 +65,9 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   // Handle Bottom Navigation Clicks
   void _onItemTapped(int index) {
     if (index == 0) {
-      // Refresh home data when Home icon is clicked
       setState(() => _selectedIndex = index);
       _fetchData(); 
     } else if (index == 1) {
-      // Navigate to Profile Page
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -76,7 +75,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
         ),
       );
     } else if (index == 2) {
-      // Navigate to Settings Screen
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -102,7 +100,31 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DashboardHeader(userData: widget.userData),
+                  // Header සහ Notification Icon එක පෙන්වන Row එක
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: DashboardHeader(userData: widget.userData),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_outlined, 
+                          color: Colors.black87,
+                          size: 28,
+                        ),
+                        onPressed: () {
+                          // Notification Page එකට navigate වීම
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
                   DashboardOverview(
                     isLoading: _isLoading,
