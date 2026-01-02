@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore avashyae badge ekata
 
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
@@ -93,24 +94,43 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Stack is used to place the icon in the header 
+                  // Header with Notification Badge
                   Stack(
                     children: [
                       DashboardHeader(userData: widget.userData),
                       Positioned(
                         right: 8,
                         top: 8,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.notifications_active_outlined, 
-                            color: Colors.black87, 
-                            size: 26,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const NotificationPage(),
+                        child: StreamBuilder<QuerySnapshot>(
+                          // IsRead false notification pamanak count kirima
+                          stream: FirebaseFirestore.instance
+                              .collection('notifications')
+                              .where('isRead', isEqualTo: false)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            int unreadCount = 0;
+                            if (snapshot.hasData) {
+                              unreadCount = snapshot.data!.docs.length;
+                            }
+
+                            return Badge(
+                              label: Text(unreadCount.toString()),
+                              isLabelVisible: unreadCount > 0, // Count eka 0 nam badge eka pennanne na
+                              backgroundColor: Colors.red,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.notifications_active_outlined, 
+                                  color: Colors.black87, 
+                                  size: 26,
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const NotificationPage(),
+                                    ),
+                                  );
+                                },
                               ),
                             );
                           },
@@ -118,7 +138,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                       ),
                     ],
                   ),
-                  // -----------------------------------------------------------
 
                   const SizedBox(height: 24),
                   DashboardOverview(
