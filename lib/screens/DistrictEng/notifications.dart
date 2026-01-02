@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-// --- ඔබ ලබාදුන් නව ගොනු වල නිවැරදි Imports ---
-import 'damage_details_dialog.dart'; // DamageDetailsDialog පන්තිය මෙහි ඇත
-import 'view_details_screen.dart';   // ViewContractDetailsScreen පන්තිය මෙහි ඇත
-import 'view_contractor.dart';      // ViewContractorScreen පන්තිය මෙහි ඇත
-import 'SchoolDetailsDialog.dart';    // SchoolDetailsPage පන්තිය මෙහි ඇත
+import 'damage_details_dialog.dart'; 
+import 'view_details_screen.dart';   
+import 'view_contractor.dart';      
+import 'SchoolDetailsDialog.dart';    
 
-class NotificationPage extends StatelessWidget { // Dashboard එකට ගැලපෙන පරිදි නම වෙනස් කරන ලදී
+class NotificationPage extends StatelessWidget { 
   const NotificationPage({super.key});
 
   // --- Style Constants ---
