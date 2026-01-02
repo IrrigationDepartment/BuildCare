@@ -8,7 +8,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Import the dashboard to use the CustomBottomNavBar
-import 'dashboard.dart';
+import 'dashboard.dart' as dashboard;
+import 'app_settings.dart'; // Ensure Settings is imported
 
 class ProfileManagementPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -229,7 +230,6 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
 
         _showSnackBar('Profile updated successfully!', Colors.green);
         await Future.delayed(const Duration(seconds: 1));
-        // Note: The logic to pop the screen or navigate is maintained as per original code
       } else {
         _showSnackBar('No changes to save', Colors.blue);
       }
@@ -729,8 +729,7 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
           ),
         ),
       ),
-      // --- Integrated the CustomBottomNavBar from dashboard.dart ---
-      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 1), 
+      bottomNavigationBar: const dashboard.CustomBottomNavBar(currentIndex: 1),
     );
   }
 

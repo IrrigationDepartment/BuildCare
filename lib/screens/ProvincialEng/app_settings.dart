@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// --- ADDED IMPORTS TO FIX BLANK PAGES ---
+import 'dashboard.dart'; 
+import 'profile_management.dart';
+
 // Main Settings Page with options
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -235,7 +239,7 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-// Change Password Page - Fixed with Firebase integration
+// Change Password Page
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
 
@@ -253,7 +257,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
-  bool _needsReauthentication = false;
 
   @override
   void dispose() {
@@ -272,7 +275,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       return;
     }
 
-    // Check email verification
     if (!user.emailVerified) {
       _showError('Please verify your email first');
       return;
@@ -281,7 +283,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      // For Firebase, we need to reauthenticate first
       if (user.email != null) {
         final credential = EmailAuthProvider.credential(
           email: user.email!,
@@ -291,15 +292,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         await user.reauthenticateWithCredential(credential);
       }
 
-      // Update password
       await user.updatePassword(_newPasswordController.text);
       
-      // Clear form
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
 
-      // Show success
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Password updated successfully!'),
@@ -308,14 +306,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         ),
       );
 
-      // Go back after success
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) Navigator.pop(context);
       });
       
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Failed to update password';
-      
       switch (e.code) {
         case 'wrong-password':
           errorMessage = 'Current password is incorrect';
@@ -325,21 +321,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           break;
         case 'requires-recent-login':
           errorMessage = 'Please sign in again to change password';
-          _needsReauthentication = true;
-          break;
-        case 'user-not-found':
-          errorMessage = 'User not found';
-          break;
-        case 'user-mismatch':
-          errorMessage = 'Credentials do not match';
-          break;
-        case 'invalid-credential':
-          errorMessage = 'Invalid credentials';
           break;
         default:
           errorMessage = e.message ?? 'An error occurred';
       }
-      
       _showError(errorMessage);
     } catch (e) {
       _showError('An error occurred: $e');
@@ -405,7 +390,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // User Info
                 if (user != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -447,7 +431,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   ),
                 const SizedBox(height: 16),
                 
-                // Email Verification Warning
                 if (user != null && !user.emailVerified)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -491,7 +474,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   ),
                 const SizedBox(height: 20),
                 
-                // Current Password
                 Text(
                   'Current Password *',
                   style: TextStyle(
@@ -534,7 +516,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 ),
                 const SizedBox(height: 20),
                 
-                // New Password
                 Text(
                   'New Password *',
                   style: TextStyle(
@@ -583,7 +564,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Confirm Password
                 Text(
                   'Confirm New Password *',
                   style: TextStyle(
@@ -629,7 +609,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 ),
                 const SizedBox(height: 24),
                 
-                // Forgot Password Link
                 Align(
                   alignment: Alignment.center,
                   child: TextButton.icon(
@@ -643,7 +622,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 ),
                 const SizedBox(height: 8),
                 
-                // Submit Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -677,7 +655,6 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 ),
                 const SizedBox(height: 24),
                 
-                // Requirements
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -740,7 +717,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   }
 }
 
-// Security Questions Page - Updated
+// Security Questions Page
 class SecurityQuestionsPage extends StatefulWidget {
   const SecurityQuestionsPage({super.key});
 
@@ -785,7 +762,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Reauthenticate with current password
       if (user.email != null) {
         final credential = EmailAuthProvider.credential(
           email: user.email!,
@@ -793,15 +769,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
         );
         await user.reauthenticateWithCredential(credential);
       }
-
-      // TODO: Update security questions in your Firestore database
-      // Store in Firestore or your own database
-      // Example: users/{uid}/securityQuestions
-      // await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-      //   'securityQuestionPet': _petAnswerController.text,
-      //   'securityQuestionNickname': _nicknameAnswerController.text,
-      //   'securityQuestionsUpdated': DateTime.now(),
-      // });
 
       await Future.delayed(const Duration(seconds: 1)); // Simulate API
 
@@ -817,7 +784,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
       
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Failed to update security questions';
-      
       switch (e.code) {
         case 'wrong-password':
           errorMessage = 'Current password is incorrect';
@@ -828,7 +794,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
         default:
           errorMessage = e.message ?? 'An error occurred';
       }
-      
       _showError(errorMessage);
     } catch (e) {
       _showError('An error occurred: $e');
@@ -871,7 +836,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // User Info
                 if (user != null)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -908,7 +872,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
                     ),
                   ),
                 
-                // Password Verification
                 Text(
                   'Verify Your Identity',
                   style: TextStyle(
@@ -960,7 +923,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
                 ),
                 const SizedBox(height: 32),
                 
-                // Questions Section
                 Text(
                   'Security Questions',
                   style: TextStyle(
@@ -979,7 +941,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Question 1
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1037,7 +998,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Question 2
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1095,7 +1055,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
                 ),
                 const SizedBox(height: 32),
                 
-                // Submit Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -1129,7 +1088,6 @@ class _SecurityQuestionsPageState extends State<SecurityQuestionsPage> {
                 ),
                 const SizedBox(height: 24),
                 
-                // Security Tips
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -1230,7 +1188,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         _resendCooldown = 60; // 60 seconds cooldown
       });
 
-      // Start cooldown timer
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (_resendCooldown > 0) {
           setState(() => _resendCooldown--);
@@ -1427,7 +1384,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   }
 }
 
-// Keep your existing navigation bar class
+// -----------------------------------------------------------------------------
+// --- CustomBottomNavBar (FIXED LOGIC FOR SETTINGS PAGE) ---
+// -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   const CustomBottomNavBar({super.key, required this.currentIndex});
@@ -1458,25 +1417,33 @@ class CustomBottomNavBar extends StatelessWidget {
         selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         onTap: (index) {
-          if (index == 0 && currentIndex != 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ProvincialEngDashboard(),
-              ),
-            );
-          } else if (index == 1 && currentIndex != 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ProfileManagementPage(),
-              ),
-            );
-          } else if (index == 2 && currentIndex != 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsPage()),
-            );
+          if (index == currentIndex) return;
+
+          switch (index) {
+            case 0:
+              // Home: Clear stack and go to Dashboard
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProvincialEngDashboard(),
+                ),
+                (route) => false,
+              );
+              break;
+            case 1:
+              // Profile: If we are on Settings, use Replace. If Home, use Push.
+              // Since this is the Settings page (Index 2), we are coming from a sibling.
+              // We should REPLACE to avoid stacking [Settings, Profile, Settings...]
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileManagementPage(),
+                ),
+              );
+              break;
+            case 2:
+              // Settings: We are already here, code won't reach here due to 'if' check
+              break;
           }
         },
         items: const [
@@ -1499,17 +1466,4 @@ class CustomBottomNavBar extends StatelessWidget {
       ),
     );
   }
-}
-
-// Placeholder classes
-class ProvincialEngDashboard extends StatelessWidget {
-  const ProvincialEngDashboard({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Dashboard")));
-}
-
-class ProfileManagementPage extends StatelessWidget {
-  const ProfileManagementPage({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text("Profile")));
 }

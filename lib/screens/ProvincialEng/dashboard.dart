@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 
 // --- PAGE IMPORTS ---
@@ -14,10 +15,9 @@ import 'add_to.dart';
 import 'add_principal.dart';
 import 'add_contractor_screen.dart';
 import 'add_contract.dart';
-import 'profile_management.dart';
-import 'app_settings.dart' as settings;
+import 'profile_management.dart'; // Ensure this is imported
+import 'app_settings.dart'; // Ensure this is imported
 
-// --- USER MANAGEMENT IMPORTS ---
 import 'user_management/user_list_page.dart';
 
 // -----------------------------------------------------------------------------
@@ -137,12 +137,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // 1. --- Dashboard Header Section ---
             DashboardHeader(userData: widget.userData),
-
             const SizedBox(height: 20),
-
-            // 2. --- User Management Grids ---
             _buildSectionTitle('User Management'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -154,7 +150,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 mainAxisSpacing: 12.0,
                 childAspectRatio: 1.1,
                 children: const <Widget>[
-                  // CHIEF ENGINEER CARD
                   UserCountBuilder(
                     title: 'Chief Engineer',
                     userType: 'Chief Engineer',
@@ -162,7 +157,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     icon: Icons.person_pin,
                     color: Colors.blue,
                   ),
-                  // DISTRICT ENGINEER CARD
                   UserCountBuilder(
                     title: 'District Engineer',
                     userType: 'District Engineer',
@@ -170,7 +164,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     icon: Icons.engineering,
                     color: Colors.green,
                   ),
-                  // TECHNICAL OFFICER CARD
                   UserCountBuilder(
                     title: 'Technical Officer',
                     userType: 'Technical Officer',
@@ -178,7 +171,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     icon: Icons.build,
                     color: Colors.orange,
                   ),
-                  // PRINCIPALS CARD
                   UserCountBuilder(
                     title: 'Principals',
                     userType: 'Principal',
@@ -189,10 +181,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // 3. --- Project Management (Contractors & Contracts) ---
             _buildSectionTitle('Project Management'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -247,19 +236,13 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // 4. --- Manage Issues Section ---
             _buildSectionTitle('System Alerts'),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.0),
               child: IssueCountBuilder(title: 'Manage Issues'),
             ),
-
             const SizedBox(height: 20),
-
-            // 5. --- "Latest Updates" Section ---
             _buildSectionTitle('Latest Updates'),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -318,7 +301,208 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- WIDGET: UserCountBuilder (UPDATED) ---
+// --- DashboardHeader (Updated) ---
+// -----------------------------------------------------------------------------
+class DashboardHeader extends StatelessWidget {
+  final Map<String, dynamic>? userData;
+  const DashboardHeader({super.key, this.userData});
+
+  @override
+  Widget build(BuildContext context) {
+    final String userName = userData?['name'] ?? 'Engineer';
+    final String userRole = userData?['userType'] ?? 'Provincial Dashboard';
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20.0, 50.0, 20.0, 30.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade800, Colors.blue.shade500],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  String? imageUrl;
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    final data = snapshot.data!.data() as Map<String, dynamic>;
+                    imageUrl = data['profile_image'];
+                  }
+                  return CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: (imageUrl == null || imageUrl.isEmpty)
+                        ? const Icon(Icons.person, color: Colors.white, size: 35)
+                        : null,
+                  );
+                },
+              ),
+              const SizedBox(width: 15),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, $userName',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    userRole,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.notifications_active, color: Colors.white),
+                  onPressed: () {},
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- CustomBottomNavBar (Shared Navigation Widget) ---
+// -----------------------------------------------------------------------------
+class CustomBottomNavBar extends StatelessWidget {
+  final int currentIndex;
+  const CustomBottomNavBar({super.key, required this.currentIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: currentIndex,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blue.shade800,
+        unselectedItemColor: Colors.grey.shade400,
+        type: BottomNavigationBarType.fixed,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        onTap: (index) => _onTabTapped(context, index),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onTabTapped(BuildContext context, int index) {
+    if (currentIndex == index) return;
+
+    switch (index) {
+      case 0:
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProvincialEngDashboard(),
+          ),
+          (route) => false,
+        );
+        break;
+      case 1:
+        if (currentIndex == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProfileManagementPage(),
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProfileManagementPage(),
+            ),
+          );
+        }
+        break;
+      case 2:
+        if (currentIndex == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SettingsPage(),
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SettingsPage(),
+            ),
+          );
+        }
+        break;
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- OTHER WIDGETS ---
 // -----------------------------------------------------------------------------
 class UserCountBuilder extends StatelessWidget {
   final String userType;
@@ -376,7 +560,6 @@ class UserCountBuilder extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
-                // Navigate to User List Page when card is clicked
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -421,7 +604,6 @@ class UserCountBuilder extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // + Add Button
                     InkWell(
                       onTap: () {
                         Navigator.push(context,
@@ -466,9 +648,6 @@ class UserCountBuilder extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- WIDGET: SimpleCountCard ---
-// -----------------------------------------------------------------------------
 class SimpleCountCard extends StatelessWidget {
   final String title;
   final String collectionName;
@@ -583,9 +762,6 @@ class SimpleCountCard extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- Other Widgets (unchanged) ---
-// -----------------------------------------------------------------------------
 class ActivityItemCard extends StatelessWidget {
   final ActivityItem item;
   const ActivityItemCard({super.key, required this.item});
@@ -651,7 +827,8 @@ class ActivityItemCard extends StatelessWidget {
             style: const TextStyle(fontSize: 12)),
         trailing: showButton
             ? IconButton(
-                icon: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                icon: const Icon(Icons.arrow_forward_ios,
+                    size: 16, color: Colors.grey),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -662,84 +839,6 @@ class ActivityItemCard extends StatelessWidget {
                 },
               )
             : null,
-      ),
-    );
-  }
-}
-
-class DashboardHeader extends StatelessWidget {
-  final Map<String, dynamic>? userData;
-  const DashboardHeader({super.key, this.userData});
-
-  @override
-  Widget build(BuildContext context) {
-    final String userName = userData?['name'] ?? 'Engineer';
-    final String userRole = userData?['userType'] ?? 'Provincial Dashboard';
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20.0, 50.0, 20.0, 30.0),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.blue.shade800, Colors.blue.shade500],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white.withOpacity(0.2),
-                child: const Icon(Icons.person, color: Colors.white, size: 35),
-              ),
-              const SizedBox(width: 15),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome, $userName',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    userRole,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.notifications_active, color: Colors.white),
-                  onPressed: () {},
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -780,7 +879,8 @@ class IssueCountBuilder extends StatelessWidget {
                   color: Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 30),
+                child: const Icon(Icons.warning_amber_rounded,
+                    color: Colors.red, size: 30),
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -806,7 +906,8 @@ class IssueCountBuilder extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const ViewIssuesPage()),
+                    MaterialPageRoute(
+                        builder: (context) => const ViewIssuesPage()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -824,92 +925,6 @@ class IssueCountBuilder extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// --- Custom Bottom Navigation Bar (UPDATED for Stack Navigation) ---
-// -----------------------------------------------------------------------------
-class CustomBottomNavBar extends StatelessWidget {
-  final int currentIndex;
-  const CustomBottomNavBar({super.key, required this.currentIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: BottomNavigationBar(
-        currentIndex: currentIndex,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.blue.shade800,
-        unselectedItemColor: Colors.grey.shade400,
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        onTap: (index) => _onTabTapped(context, index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _onTabTapped(BuildContext context, int index) {
-    if (currentIndex == index) return; // Already on this tab
-    
-    switch (index) {
-      case 0:
-        // Home: Clear entire stack and go back to Dashboard
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ProvincialEngDashboard(),
-          ),
-          (route) => false,
-        );
-        break;
-      case 1:
-        // Profile: Push so back button works
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ProfileManagementPage(),
-          ),
-        );
-        break;
-      case 2:
-        // Settings: Push so back button works
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const settings.SettingsPage(),
-          ),
-        );
-        break;
-    }
   }
 }
 
