@@ -7,6 +7,8 @@ import 'manage_to_page.dart';
 import 'manage_principals_page.dart';
 import 'manage_schools_page.dart';
 import 'pending_approvals_page.dart';
+// DamageDetailsDialog එක import කිරීම
+import 'damage_details_dialog.dart'; 
 
 // -----------------------------------------------------------------------------
 //                                MAIN WIDGETS
@@ -116,11 +118,9 @@ class DashboardOverview extends StatelessWidget {
   }
 }
 
-// 🔥 SECTION: Recent Issues (MODIFIED FOR FIXED SCROLLABLE HEIGHT)
 class RecentIssuesSection extends StatelessWidget {
   const RecentIssuesSection({super.key});
 
-  // Maximum items to display (3) * item height = 240.0
   static const double _maxDisplayHeight = 240.0; 
 
   @override
@@ -197,11 +197,9 @@ class RecentIssuesSection extends StatelessWidget {
   }
 }
 
-// 🔥 SECTION: Recent Schools (NEW FIXED SCROLLABLE HEIGHT)
 class RecentSchoolsSection extends StatelessWidget {
   const RecentSchoolsSection({super.key});
 
-  // Maximum items to display (3) * item height = 240.0
   static const double _maxDisplayHeight = 240.0; 
 
   @override
@@ -218,7 +216,6 @@ class RecentSchoolsSection extends StatelessWidget {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('schools')
-                  // Assuming 'lastEditedAt' is the creation timestamp based on your data
                   .orderBy('lastEditedAt', descending: true) 
                   .snapshots(),
               builder: (context, snapshot) {
@@ -240,7 +237,6 @@ class RecentSchoolsSection extends StatelessWidget {
                     final school = schoolDocs[index].data() as Map<String, dynamic>;
                     final docId = schoolDocs[index].id;
 
-                    // Extract School details based on your screenshot
                     final schoolName = school['schoolName'] ?? 'No Name';
                     final schoolType = school['schoolType'] ?? 'N/A';
                     final schoolAddress = school['schoolAddress'] ?? 'No Address';
@@ -278,11 +274,9 @@ class RecentSchoolsSection extends StatelessWidget {
   }
 }
 
-// 🔥 SECTION: Recent Users (MODIFIED FOR FIXED SCROLLABLE HEIGHT)
 class RecentUsersSection extends StatelessWidget {
   const RecentUsersSection({super.key});
   
-  // Maximum items to display (3) * item height = 240.0
   static const double _maxDisplayHeight = 240.0; 
 
   @override
@@ -300,7 +294,6 @@ class RecentUsersSection extends StatelessWidget {
               stream: FirebaseFirestore.instance
                   .collection('users')
                   .orderBy('createdAt', descending: true)
-                  // Removed .limit(5) to allow scrolling for all users
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -518,7 +511,7 @@ class _ManageButton extends StatelessWidget {
   }
 }
 
-// Helper widget to display recent issue activity
+// NAVIGATION ඇතුළත් කළ MODIFIED WIDGET එක
 class _IssueActivityItem extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -536,7 +529,6 @@ class _IssueActivityItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine the color and icon for the status
     Color statusColor;
     IconData statusIcon;
     switch (status.toLowerCase()) {
@@ -579,8 +571,13 @@ class _IssueActivityItem extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Implement navigation to a specific issue details page using docId
-              print('View details for issue: $docId');
+              // NAVIGATION LOGIC: DamageDetailsDialog එකට navigate වීම
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DamageDetailsDialog(issueId: docId),
+                ),
+              );
             },
             child: const Text('View Issue'),
           ),
@@ -590,7 +587,6 @@ class _IssueActivityItem extends StatelessWidget {
   }
 }
 
-// Helper widget to display recent user sign-ups
 class _UserActivityItem extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -608,7 +604,6 @@ class _UserActivityItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          // Icon representing a person
           const Icon(Icons.person_add_alt_1_outlined, color: Colors.teal, size: 30),
           const SizedBox(width: 16),
           Expanded(
@@ -623,7 +618,6 @@ class _UserActivityItem extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Implement navigation to a user details page
               print('View details for user: $docId');
             },
             child: const Text('View User'),
@@ -634,7 +628,6 @@ class _UserActivityItem extends StatelessWidget {
   }
 }
 
-// Helper widget to display recent school additions
 class _SchoolActivityItem extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -654,7 +647,6 @@ class _SchoolActivityItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          // Icon representing a school or building
           const Icon(Icons.school, color: Colors.indigo, size: 30),
           const SizedBox(width: 16),
           Expanded(
@@ -671,7 +663,6 @@ class _SchoolActivityItem extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Implement navigation to a school details page
               print('View details for school: $docId');
             },
             child: const Text('View School'),
