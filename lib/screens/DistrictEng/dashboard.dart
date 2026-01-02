@@ -19,7 +19,6 @@ class DistrictEngDashboard extends StatefulWidget {
 class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   int _selectedIndex = 0;
   
-  // State variables for dashboard metrics
   int _totalSchools = 0;
   int _activeTOs = 0;
   int _pendingRequests = 0;
@@ -94,7 +93,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header with Notification Badge
                   Stack(
                     children: [
                       DashboardHeader(userData: widget.userData),
@@ -102,7 +100,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                         right: 8,
                         top: 8,
                         child: StreamBuilder<QuerySnapshot>(
-                          
                           stream: FirebaseFirestore.instance
                               .collection('notifications')
                               .where('isRead', isEqualTo: false)
@@ -154,8 +151,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                   const SizedBox(height: 24), 
                   const RecentUsersSection(),
                   const SizedBox(height: 24), 
-                  const SectionTitle('Approval Request'),
-                  const ApprovalRequestSection(),
+                  // Approval Request කොටස මෙතැනින් ඉවත් කරන ලදී.
                 ],
               ),
             ),

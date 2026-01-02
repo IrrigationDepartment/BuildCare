@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'manage_to_page.dart';
 import 'manage_principals_page.dart';
 import 'manage_schools_page.dart';
-import 'pending_approvals_page.dart';
 import 'damage_details_dialog.dart'; 
 import 'SchoolDetailsDialog.dart'; 
 
@@ -348,38 +347,7 @@ class RecentUsersSection extends StatelessWidget {
   }
 }
 
-class ApprovalRequestSection extends StatelessWidget {
-  const ApprovalRequestSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return DashboardCard(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Expanded(
-            child: Text('• Manel Withana requested to register as a TO.'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PendingApprovalsPage(),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.lightBlue.shade300,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Review'),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ApprovalRequestSection එක මෙතැනින් ඉවත් කරන ලදී.
 
 // -----------------------------------------------------------------------------
 //                                HELPER WIDGETS
@@ -660,7 +628,6 @@ class _SchoolActivityItem extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // NAVIGATION LOGIC
               Navigator.push(
                 context,
                 MaterialPageRoute(
