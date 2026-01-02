@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase
 import '../forgot_password_flow.dart'; // Import your ForgotPasswordFlow
+import 'profile.dart'; // Import ProfilePage
+import 'dashboard.dart'; // Import Dashboard
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  final Map<String, dynamic>? userData;
+  final String userId;
+
+  const SettingsPage({
+    super.key,
+    this.userData,
+    this.userId = '',
+  });
 
   static const Color _primaryColor = Color(0xFF53BDFF);
   static const Color _redColor = Color(0xFFF44336);
@@ -150,26 +159,46 @@ class SettingsPage extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: OutlinedButton(
-              onPressed: () {
-                _showMessage(context, 'Save', 'Settings saved successfully.');
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _primaryColor,
-                side: const BorderSide(color: _primaryColor, width: 2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                minimumSize: const Size(60, 35),
+          // Profile Icon
+          if (userData != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: IconButton(
+                icon: const Icon(Icons.account_circle, color: Colors.black, size: 32),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfilePage(
+                        userData: userData!,
+                        userId: userId,
+                      ),
+                    ),
+                  );
+                },
               ),
-              child: const Text(
-                'Save',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: OutlinedButton(
+                onPressed: () {
+                  _showMessage(context, 'Save', 'Settings saved successfully.');
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primaryColor,
+                  side: const BorderSide(color: _primaryColor, width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  minimumSize: const Size(60, 35),
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
-          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -222,8 +251,34 @@ class SettingsPage extends StatelessWidget {
           BottomNavigationBarItem(icon: Icon(Icons.settings_outlined, size: 30), activeIcon: Icon(Icons.settings, size: 30), label: 'Settings'),
         ],
         onTap: (index) {
-          if (index == 0) Navigator.of(context).popUntil((route) => route.isFirst);
-          if (index == 1) _showMessage(context, 'Navigation', 'Navigating to Profile Page.');
+          if (index == 0) {
+            // Navigate to Dashboard
+            if (userData != null) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PrincipalDashboard(userData: userData),
+                ),
+                (route) => false,
+              );
+            }
+          } else if (index == 1) {
+            // Navigate to Profile
+            if (userData != null && userId.isNotEmpty) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfilePage(
+                    userData: userData!,
+                    userId: userId,
+                  ),
+                ),
+              );
+            } else {
+              _showMessage(context, 'Error', 'User data not available.');
+            }
+          }
+          // Index 2 is Settings (current page)
         },
       ),
     );

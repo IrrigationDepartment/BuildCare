@@ -44,12 +44,25 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       }
     } else if (index == 2) {
       // Settings
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SettingsPage(),
-        ),
-      );
+      if (widget.userData != null) {
+        final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SettingsPage(
+              userData: widget.userData!,
+              userId: principalId,
+            ),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SettingsPage(),
+          ),
+        );
+      }
     }
   }
 

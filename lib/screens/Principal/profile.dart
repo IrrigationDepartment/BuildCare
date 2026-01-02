@@ -6,7 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http; 
 
 // --- IMPORT YOUR FORGOT PASSWORD SCREEN HERE ---
-import '/screens/forgot_password_flow.dart'; 
+import '/screens/forgot_password_flow.dart';
+import 'settings_page.dart'; // Import SettingsPage
+import 'dashboard.dart'; // Import Dashboard 
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -403,6 +405,26 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
+        actions: [
+          // Settings Icon
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: IconButton(
+              icon: const Icon(Icons.settings, color: Colors.black, size: 28),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsPage(
+                      userData: widget.userData,
+                      userId: widget.userId,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -529,8 +551,26 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
         onTap: (index) {
           if (index == 0) {
-            Navigator.pop(context); 
-          } 
+            // Navigate to Dashboard
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PrincipalDashboard(userData: widget.userData),
+              ),
+            );
+          } else if (index == 2) {
+            // Navigate to Settings
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SettingsPage(
+                  userData: widget.userData,
+                  userId: widget.userId,
+                ),
+              ),
+            );
+          }
+          // Index 1 is Profile (current page)
         },
       ),
     );
