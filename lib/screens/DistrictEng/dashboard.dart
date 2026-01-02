@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore avashyae badge ekata
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
@@ -102,7 +102,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                         right: 8,
                         top: 8,
                         child: StreamBuilder<QuerySnapshot>(
-                          // IsRead false notification pamanak count kirima
+                          
                           stream: FirebaseFirestore.instance
                               .collection('notifications')
                               .where('isRead', isEqualTo: false)
@@ -115,7 +115,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
 
                             return Badge(
                               label: Text(unreadCount.toString()),
-                              isLabelVisible: unreadCount > 0, // Count eka 0 nam badge eka pennanne na
+                              isLabelVisible: unreadCount > 0, 
                               backgroundColor: Colors.red,
                               child: IconButton(
                                 icon: const Icon(
