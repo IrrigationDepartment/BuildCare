@@ -1,152 +1,129 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
-//import 'package:intl/intl.dart';
-
-// --- Import the new file for editing ---
 import 'edit_school_page.dart';
 import '../../models/school.dart';
 
-// School model moved to lib/models/school.dart
-
-// --- Updated School Details Dialog ---
+// --- Updated Modern School Details Dialog ---
 class SchoolDetailsDialog extends StatelessWidget {
   final School school;
   const SchoolDetailsDialog({Key? key, required this.school}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      contentPadding: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 15, 10, 10),
-              child: Row(
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'View School Details',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    'School Details',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.grey),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
-            ),
-            const Divider(height: 1, thickness: 1, color: Colors.grey),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const Divider(),
+              const SizedBox(height: 10),
+              _buildDetailItem('School Name', school.name, Icons.school_outlined),
+              _buildDetailItem('Address', school.address, Icons.location_on_outlined),
+              _buildDetailItem('Phone', school.phoneNumber, Icons.phone_outlined),
+              _buildDetailItem('Type', school.type, Icons.category_outlined),
+              _buildDetailItem('Zone', school.zone, Icons.map_outlined),
+              
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Text('Statistics', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+              ),
+              
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
                 children: [
-                  _buildDetailItem('School Name', school.name),
-                  _buildDetailItem('School Address', school.address),
-                  _buildDetailItem('School Phone Number', school.phoneNumber),
-                  _buildDetailItem('School Type', school.type),
-                  _buildDetailItem('School Educational Zone', school.zone),
-                  _buildDetailItem(
-                      'Number of Students', school.students.toString()),
-                  _buildDetailItem(
-                      'Number of Teachers', school.teachers.toString()),
-                  _buildDetailItem('Number of Non-Academic Staff',
-                      school.nonAcademicStaff.toString()),
-                  _buildDetailItem('Infrastructure Components',
-                      school.infrastructureComponents.toString()),
-
-                  // --- New "Valuable Details" Section ---
-                  const Padding(
-                    padding: EdgeInsets.only(top: 15.0, bottom: 5.0),
-                    child: Text(
-                      'Admin Details',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueAccent),
-                    ),
-                  ),
-                  const Divider(),
-                  _buildDetailItem(
-                      'Status', school.isActive ? 'Active' : 'Deactivated',
-                      valueColor: school.isActive ? Colors.green : Colors.red),
-                  _buildDetailItem(
-                      'Added By (NIC)', school.addedByNic ?? 'N/A'),
-                  _buildDetailItem('Added On', school.formattedAddedAt),
-                  // NEW: Display last edit info
-                  _buildDetailItem(
-                      'Last Edited By (NIC)', school.lastEditedByNic ?? 'N/A'),
-                  _buildDetailItem(
-                      'Last Edited On', school.formattedLastEditedAt),
+                  _buildStatBadge('Students: ${school.students}', Colors.blue),
+                  _buildStatBadge('Teachers: ${school.teachers}', Colors.orange),
                 ],
               ),
-            ),
-          ],
+              
+              const Divider(height: 30),
+              const Text('Admin Information', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+              const SizedBox(height: 10),
+              _buildDetailItem('Status', school.isActive ? 'Active' : 'Deactivated', Icons.info_outline, 
+                  valueColor: school.isActive ? Colors.green : Colors.red),
+              _buildDetailItem('Added By', school.addedByNic ?? 'N/A', Icons.person_outline),
+              _buildDetailItem('Last Edited', school.formattedLastEditedAt, Icons.history),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDetailItem(String label, String value, {Color? valueColor}) {
+  Widget _buildDetailItem(String label, String value, IconData icon, {Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
+      padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            '• $label:',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
-          ),
-          const SizedBox(width: 8),
+        children: [
+          Icon(icon, size: 18, color: Colors.blueAccent.withOpacity(0.7)),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14.5,
-                color: valueColor ??
-                    Colors.black87, // Use custom color if provided
-                fontWeight:
-                    valueColor != null ? FontWeight.bold : FontWeight.normal,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor ?? Colors.black87)),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildStatBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+    );
+  }
 }
-// --- End of School Details Dialog ---
 
-// --- Main Page (Converted to StatefulWidget) ---
 class ManageSchoolsPage extends StatefulWidget {
-  // <-- MODIFIED: Add this to accept the logged-in user's NIC
   final String userNic;
-
-  const ManageSchoolsPage({
-    Key? key,
-    required this.userNic, // <-- MODIFIED: Make it required
-  }) : super(key: key);
+  const ManageSchoolsPage({Key? key, required this.userNic}) : super(key: key);
 
   @override
   State<ManageSchoolsPage> createState() => _ManageSchoolsPageState();
 }
 
 class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
-  // --- NEW: State variables for search functionality ---
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    // Listen for changes in the search bar
     _searchController.addListener(_onSearchChanged);
   }
 
@@ -157,48 +134,32 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     super.dispose();
   }
 
-  // NEW: Function to update the search query state
   void _onSearchChanged() {
     setState(() {
       _searchQuery = _searchController.text.toLowerCase();
     });
   }
 
-  // Function to show the school details dialog
   void _showSchoolDetails(BuildContext context, School school) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return SchoolDetailsDialog(school: school);
-      },
+      builder: (BuildContext context) => SchoolDetailsDialog(school: school),
     );
   }
 
-  // NEW: Function to navigate to the Edit page
-  // The EditSchoolPage is now imported from a separate file
   void _navigateToEditPage(BuildContext context, School school) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        // <-- MODIFIED: This is the fix for line 179
-        builder: (context) => EditSchoolPage(
-          school: school,
-          userNic: widget.userNic, // <-- Pass the user's NIC
-        ),
+        builder: (context) => EditSchoolPage(school: school, userNic: widget.userNic),
       ),
     );
   }
 
-  // Function to update the school's activation status in Firestore
   Future<void> _updateSchoolStatus(School school, bool newStatus) async {
     try {
-      // <-- MODIFIED: Use the real user's NIC, not a hardcoded value
       final String currentUserNic = widget.userNic;
-
-      await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(school.id)
-          .update({
+      await FirebaseFirestore.instance.collection('schools').doc(school.id).update({
         'isActive': newStatus,
         'lastEditedAt': Timestamp.now(),
         'lastEditedByNic': currentUserNic,
@@ -206,96 +167,54 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              '${school.name} has been ${newStatus ? "activated" : "deactivated"}.'),
+          content: Text('${school.name} ${newStatus ? "activated" : "deactivated"}'),
+          behavior: SnackBarBehavior.floating,
           backgroundColor: newStatus ? Colors.green : Colors.red,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating status: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA), // Soft background color
       appBar: AppBar(
-        title: const Text('Manage Schools'), // Updated title
-        centerTitle: false,
-        backgroundColor: Colors.white,
+        title: const Text('Manage Schools', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: _buildSearchBar(),
           ),
-          const SizedBox(height: 3),
-
-          // --- StreamBuilder to display live data from Firestore ---
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance.collection('schools').snapshots(),
+              stream: FirebaseFirestore.instance.collection('schools').snapshots(),
               builder: (context, snapshot) {
-                // Handle loading state
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
-                // Handle error state
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                // Handle no data
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(child: Text('No schools found.'));
                 }
 
-                // If we have data, display it in a list
-                final schoolDocs = snapshot.data!.docs;
-                
-                // Convert to School objects and filter based on search query
-                final List<School> allSchools = schoolDocs
+                final List<School> filteredSchools = snapshot.data!.docs
                     .map((doc) => School.fromFirestore(doc))
+                    .where((s) => s.name.toLowerCase().contains(_searchQuery) || s.address.toLowerCase().contains(_searchQuery))
                     .toList();
-                
-                final List<School> filteredSchools = allSchools.where((school) {
-                  final nameLower = school.name.toLowerCase();
-                  final addressLower = school.address.toLowerCase();
-                  return nameLower.contains(_searchQuery) ||
-                      addressLower.contains(_searchQuery);
-                }).toList();
-
-                if (filteredSchools.isEmpty && _searchQuery.isNotEmpty) {
-                  return const Center(
-                      child: Text('No schools match your search.'));
-                } else if (filteredSchools.isEmpty) {
-                  return const Center(child: Text('No schools found.'));
-                }
-
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: filteredSchools.length,
-                  itemBuilder: (context, index) {
-                    // Build the card for each filtered school
-                    return _buildSchoolCard(filteredSchools[index]);
-                  },
+                  itemBuilder: (context, index) => _buildSchoolCard(filteredSchools[index]),
                 );
               },
             ),
@@ -306,212 +225,141 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
   }
 
   Widget _buildSearchBar() {
-    // --- UPDATED: Connect TextField to _searchController and logic ---
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10.0),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: TextField(
-        controller: _searchController, // NEW: Controller
+        controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Search Schools..........',
+          hintText: 'Search by name or address...',
+          prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
+          suffixIcon: _searchQuery.isNotEmpty 
+            ? IconButton(icon: const Icon(Icons.clear), onPressed: () => _searchController.clear()) 
+            : null,
           border: InputBorder.none,
-          prefixIcon: Icon(Icons.search, color: Colors.grey),
-          // NEW: Clear button only when text is present
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.grey),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {
-                      _searchQuery = '';
-                    });
-                  },
-                )
-              : null,
-          contentPadding: EdgeInsets.symmetric(vertical: 10.0),
+          contentPadding: const EdgeInsets.symmetric(vertical: 15),
         ),
-        // The listener in initState handles the setState, so onChanged is optional here
-        // onChanged: (value) => _onSearchChanged(), 
       ),
     );
   }
 
-  // UPDATED: SchoolCard now takes a single School object
   Widget _buildSchoolCard(School school) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // --- School Info ---
-            Text(
-              school.name,
-              style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue),
-            ),
-            const SizedBox(height: 4),
-            Text(school.address, style: const TextStyle(color: Colors.grey)),
-
-            const SizedBox(height: 10),
-
-            // --- New "Valuable Details" Displayed on Card ---
-            _buildCardDetailRow(Icons.person_outline,
-                'Added by: ${school.addedByNic ?? 'N/A'}'),
-            _buildCardDetailRow(
-                Icons.access_time, 'Added on: ${school.formattedAddedAt}'),
-            _buildCardDetailRow(
-              school.isActive ? Icons.check_circle : Icons.cancel,
-              'Status: ${school.isActive ? 'Active' : 'Deactivated'}',
-              color:
-                  school.isActive ? Colors.green.shade700 : Colors.red.shade700,
-            ),
-            // NEW: Show last edit on card if it exists
-            if (school.lastEditedAt != null)
-              _buildCardDetailRow(Icons.edit_note,
-                  'Last Edit: ${school.formattedLastEditedAt} by ${school.lastEditedByNic ?? 'N/A'}'),
-
-            const Divider(height: 20),
-
-            // --- Action Buttons ---
-            Builder(
-              builder: (BuildContext cardContext) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    // --- Activation/Deactivation Buttons ---
-                    // Show only the relevant button
-                    if (school.isActive)
-                      _buildStatusButton(
-                        'Deactivate',
-                        Colors.red,
-                        Icons.close,
-                        () => _updateSchoolStatus(
-                            school, false), // Call update fn
-                      )
-                    else
-                      _buildStatusButton(
-                        'Activate',
-                        Colors.green,
-                        Icons.check,
-                        () =>
-                            _updateSchoolStatus(school, true), // Call update fn
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              // Status Vertical Bar
+              Container(width: 5, color: school.isActive ? Colors.green : Colors.red),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(school.name, 
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                          ),
+                          _buildStatusChip(school.isActive),
+                        ],
                       ),
-
-                    // --- View and Edit Buttons ---
-                    Row(
-                      children: [
-                        _buildActionButton(
-                            'View', Colors.blue, Icons.remove_red_eye, () {
-                          _showSchoolDetails(cardContext, school);
-                        }),
-                        const SizedBox(width: 5),
-                        // NEW: Hook up Edit button
-                        _buildActionButton('Edit', Colors.amber, Icons.edit,
-                            () {
-                          _navigateToEditPage(cardContext, school);
-                        }),
-                      ],
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
+                      const SizedBox(height: 4),
+                      Text(school.address, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                      const SizedBox(height: 12),
+                      
+                      // Card Details Grid
+                      _buildMiniDetail(Icons.person_outline, 'By: ${school.addedByNic ?? 'N/A'}'),
+                      _buildMiniDetail(Icons.calendar_today_outlined, 'On: ${school.formattedAddedAt}'),
+                      if (school.lastEditedAt != null)
+                        _buildMiniDetail(Icons.edit_outlined, 'Edit: ${school.formattedLastEditedAt}'),
+                      
+                      const Divider(height: 24),
+                      
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Action Buttons Group
+                          Row(
+                            children: [
+                              _buildCircularAction(Icons.remove_red_eye, Colors.blue, () => _showSchoolDetails(context, school)),
+                              const SizedBox(width: 8),
+                              _buildCircularAction(Icons.edit, Colors.orange, () => _navigateToEditPage(context, school)),
+                            ],
+                          ),
+                          // Toggle Status Button
+                          TextButton.icon(
+                            onPressed: () => _updateSchoolStatus(school, !school.isActive),
+                            icon: Icon(school.isActive ? Icons.block : Icons.check_circle_outline, size: 16),
+                            label: Text(school.isActive ? 'Deactivate' : 'Activate'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: school.isActive ? Colors.red : Colors.green,
+                              backgroundColor: (school.isActive ? Colors.red : Colors.green).withOpacity(0.08),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Helper widget for detail rows on the card
-  Widget _buildCardDetailRow(IconData icon, String text, {Color? color}) {
+  Widget _buildStatusChip(bool isActive) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(isActive ? 'ACTIVE' : 'INACTIVE', 
+        style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildMiniDetail(IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4.0),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: color ?? Colors.black54),
+          Icon(icon, size: 14, color: Colors.grey),
           const SizedBox(width: 6),
-          Text(
-            text,
-            style: TextStyle(
-                fontSize: 12,
-                color: color ?? Colors.black54,
-                fontWeight:
-                    color != null ? FontWeight.bold : FontWeight.normal),
-          ),
+          Text(text, style: const TextStyle(fontSize: 12, color: Colors.black54)),
         ],
       ),
     );
   }
 
-  // Status button
-  Widget _buildStatusButton(
-      String text, Color color, IconData icon, VoidCallback onTap) {
+  Widget _buildCircularAction(IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              text,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Action button
-  Widget _buildActionButton(
-      String text, Color color, IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(5),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 14),
-            const SizedBox(width: 4),
-            Text(
-              text,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+        child: Icon(icon, color: color, size: 18),
       ),
     );
   }
