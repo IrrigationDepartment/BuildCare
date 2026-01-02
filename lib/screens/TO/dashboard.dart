@@ -12,7 +12,7 @@ import 'contractor_list_screen.dart';
 import 'notification.dart';
 
 // --- Settings & Profile Import ---
-import 'settings.dart';
+import 'app_settings.dart';
 import 'profile.dart';
 
 // ====================================================================
@@ -83,57 +83,118 @@ class _DashboardScreenState extends State<TODashboard> {
   }
 
   // ====================================================================
-  // DATA FETCHING (Original Logic)
+  // UPDATED DATA FETCHING WITH FILTERING
   // ====================================================================
   Future<List<RecentActivityItem>> _fetchRecentActivities() async {
     final String userNic = widget.userData['nic'] ?? '';
+    final String userRole = widget.userData['userType'] ?? '';
+    final String userOffice = widget.userData['office'] ?? '';
+    
     List<RecentActivityItem> allActivities = [];
     final now = DateTime.now();
 
     try {
-      final issuesSnap = await FirebaseFirestore.instance
-          .collection('issues')
-          .where('addedByNic', isEqualTo: userNic)
-          .get();
+      Query issuesQuery = FirebaseFirestore.instance.collection('issues');
+      
+      // Apply filtering based on user role
+      if (userRole == 'District Engineer') {
+        // District Engineer: Filter by office district
+        issuesQuery = issuesQuery.where('office', isEqualTo: userOffice);
+      } else if (userRole == 'Principal') {
+        // Principal: Show only their own activities
+        issuesQuery = issuesQuery.where('addedByNic', isEqualTo: userNic);
+      } else {
+        // Other roles (like Technical Officer): Show all
+        // Or you can add specific filtering here
+      }
+      
+      final issuesSnap = await issuesQuery.get();
 
       for (var doc in issuesSnap.docs) {
-        var data = doc.data();
-        allActivities.add(RecentActivityItem(
-          id: doc.id,
-          title:
-              "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
-          subtitle:
-              "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
-          icon: Icons.home_work_outlined,
-          timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
-          type: 'issue',
-        ));
+        var data = doc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          allActivities.add(RecentActivityItem(
+            id: doc.id,
+            title:
+                "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
+            subtitle:
+                "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
+            icon: Icons.home_work_outlined,
+            timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
+            type: 'issue',
+          ));
+        }
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error fetching issues: $e");
     }
 
     try {
-      final schoolsSnap = await FirebaseFirestore.instance
-          .collection('schools')
-          .where('addedByNic', isEqualTo: userNic)
-          .get();
+      Query schoolsQuery = FirebaseFirestore.instance.collection('schools');
+      
+      // Apply filtering based on user role
+      if (userRole == 'District Engineer') {
+        // District Engineer: Filter by office district
+        schoolsQuery = schoolsQuery.where('educationalZone', isEqualTo: userOffice);
+      } else if (userRole == 'Principal') {
+        // Principal: Show only their own schools
+        schoolsQuery = schoolsQuery.where('addedByNic', isEqualTo: userNic);
+      } else {
+        // Other roles: Show all
+      }
+      
+      final schoolsSnap = await schoolsQuery.get();
 
       for (var doc in schoolsSnap.docs) {
-        var data = doc.data();
-        allActivities.add(RecentActivityItem(
-          id: doc.id,
-          title: data['schoolName'] ?? 'Unnamed School',
-          subtitle: data['schoolAddress'] ?? 'No Address',
-          icon: Icons.school,
-          timestamp: (data['addedAt'] as Timestamp?)?.toDate() ?? now,
-          type: 'school',
-        ));
+        var data = doc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          allActivities.add(RecentActivityItem(
+            id: doc.id,
+            title: data['schoolName'] ?? 'Unnamed School',
+            subtitle: data['schoolAddress'] ?? 'No Address',
+            icon: Icons.school,
+            timestamp: (data['addedAt'] as Timestamp?)?.toDate() ?? now,
+            type: 'school',
+          ));
+        }
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error fetching schools: $e");
     }
 
+    // Also fetch master plans if needed
+    try {
+      Query masterPlansQuery = FirebaseFirestore.instance.collection('schoolMasterPlans');
+      
+      if (userRole == 'District Engineer') {
+        // District Engineer: Filter by office district
+        // Assuming there's a way to link master plans to districts
+        // You might need to join with schools collection
+      } else if (userRole == 'Principal') {
+        // Principal: Show only their own master plans
+        masterPlansQuery = masterPlansQuery.where('addedByNic', isEqualTo: userNic);
+      }
+      
+      final masterPlansSnap = await masterPlansQuery.get();
+
+      for (var doc in masterPlansSnap.docs) {
+        var data = doc.data() as Map<String, dynamic>?;
+        if (data != null) {
+          allActivities.add(RecentActivityItem(
+            id: doc.id,
+            title: "Master Plan: ${data['schoolName'] ?? 'School'}",
+            subtitle: "Uploaded on ${data['uploadDate'] ?? 'Unknown Date'}",
+            icon: Icons.architecture,
+            timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? now,
+            type: 'masterplan',
+          ));
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching master plans: $e");
+    }
+
+    // Sort by timestamp and return top 5
     allActivities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return allActivities.take(5).toList();
   }
@@ -146,6 +207,11 @@ class _DashboardScreenState extends State<TODashboard> {
             issueId: id, userNic: widget.userData['nic'] ?? '');
         break;
       case 'school':
+        page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '');
+        break;
+      case 'masterplan':
+        // You can add navigation for master plan details here
+        // For now, just navigate to schools
         page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '');
         break;
     }
@@ -214,6 +280,14 @@ class _DashboardScreenState extends State<TODashboard> {
 
   // --- HEADER WITH NOTIFICATION BELL (Added) ---
   Widget _buildWelcomeHeader() {
+    String userRole = widget.userData['userType'] ?? 'User';
+    String userOffice = widget.userData['office'] ?? '';
+    String displayRole = userRole;
+    
+    if (userRole == 'District Engineer' && userOffice.isNotEmpty) {
+      displayRole = '$userRole - $userOffice District';
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
       decoration: BoxDecoration(
@@ -240,8 +314,8 @@ class _DashboardScreenState extends State<TODashboard> {
                       color: kTextColor),
                   overflow: TextOverflow.ellipsis,
                 ),
-                const Text('Technical Officer',
-                    style: TextStyle(fontSize: 16, color: kSubTextColor)),
+                Text(displayRole,
+                    style: const TextStyle(fontSize: 16, color: kSubTextColor)),
               ],
             ),
           ),
@@ -259,6 +333,7 @@ class _DashboardScreenState extends State<TODashboard> {
                 stream: FirebaseFirestore.instance
                     .collection('notifications')
                     .where('isRead', isEqualTo: false)
+                    .where('userId', isEqualTo: widget.userData['nic'] ?? '')
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
@@ -291,29 +366,32 @@ class _DashboardScreenState extends State<TODashboard> {
   }
 
   Widget _buildGridMenu() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      children: [
-        _buildMenuCard(
-            icon: Icons.school,
-            title: 'Manage School',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => ManageSchoolsScreen(
-                        userNic: widget.userData['nic'] ?? '')))),
-        _buildMenuCard(
-            icon: Icons.assessment,
-            title: 'Issues Report',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => IssueReportListScreen(
-                        userNic: widget.userData['nic'] ?? '')))),
+    String userRole = widget.userData['userType'] ?? '';
+    List<Widget> menuItems = [];
+
+    // Common menu items for all users
+    menuItems.addAll([
+      _buildMenuCard(
+          icon: Icons.school,
+          title: 'Manage School',
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => ManageSchoolsScreen(
+                      userNic: widget.userData['nic'] ?? '')))),
+      _buildMenuCard(
+          icon: Icons.assessment,
+          title: 'Issues Report',
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => IssueReportListScreen(
+                      userNic: widget.userData['nic'] ?? '')))),
+    ]);
+
+    // Add role-specific menu items
+    if (userRole == 'District Engineer' || userRole == 'Technical Officer') {
+      menuItems.addAll([
         _buildMenuCard(
             icon: Icons.description,
             title: 'Contract Details',
@@ -328,7 +406,32 @@ class _DashboardScreenState extends State<TODashboard> {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const ContractorListScreen()))),
-      ],
+      ]);
+    } else if (userRole == 'Principal') {
+      menuItems.addAll([
+        _buildMenuCard(
+            icon: Icons.architecture,
+            title: 'Master Plans',
+            onTap: () {
+              // Navigate to master plans screen
+              // You can create a separate screen for this
+            }),
+        _buildMenuCard(
+            icon: Icons.report,
+            title: 'My Reports',
+            onTap: () {
+              // Navigate to principal's reports
+            }),
+      ]);
+    }
+
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      children: menuItems,
     );
   }
 
