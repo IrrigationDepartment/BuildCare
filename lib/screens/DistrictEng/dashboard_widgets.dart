@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-// NOTE: You must have these pages in your project for navigation to work.
 import 'manage_to_page.dart';
 import 'manage_principals_page.dart';
 import 'manage_schools_page.dart';
 import 'pending_approvals_page.dart';
-// DamageDetailsDialog එක import කිරීම
 import 'damage_details_dialog.dart'; 
+import 'SchoolDetailsDialog.dart'; 
 
 // -----------------------------------------------------------------------------
 //                                MAIN WIDGETS
@@ -511,7 +510,6 @@ class _ManageButton extends StatelessWidget {
   }
 }
 
-// NAVIGATION ඇතුළත් කළ MODIFIED WIDGET එක
 class _IssueActivityItem extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -571,7 +569,6 @@ class _IssueActivityItem extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // NAVIGATION LOGIC: DamageDetailsDialog එකට navigate වීම
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -663,7 +660,13 @@ class _SchoolActivityItem extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              print('View details for school: $docId');
+              // NAVIGATION LOGIC
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SchoolDetailsPage(schoolId: docId),
+                ),
+              );
             },
             child: const Text('View School'),
           ),
