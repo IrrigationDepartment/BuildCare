@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'add_issue_screen.dart';
 
 // ============================================================================
-// FULL SCREEN IMAGE VIEWER (From second code)
+// FULL SCREEN IMAGE VIEWER
 // ============================================================================
 class FullScreenImageViewer extends StatefulWidget {
   final List<String> images;
@@ -61,24 +61,19 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
 }
 
 // ============================================================================
-// VIEW ISSUES PAGE (From second code)
+// VIEW ISSUES PAGE
 // ============================================================================
 class ViewIssuesPage extends StatelessWidget {
   const ViewIssuesPage({super.key});
 
   Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Pending':
-      case 'New':
+    switch (status.toLowerCase()) {
+      case 'pending':
         return Colors.orange.shade700;
-      case 'Processing':
-      case 'In Progress':
+      case 'processing':
         return Colors.blue.shade700;
-      case 'Processed':
-      case 'Resolved':
+      case 'completed':
         return Colors.green.shade700;
-      case 'Closed':
-        return Colors.red.shade700;
       default:
         return Colors.grey.shade600;
     }
@@ -120,7 +115,7 @@ class ViewIssuesPage extends StatelessWidget {
               final issueId = issueDoc.id;
               final issueTitle = data['issueTitle'] ?? 'No Title';
               final schoolName = data['schoolName'] ?? 'Unknown School';
-              final status = data['status'] ?? 'N/A';
+              final status = data['status'] ?? 'Pending';
               final statusColor = _getStatusColor(status);
 
               return Padding(
@@ -202,18 +197,17 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   bool _isUpdatingStatus = false;
   Map<String, dynamic>? _issueData;
   String _formattedDate = 'N/A';
+  String _reportedDate = 'N/A';
   List<String> _images = [];
   List<dynamic> _statusHistory = [];
   String? _currentUserId;
   String? _currentUserName;
 
-  // Status options using second code's terminology
+  // Status options - Only Pending, Processing, Completed
   final List<String> _statusOptions = [
     'Pending',
     'Processing',
-    'Processed',
-    'Closed',
-    'Rejected'
+    'Completed'
   ];
 
   @override
@@ -224,10 +218,10 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   }
 
   // ============================================================================
-  // SECOND CODE LOGICS - INTEGRATED
+  // HELPER FUNCTIONS
   // ============================================================================
 
-  // Fetch user details based on NIC (From second code)
+  // Fetch user details based on NIC
   Future<QuerySnapshot> _fetchReporterDetails(String nic) {
     return FirebaseFirestore.instance
         .collection('users')
@@ -236,26 +230,35 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
         .get();
   }
 
-  // Status color logic from second code
+  // Status color logic
   Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Pending':
-      case 'New':
+    switch (status.toLowerCase()) {
+      case 'pending':
         return Colors.orange.shade700;
-      case 'Processing':
-      case 'In Progress':
+      case 'processing':
         return Colors.blue.shade700;
-      case 'Processed':
-      case 'Resolved':
+      case 'completed':
         return Colors.green.shade700;
-      case 'Closed':
-        return Colors.red.shade700;
       default:
         return Colors.grey.shade600;
     }
   }
 
-  // Detail section builder from second code
+  // Get status icon
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Icons.pending;
+      case 'processing':
+        return Icons.build;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.help;
+    }
+  }
+
+  // Detail section builder
   Widget _buildDetailSection({
     required String title,
     required String value,
@@ -308,23 +311,32 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
-  // Status change dialog from second code
+  // Status change dialog - Simplified for Pending, Processing, Completed
   void _showStatusChangeDialog(BuildContext context, String currentStatus) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Select New Status'),
+          title: const Text('Update Issue Status'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _statusOption(context, 'Pending', Colors.orange.shade700),
-              _statusOption(context, 'Processing', Colors.blue.shade700),
-              _statusOption(context, 'Processed', Colors.green.shade700),
-              if (widget.isAdminView)
-                _statusOption(context, 'Closed', Colors.red.shade700),
-              if (widget.isAdminView)
-                _statusOption(context, 'Rejected', Colors.grey.shade600),
+              Text(
+                'Current Status: $currentStatus',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _getStatusColor(currentStatus),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ..._statusOptions.map((status) {
+                return _statusOption(
+                  context,
+                  status,
+                  _getStatusColor(status),
+                  status == currentStatus,
+                );
+              }).toList(),
             ],
           ),
           actions: [
@@ -338,18 +350,37 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
-  Widget _statusOption(BuildContext context, String status, Color color) {
-    return ListTile(
-      leading: Icon(Icons.circle, color: color, size: 16),
-      title: Text(status),
-      onTap: () {
-        _updateStatus(status);
-        Navigator.pop(context);
-      },
+  Widget _statusOption(BuildContext context, String status, Color color, bool isCurrent) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: Icon(_getStatusIcon(status), color: color),
+        title: Text(
+          status,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        trailing: isCurrent
+            ? const Icon(Icons.check, color: Colors.green)
+            : null,
+        onTap: () {
+          if (!isCurrent) {
+            _updateStatus(status);
+            Navigator.pop(context);
+          }
+        },
+        tileColor: isCurrent ? color.withOpacity(0.1) : null,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: color.withOpacity(0.5)),
+        ),
+      ),
     );
   }
 
-  // User details popup from second code
+  // User details popup
   void _showUserPopup(BuildContext context, Map<String, dynamic> userData) {
     showDialog(
       context: context,
@@ -421,7 +452,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   }
 
   // ============================================================================
-  // ORIGINAL FUNCTIONS (MODIFIED)
+  // CORE FUNCTIONS
   // ============================================================================
 
   Future<void> _getCurrentUser() async {
@@ -453,11 +484,18 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
       if (doc.exists) {
         _issueData = doc.data() as Map<String, dynamic>;
 
-        // Format date
+        // Format occurrence date
         if (_issueData!['dateOfOccurance'] != null) {
           final DateTime selectedDate =
               (_issueData!['dateOfOccurance'] as Timestamp).toDate();
           _formattedDate = DateFormat('MMM dd, yyyy').format(selectedDate);
+        }
+
+        // Format reported date (timestamp)
+        if (_issueData!['timestamp'] != null) {
+          final DateTime reportedDateTime =
+              (_issueData!['timestamp'] as Timestamp).toDate();
+          _reportedDate = DateFormat('dd-MM-yyyy @ HH:mm').format(reportedDateTime);
         }
 
         // Load images
@@ -535,11 +573,12 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Status updated to $newStatus'),
-            backgroundColor: Colors.green,
+            backgroundColor: _getStatusColor(newStatus),
           ),
         );
       }
 
+      // Refresh data
       await _fetchIssueDetails();
     } catch (e) {
       if (mounted) {
@@ -632,12 +671,23 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                                             color: _getStatusColor(status),
                                           ),
                                         ),
-                                        child: Text(
-                                          status,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: _getStatusColor(status),
-                                          ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              _getStatusIcon(status),
+                                              size: 14,
+                                              color: _getStatusColor(status),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              status,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: _getStatusColor(status),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                       const Spacer(),
@@ -691,12 +741,12 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
         title: const Text(
-          'Repair Report Details',
-          style: TextStyle(color: kTextColor),
+          'Issue Details',
+          style: TextStyle(color: Colors.black87),
         ),
-        backgroundColor: const Color(0xFFE8F2FF), // Second code app bar color
+        backgroundColor: const Color(0xFFE8F2FF),
         elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black87), // Second code icon color
+        iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
           if (_statusHistory.isNotEmpty)
             IconButton(
@@ -731,7 +781,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Status Banner using second code's style
+                      // Status Banner
                       Card(
                         elevation: 2,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -750,24 +800,35 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  const Text('Status: ', style: TextStyle(fontSize: 16)),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: statusColor),
-                                    ),
-                                    child: Text(
-                                      currentStatus,
-                                      style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: statusColor),
+                                  Icon(
+                                    _getStatusIcon(currentStatus),
+                                    color: statusColor,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Current Status',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: statusColor,
+                                          ),
+                                        ),
+                                        Text(
+                                          currentStatus,
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: statusColor,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  if (widget.isAdminView) ...[
-                                    const Spacer(),
+                                  if (widget.isAdminView)
                                     ElevatedButton.icon(
                                       onPressed: () => _showStatusChangeDialog(context, currentStatus),
                                       icon: const Icon(Icons.edit, size: 16),
@@ -781,7 +842,6 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                                         ),
                                       ),
                                     ),
-                                  ],
                                 ],
                               ),
                             ],
@@ -791,7 +851,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
                       const SizedBox(height: 10),
 
-                      // Reporter Info Section from second code
+                      // Reporter Info Section
                       if (widget.userNic.isNotEmpty)
                         FutureBuilder<QuerySnapshot>(
                           future: _fetchReporterDetails(widget.userNic),
@@ -855,7 +915,50 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Description using second code's section style
+                      // Reported On Section (Like in your image)
+                      Card(
+                        elevation: 0.5,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.access_time_outlined, 
+                                      color: Colors.blueGrey.shade700, size: 24),
+                                  const SizedBox(width: 10),
+                                  const Text(
+                                    'Reported On',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Divider(height: 10),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                                child: Text(
+                                  _reportedDate,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Description
                       _buildDetailSection(
                         title: 'Description',
                         value: _issueData!['description'] ?? 'No description provided.',
@@ -865,7 +968,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
                       const SizedBox(height: 10),
 
-                      // Images Section using second code's style
+                      // Images Section
                       if (_images.isNotEmpty) ...[
                         const Text(
                           "Attached Photos",
@@ -925,7 +1028,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                         const SizedBox(height: 20),
                       ],
 
-                      // Issue Details using second code's section style
+                      // Issue Details
                       _buildDetailSection(
                         title: 'Type of Damage',
                         value: _issueData!['damageType'] ?? 'N/A',
@@ -962,7 +1065,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                         icon: Icons.business_outlined,
                       ),
 
-                      // Status History using second code's card style
+                      // Status History
                       if (_statusHistory.isNotEmpty)
                         Card(
                           elevation: 0.5,
@@ -997,13 +1100,10 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
                                   return ListTile(
                                     contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                                    leading: Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: BoxDecoration(
-                                        color: _getStatusColor(status),
-                                        shape: BoxShape.circle,
-                                      ),
+                                    leading: Icon(
+                                      _getStatusIcon(status),
+                                      color: _getStatusColor(status),
+                                      size: 20,
                                     ),
                                     title: Text(
                                       status,
@@ -1032,25 +1132,34 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                           ),
                         ),
 
-                      // Update Status Button from second code
+                      // Update Status Button (for admin users only) - Styled like in your image
                       if (widget.isAdminView) ...[
                         const SizedBox(height: 30),
-                        SizedBox(
+                        Container(
                           width: double.infinity,
-                          child: ElevatedButton.icon(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: ElevatedButton(
                             onPressed: () => _showStatusChangeDialog(context, currentStatus),
-                            icon: const Icon(Icons.edit),
-                            label: const Text('Update Status'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade700,
+                              backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 2,
+                              shadowColor: Colors.blue.withOpacity(0.3),
+                            ),
+                            child: const Text(
+                              'Update Status',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                         ),
+                        const SizedBox(height: 20),
                       ],
                     ],
                   ),
