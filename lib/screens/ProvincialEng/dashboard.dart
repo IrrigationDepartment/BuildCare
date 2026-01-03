@@ -15,11 +15,11 @@ import 'add_to.dart';
 import 'add_principal.dart';
 import 'add_contractor_screen.dart';
 import 'add_contract.dart';
-import 'profile_management.dart'; // Ensure this is imported
-import 'app_settings.dart'; // Ensure this is imported
+import 'profile_management.dart';
+import 'app_settings.dart';
 
 // --- NEW NOTIFICATION IMPORT ---
-import 'notification.dart'; // Make sure you have this file
+import 'notification.dart';
 
 import 'user_management/user_list_page.dart';
 
@@ -144,6 +144,11 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   @override
   Widget build(BuildContext context) {
     const Color pageBackgroundColor = Color(0xFFF4F6F8);
+    
+    // Get screen dimensions
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallMobile = screenWidth < 360; // For very small devices
+    final isMobile = screenWidth < 600;
 
     return Scaffold(
       backgroundColor: pageBackgroundColor,
@@ -151,66 +156,84 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         backgroundColor: pageBackgroundColor,
         toolbarHeight: 0,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            DashboardHeader(
-              userData: widget.userData,
-              unreadNotificationsStream: _unreadNotificationsStream,
-            ),
-            const SizedBox(height: 20),
-            _buildSectionTitle('User Management'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12.0,
-                mainAxisSpacing: 12.0,
-                childAspectRatio: 1.1,
-                children: const <Widget>[
-                  UserCountBuilder(
-                    title: 'Chief Engineer',
-                    userType: 'Chief Engineer',
-                    addPage: ChiefEngRegistrationPage(),
-                    icon: Icons.person_pin,
-                    color: Colors.blue,
-                  ),
-                  UserCountBuilder(
-                    title: 'District Engineer',
-                    userType: 'District Engineer',
-                    addPage: DistrictEngRegistrationPage(),
-                    icon: Icons.engineering,
-                    color: Colors.green,
-                  ),
-                  UserCountBuilder(
-                    title: 'Technical Officer',
-                    userType: 'Technical Officer',
-                    addPage: TORegistrationPage(),
-                    icon: Icons.build,
-                    color: Colors.orange,
-                  ),
-                  UserCountBuilder(
-                    title: 'Principals',
-                    userType: 'Principal',
-                    addPage: PrincipalRegistrationPage(),
-                    icon: Icons.school,
-                    color: Colors.purple,
-                  ),
-                ],
+      body: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).padding.bottom + 20,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              DashboardHeader(
+                userData: widget.userData,
+                unreadNotificationsStream: _unreadNotificationsStream,
+                isMobile: isMobile,
+                isSmallMobile: isSmallMobile,
               ),
-            ),
-            const SizedBox(height: 20),
-            _buildSectionTitle('Project Management'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: SimpleCountCard(
+              const SizedBox(height: 16),
+              _buildSectionTitle('User Management', isMobile: isMobile),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallMobile ? 8.0 : 12.0,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = isSmallMobile ? 1 : 2;
+                    return GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: isSmallMobile ? 8.0 : 12.0,
+                      mainAxisSpacing: isSmallMobile ? 8.0 : 12.0,
+                      childAspectRatio: _getChildAspectRatio(screenWidth),
+                      children: const <Widget>[
+                        UserCountBuilder(
+                          title: 'Chief Engineer',
+                          userType: 'Chief Engineer',
+                          addPage: ChiefEngRegistrationPage(),
+                          icon: Icons.person_pin,
+                          color: Colors.blue,
+                        ),
+                        UserCountBuilder(
+                          title: 'District Engineer',
+                          userType: 'District Engineer',
+                          addPage: DistrictEngRegistrationPage(),
+                          icon: Icons.engineering,
+                          color: Colors.green,
+                        ),
+                        UserCountBuilder(
+                          title: 'Technical Officer',
+                          userType: 'Technical Officer',
+                          addPage: TORegistrationPage(),
+                          icon: Icons.build,
+                          color: Colors.orange,
+                        ),
+                        UserCountBuilder(
+                          title: 'Principals',
+                          userType: 'Principal',
+                          addPage: PrincipalRegistrationPage(),
+                          icon: Icons.school,
+                          color: Colors.purple,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildSectionTitle('Project Management', isMobile: isMobile),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallMobile ? 8.0 : 12.0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SimpleCountCard(
                         title: 'Contractors',
                         collectionName: 'contractors',
                         icon: Icons.engineering,
@@ -219,22 +242,24 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) =>
-                                    const ContractorsListPage()),
+                              builder: (context) => const ContractorsListPage(),
+                            ),
                           );
                         },
                         onAdd: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) =>
-                                    const AddContractorScreen()),
+                              builder: (context) => const AddContractorScreen(),
+                            ),
                           );
-                        }),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: SimpleCountCard(
+                        },
+                        isSmallMobile: isSmallMobile,
+                      ),
+                    ),
+                    SizedBox(width: isSmallMobile ? 8.0 : 10.0),
+                    Expanded(
+                      child: SimpleCountCard(
                         title: 'Contracts',
                         collectionName: 'contracts',
                         icon: Icons.description,
@@ -243,45 +268,63 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => const ContractListPage()),
+                              builder: (context) => const ContractListPage(),
+                            ),
                           );
                         },
                         onAdd: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) =>
-                                    const AddContractScreen()),
+                              builder: (context) => const AddContractScreen(),
+                            ),
                           );
-                        }),
-                  ),
-                ],
+                        },
+                        isSmallMobile: isSmallMobile,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            _buildSectionTitle('System Alerts'),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: IssueCountBuilder(title: 'Manage Issues'),
-            ),
-            // REMOVED: Latest Updates section and its stream builder
-            const SizedBox(height: 40), // Reduced bottom padding
-          ],
+              const SizedBox(height: 16),
+              _buildSectionTitle('System Alerts', isMobile: isMobile),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallMobile ? 8.0 : 16.0,
+                ),
+                child: IssueCountBuilder(
+                  title: 'Manage Issues',
+                  isSmallMobile: isSmallMobile,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  double _getChildAspectRatio(double screenWidth) {
+    if (screenWidth < 360) return 1.3; // Very small devices
+    if (screenWidth < 400) return 1.2; // Small devices
+    return 1.1; // Normal devices
+  }
+
+  Widget _buildSectionTitle(String title, {required bool isMobile}) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 10.0),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 12.0 : 16.0,
+        0,
+        isMobile ? 12.0 : 16.0,
+        10.0,
+      ),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 20,
+        style: TextStyle(
+          fontSize: isMobile ? 18 : 20,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF2D3436),
+          color: const Color(0xFF2D3436),
           letterSpacing: 0.5,
         ),
       ),
@@ -295,11 +338,15 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
   final Stream<int> unreadNotificationsStream;
+  final bool isMobile;
+  final bool isSmallMobile;
   
   const DashboardHeader({
     super.key, 
     this.userData,
     required this.unreadNotificationsStream,
+    required this.isMobile,
+    required this.isSmallMobile,
   });
 
   @override
@@ -309,7 +356,12 @@ class DashboardHeader extends StatelessWidget {
     final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20.0, 50.0, 20.0, 30.0),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 16.0 : 20.0,
+        isMobile ? 40.0 : 50.0,
+        isMobile ? 16.0 : 20.0,
+        isMobile ? 20.0 : 30.0,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.blue.shade800, Colors.blue.shade500],
@@ -317,20 +369,21 @@ class DashboardHeader extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.blue.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
@@ -344,37 +397,42 @@ class DashboardHeader extends StatelessWidget {
                     imageUrl = data['profile_image'];
                   }
                   return CircleAvatar(
-                    radius: 30,
+                    radius: isSmallMobile ? 25 : 30,
                     backgroundColor: Colors.white.withOpacity(0.2),
                     backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
                         ? NetworkImage(imageUrl)
                         : null,
                     child: (imageUrl == null || imageUrl.isEmpty)
-                        ? const Icon(Icons.person, color: Colors.white, size: 35)
+                        ? Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: isSmallMobile ? 30 : 35,
+                          )
                         : null,
                   );
                 },
               ),
-              const SizedBox(width: 15),
+              SizedBox(width: isSmallMobile ? 12 : 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Welcome, $userName',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 22,
+                        fontSize: isSmallMobile ? 18 : 22,
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       userRole,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
+                        fontSize: isSmallMobile ? 12 : 14,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -382,17 +440,23 @@ class DashboardHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               // --- NOTIFICATION BELL WITH BADGE ---
               Stack(
                 children: [
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.notifications_active, color: Colors.white),
+                      icon: Icon(
+                        Icons.notifications_active,
+                        color: Colors.white,
+                        size: isSmallMobile ? 20 : 24,
+                      ),
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -405,8 +469,8 @@ class DashboardHeader extends StatelessWidget {
                   ),
                   // Badge for unread notifications
                   Positioned(
-                    right: 8,
-                    top: 8,
+                    right: 4,
+                    top: 4,
                     child: StreamBuilder<int>(
                       stream: unreadNotificationsStream,
                       builder: (context, snapshot) {
@@ -414,20 +478,20 @@ class DashboardHeader extends StatelessWidget {
                           return const SizedBox();
                         }
                         return Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
                             color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                           ),
                           constraints: const BoxConstraints(
-                            minWidth: 20,
-                            minHeight: 20,
+                            minWidth: 16,
+                            minHeight: 16,
                           ),
                           child: Text(
-                            '${snapshot.data}',
-                            style: const TextStyle(
+                            '${snapshot.data! > 9 ? '9+' : snapshot.data}',
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: isSmallMobile ? 8 : 10,
                               fontWeight: FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,
@@ -455,43 +519,51 @@ class CustomBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallMobile = MediaQuery.of(context).size.width < 360;
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
+            blurRadius: 10,
+            offset: const Offset(0, -3),
           ),
         ],
       ),
-      child: BottomNavigationBar(
-        currentIndex: currentIndex,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.blue.shade800,
-        unselectedItemColor: Colors.grey.shade400,
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        onTap: (index) => _onTabTapped(context, index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
+      child: SafeArea(
+        top: false,
+        child: BottomNavigationBar(
+          currentIndex: currentIndex,
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.blue.shade800,
+          unselectedItemColor: Colors.grey.shade400,
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          selectedFontSize: isSmallMobile ? 10 : 12,
+          unselectedFontSize: isSmallMobile ? 10 : 12,
+          iconSize: isSmallMobile ? 20 : 24,
+          onTap: (index) => _onTabTapped(context, index),
+          items: [
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.dashboard_outlined),
+              activeIcon: const Icon(Icons.dashboard),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.person_outline),
+              activeIcon: const Icon(Icons.person),
+              label: 'Profile',
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.settings_outlined),
+              activeIcon: const Icon(Icons.settings),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -568,6 +640,8 @@ class UserCountBuilder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSmallMobile = MediaQuery.of(context).size.width < 360;
+    
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -593,18 +667,19 @@ class UserCountBuilder extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5)),
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               onTap: () {
                 Navigator.push(
                   context,
@@ -617,58 +692,80 @@ class UserCountBuilder extends StatelessWidget {
                 );
               },
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+                padding: EdgeInsets.symmetric(
+                  vertical: isSmallMobile ? 12.0 : 16.0,
+                  horizontal: isSmallMobile ? 6.0 : 8.0,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    Icon(icon, size: 32, color: color),
+                    Icon(
+                      icon,
+                      size: isSmallMobile ? 28 : 32,
+                      color: color,
+                    ),
                     Text(
                       total.toString(),
-                      style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 24 : 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 11 : 13,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildDot(Colors.green),
-                        Text(" $active  ",
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey)),
-                        _buildDot(Colors.orange),
-                        Text(" $pending",
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey)),
+                        _buildDot(Colors.green, isSmallMobile),
+                        Text(
+                          " $active  ",
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 9 : 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        _buildDot(Colors.orange, isSmallMobile),
+                        Text(
+                          " $pending",
+                          style: TextStyle(
+                            fontSize: isSmallMobile ? 9 : 11,
+                            color: Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     InkWell(
                       onTap: () {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (context) => addPage));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => addPage),
+                        );
                       },
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isSmallMobile ? 16 : 20,
+                          vertical: isSmallMobile ? 4 : 6,
+                        ),
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
                           '+ Add',
                           style: TextStyle(
-                              fontSize: 12,
-                              color: color,
-                              fontWeight: FontWeight.bold),
+                            fontSize: isSmallMobile ? 10 : 12,
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     )
@@ -682,10 +779,10 @@ class UserCountBuilder extends StatelessWidget {
     );
   }
 
-  Widget _buildDot(Color color) {
+  Widget _buildDot(Color color, bool isSmallMobile) {
     return Container(
-      width: 6,
-      height: 6,
+      width: isSmallMobile ? 5 : 6,
+      height: isSmallMobile ? 5 : 6,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
@@ -701,6 +798,7 @@ class SimpleCountCard extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final VoidCallback onAdd;
+  final bool isSmallMobile;
 
   const SimpleCountCard({
     super.key,
@@ -710,6 +808,7 @@ class SimpleCountCard extends StatelessWidget {
     required this.color,
     required this.onTap,
     required this.onAdd,
+    required this.isSmallMobile,
   });
 
   @override
@@ -723,25 +822,25 @@ class SimpleCountCard extends StatelessWidget {
         }
 
         return Container(
-          height: 130,
+          height: isSmallMobile ? 110 : 130,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
                 color: color.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               onTap: onTap,
               child: Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: EdgeInsets.all(isSmallMobile ? 10.0 : 12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -750,17 +849,21 @@ class SimpleCountCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Icon(icon, color: color, size: 22),
+                          child: Icon(
+                            icon,
+                            color: color,
+                            size: isSmallMobile ? 18 : 22,
+                          ),
                         ),
                         Text(
                           count,
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: isSmallMobile ? 20 : 24,
                             fontWeight: FontWeight.bold,
                             color: color,
                           ),
@@ -770,7 +873,7 @@ class SimpleCountCard extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: isSmallMobile ? 14 : 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[800],
                       ),
@@ -778,21 +881,24 @@ class SimpleCountCard extends StatelessWidget {
                     Center(
                       child: InkWell(
                         onTap: onAdd,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(16),
                         child: Container(
                           margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 4),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallMobile ? 16 : 20,
+                            vertical: isSmallMobile ? 2 : 4,
+                          ),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
                             '+ Add',
                             style: TextStyle(
-                                fontSize: 12,
-                                color: color,
-                                fontWeight: FontWeight.bold),
+                              fontSize: isSmallMobile ? 10 : 12,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -853,28 +959,38 @@ class ActivityItemCard extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12.0),
+      margin: const EdgeInsets.only(bottom: 10.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 14.0,
+          vertical: 6.0,
+        ),
         leading: CircleAvatar(
           backgroundColor: iconColor.withOpacity(0.1),
-          child: Icon(icon, color: iconColor, size: 24),
+          child: Icon(icon, color: iconColor, size: 22),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 11),
+        ),
         trailing: showButton
             ? IconButton(
                 icon: const Icon(Icons.arrow_forward_ios,
-                    size: 16, color: Colors.grey),
+                    size: 14, color: Colors.grey),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -892,7 +1008,13 @@ class ActivityItemCard extends StatelessWidget {
 
 class IssueCountBuilder extends StatelessWidget {
   final String title;
-  const IssueCountBuilder({super.key, required this.title});
+  final bool isSmallMobile;
+
+  const IssueCountBuilder({
+    super.key,
+    required this.title,
+    required this.isSmallMobile,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -905,45 +1027,51 @@ class IssueCountBuilder extends StatelessWidget {
         }
 
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(isSmallMobile ? 14 : 20),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.warning_amber_rounded,
-                    color: Colors.red, size: 30),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.red,
+                  size: isSmallMobile ? 24 : 30,
+                ),
               ),
-              const SizedBox(width: 20),
+              SizedBox(width: isSmallMobile ? 12 : 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 18,
+                      style: TextStyle(
+                        fontSize: isSmallMobile ? 16 : 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D3436),
+                        color: const Color(0xFF2D3436),
                       ),
                     ),
                     Text(
                       '$total reported issues',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: isSmallMobile ? 12 : 14,
+                      ),
                     ),
                   ],
                 ),
@@ -953,16 +1081,24 @@ class IssueCountBuilder extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const ViewIssuesPage()),
+                      builder: (context) => const ViewIssuesPage(),
+                    ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade800,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   elevation: 0,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallMobile ? 12 : 16,
+                    vertical: isSmallMobile ? 8 : 10,
+                  ),
+                  textStyle: TextStyle(
+                    fontSize: isSmallMobile ? 12 : 14,
+                  ),
                 ),
                 child: const Text('View All'),
               ),
@@ -977,6 +1113,7 @@ class IssueCountBuilder extends StatelessWidget {
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
   const IssueDetailPage({super.key, required this.issueId});
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
