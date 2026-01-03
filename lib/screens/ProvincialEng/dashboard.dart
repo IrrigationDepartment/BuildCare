@@ -18,6 +18,9 @@ import 'add_contract.dart';
 import 'profile_management.dart'; // Ensure this is imported
 import 'app_settings.dart'; // Ensure this is imported
 
+// --- NEW NOTIFICATION IMPORT ---
+import 'notification.dart'; // Make sure you have this file
+
 import 'user_management/user_list_page.dart';
 
 // -----------------------------------------------------------------------------
@@ -51,11 +54,25 @@ class ProvincialEngDashboard extends StatefulWidget {
 class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   late final Stream<List<ActivityItem>> _activityStream;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // --- Notification Badge Stream ---
+  late Stream<int> _unreadNotificationsStream;
 
   @override
   void initState() {
     super.initState();
     _initializeActivityStream();
+    _initializeNotificationStream();
+  }
+
+  void _initializeNotificationStream() {
+    final String userNic = widget.userData?['nic'] ?? '';
+    _unreadNotificationsStream = _firestore
+        .collection('notifications')
+        .where('isRead', isEqualTo: false)
+        .where('userId', isEqualTo: userNic)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
   }
 
   DateTime _safeExtractTimestamp(DocumentSnapshot doc, String fieldName) {
@@ -137,7 +154,10 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            DashboardHeader(userData: widget.userData),
+            DashboardHeader(
+              userData: widget.userData,
+              unreadNotificationsStream: _unreadNotificationsStream,
+            ),
             const SizedBox(height: 20),
             _buildSectionTitle('User Management'),
             Padding(
@@ -301,11 +321,17 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader (Updated) ---
+// --- DashboardHeader (Updated with Notification Bell) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
-  const DashboardHeader({super.key, this.userData});
+  final Stream<int> unreadNotificationsStream;
+  
+  const DashboardHeader({
+    super.key, 
+    this.userData,
+    required this.unreadNotificationsStream,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -361,36 +387,87 @@ class DashboardHeader extends StatelessWidget {
                 },
               ),
               const SizedBox(width: 15),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome, $userName',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      userRole,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // --- NOTIFICATION BELL WITH BADGE ---
+              Stack(
                 children: [
-                  Text(
-                    'Welcome, $userName',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.notifications_active, color: Colors.white),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  Text(
-                    userRole,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                  // Badge for unread notifications
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: StreamBuilder<int>(
+                      stream: unreadNotificationsStream,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data == 0) {
+                          return const SizedBox();
+                        }
+                        return Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 20,
+                            minHeight: 20,
+                          ),
+                          child: Text(
+                            '${snapshot.data}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
-              ),
-              const Spacer(),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.notifications_active, color: Colors.white),
-                  onPressed: () {},
-                ),
               ),
             ],
           ),
