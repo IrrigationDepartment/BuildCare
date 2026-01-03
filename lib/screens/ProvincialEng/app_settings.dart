@@ -1390,62 +1390,29 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   const CustomBottomNavBar({super.key, required this.currentIndex});
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
           ),
         ],
       ),
       child: BottomNavigationBar(
         currentIndex: currentIndex,
+        backgroundColor: Colors.white,
         selectedItemColor: Colors.blue.shade800,
-        unselectedItemColor: Colors.grey.shade500,
-        showUnselectedLabels: true,
+        unselectedItemColor: Colors.grey.shade400,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
-        onTap: (index) {
-          if (index == currentIndex) return;
-
-          switch (index) {
-            case 0:
-              // Home: Clear stack and go to Dashboard
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProvincialEngDashboard(),
-                ),
-                (route) => false,
-              );
-              break;
-            case 1:
-              // Profile: If we are on Settings, use Replace. If Home, use Push.
-              // Since this is the Settings page (Index 2), we are coming from a sibling.
-              // We should REPLACE to avoid stacking [Settings, Profile, Settings...]
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfileManagementPage(),
-                ),
-              );
-              break;
-            case 2:
-              // Settings: We are already here, code won't reach here due to 'if' check
-              break;
-          }
-        },
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        onTap: (index) => _onTabTapped(context, index),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
@@ -1465,5 +1432,55 @@ class CustomBottomNavBar extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _onTabTapped(BuildContext context, int index) {
+    if (currentIndex == index) return;
+
+    switch (index) {
+      case 0:
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProvincialEngDashboard(),
+          ),
+          (route) => false,
+        );
+        break;
+      case 1:
+        if (currentIndex == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProfileManagementPage(),
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProfileManagementPage(),
+            ),
+          );
+        }
+        break;
+      case 2:
+        if (currentIndex == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SettingsPage(),
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SettingsPage(),
+            ),
+          );
+        }
+        break;
+    }
   }
 }

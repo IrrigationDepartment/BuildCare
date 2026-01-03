@@ -88,6 +88,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   }
 
   void _initializeActivityStream() {
+    // This stream initialization can be removed since we're not using it anymore
+    // But keeping it for future use if needed
     Stream<List<ActivityItem>> issuesStream = _firestore
         .collection('issues')
         .orderBy('timestamp', descending: true)
@@ -262,41 +264,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
               padding: EdgeInsets.symmetric(horizontal: 16.0),
               child: IssueCountBuilder(title: 'Manage Issues'),
             ),
-            const SizedBox(height: 20),
-            _buildSectionTitle('Latest Updates'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: StreamBuilder<List<ActivityItem>>(
-                stream: _activityStream,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                        child: Padding(
-                            padding: EdgeInsets.all(20),
-                            child: CircularProgressIndicator()));
-                  }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.all(20),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12)),
-                      child: const Text('No recent updates found.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey)),
-                    );
-                  }
-                  final latestActivities = snapshot.data!;
-                  return Column(
-                    children: latestActivities.map((item) {
-                      return ActivityItemCard(item: item);
-                    }).toList(),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 40),
+            // REMOVED: Latest Updates section and its stream builder
+            const SizedBox(height: 40), // Reduced bottom padding
           ],
         ),
       ),
