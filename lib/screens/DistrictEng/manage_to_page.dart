@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
 
 import 'pending_approvals_page.dart';
 import 'school_master_plan_page.dart'; 
@@ -15,12 +16,38 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
-  Future<int> _getCollectionCount(String collectionName) async {
+  // Get current user's office from Firestore
+  Future<String?> _getCurrentUserOffice() async {
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection(collectionName)
-          .count()
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return null;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
           .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        return data['office'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching current user office: $e');
+      return null;
+    }
+  }
+
+  Future<int> _getCollectionCount(String collectionName, {String? office}) async {
+    try {
+      Query query = FirebaseFirestore.instance.collection(collectionName);
+      
+      // Apply office filter for schools if office is provided
+      if (collectionName == 'schools' && office != null) {
+        query = query.where('office', isEqualTo: office);
+      }
+      
+      final querySnapshot = await query.count().get();
       return querySnapshot.count ?? 0;
     } catch (e) {
       debugPrint('Error fetching count for $collectionName: $e');
@@ -46,53 +73,68 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: FutureBuilder<int>(
-          future: _getCollectionCount('schools'),
-          builder: (context, schoolSnapshot) {
-            if (schoolSnapshot.connectionState == ConnectionState.waiting) {
+        child: FutureBuilder<String?>(
+          future: _getCurrentUserOffice(),
+          builder: (context, officeSnapshot) {
+            if (officeSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final totalSchools = schoolSnapshot.data ?? 0;
+            if (officeSnapshot.hasError) {
+              return Center(child: Text('Error: ${officeSnapshot.error}'));
+            }
 
-            return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .where('userType', isEqualTo: 'Technical Officer')
-                  .snapshots(),
-              builder: (context, userSnapshot) {
-                if (userSnapshot.connectionState == ConnectionState.waiting) {
+            final currentUserOffice = officeSnapshot.data;
+
+            return FutureBuilder<int>(
+              future: _getCollectionCount('schools', office: currentUserOffice),
+              builder: (context, schoolSnapshot) {
+                if (schoolSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (userSnapshot.hasError) {
-                  return Center(child: Text('Error: ${userSnapshot.error}'));
-                }
+                final totalSchools = schoolSnapshot.data ?? 0;
 
-                if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                    return _buildContent(context, 0, 0, 0, totalSchools);
-                }
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .where('userType', isEqualTo: 'Technical Officer')
+                      .where('office', isEqualTo: currentUserOffice)
+                      .snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                final docs = userSnapshot.data!.docs;
-                final totalTOs = docs.length;
+                    if (userSnapshot.hasError) {
+                      return Center(child: Text('Error: ${userSnapshot.error}'));
+                    }
 
-                final activeTOs = docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data['isActive'] == true;
-                }).length;
+                    if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                      return _buildContent(context, 0, 0, 0, totalSchools);
+                    }
 
-                final pendingTOs = docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data['isActive'] == false;
-                }).length;
+                    final docs = userSnapshot.data!.docs;
+                    final totalTOs = docs.length;
 
-                return _buildContent(context, totalTOs, pendingTOs, activeTOs, totalSchools);
+                    final activeTOs = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['isActive'] == true;
+                    }).length;
+
+                    final pendingTOs = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['isActive'] == false;
+                    }).length;
+
+                    return _buildContent(context, totalTOs, pendingTOs, activeTOs, totalSchools);
+                  },
+                );
               },
             );
           },
         ),
       ),
-      // Bottom Navigation Bar has been removed
     );
   }
 
@@ -133,7 +175,12 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               'Active TOs', 
               active.toString(), 
               Icons.how_to_reg_outlined,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ManageTechnicalOfficersListPage())),
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (context) => ManageTechnicalOfficersListPage(
+                  // Pass office filter to the list page if needed
+                  officeFilter: _getCurrentUserOffice(),
+                ),
+              )),
             ),
             _buildStatCard('Schools', totalSchools.toString(), Icons.apartment_outlined),
           ],

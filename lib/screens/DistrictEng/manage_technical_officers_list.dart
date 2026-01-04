@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart'; // Import Image Picker
 import 'package:http/http.dart' as http; // Import HTTP
 
 class ManageTechnicalOfficersListPage extends StatefulWidget {
-  const ManageTechnicalOfficersListPage({super.key});
+  const ManageTechnicalOfficersListPage({super.key, required Future<String?> officeFilter});
 
   @override
   State<ManageTechnicalOfficersListPage> createState() =>
