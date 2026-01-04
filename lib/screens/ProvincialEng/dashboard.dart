@@ -147,8 +147,10 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     
     // Get screen dimensions
     final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallMobile = screenWidth < 360; // For very small devices
-    final isMobile = screenWidth < 600;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isVerySmallMobile = screenWidth < 340; // iPhone SE, small Android
+    final isSmallMobile = screenWidth < 380; 
+    final isMediumMobile = screenWidth < 600;
 
     return Scaffold(
       backgroundColor: pageBackgroundColor,
@@ -160,172 +162,239 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       ),
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).padding.bottom + 20,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              DashboardHeader(
-                userData: widget.userData,
-                unreadNotificationsStream: _unreadNotificationsStream,
-                isMobile: isMobile,
-                isSmallMobile: isSmallMobile,
-              ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('User Management', isMobile: isMobile),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isSmallMobile ? 8.0 : 12.0,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).padding.bottom + 10,
                 ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final crossAxisCount = isSmallMobile ? 1 : 2;
-                    return GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: isSmallMobile ? 8.0 : 12.0,
-                      mainAxisSpacing: isSmallMobile ? 8.0 : 12.0,
-                      childAspectRatio: _getChildAspectRatio(screenWidth),
-                      children: const <Widget>[
-                        UserCountBuilder(
-                          title: 'Chief Engineer',
-                          userType: 'Chief Engineer',
-                          addPage: ChiefEngRegistrationPage(),
-                          icon: Icons.person_pin,
-                          color: Colors.blue,
-                        ),
-                        UserCountBuilder(
-                          title: 'District Engineer',
-                          userType: 'District Engineer',
-                          addPage: DistrictEngRegistrationPage(),
-                          icon: Icons.engineering,
-                          color: Colors.green,
-                        ),
-                        UserCountBuilder(
-                          title: 'Technical Officer',
-                          userType: 'Technical Officer',
-                          addPage: TORegistrationPage(),
-                          icon: Icons.build,
-                          color: Colors.orange,
-                        ),
-                        UserCountBuilder(
-                          title: 'Principals',
-                          userType: 'Principal',
-                          addPage: PrincipalRegistrationPage(),
-                          icon: Icons.school,
-                          color: Colors.purple,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('Project Management', isMobile: isMobile),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isSmallMobile ? 8.0 : 12.0,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: SimpleCountCard(
-                        title: 'Contractors',
-                        collectionName: 'contractors',
-                        icon: Icons.engineering,
-                        color: Colors.teal.shade700,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ContractorsListPage(),
-                            ),
-                          );
-                        },
-                        onAdd: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AddContractorScreen(),
-                            ),
-                          );
-                        },
-                        isSmallMobile: isSmallMobile,
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    DashboardHeader(
+                      userData: widget.userData,
+                      unreadNotificationsStream: _unreadNotificationsStream,
+                      isVerySmallMobile: isVerySmallMobile,
+                      isSmallMobile: isSmallMobile,
                     ),
-                    SizedBox(width: isSmallMobile ? 8.0 : 10.0),
-                    Expanded(
-                      child: SimpleCountCard(
-                        title: 'Contracts',
-                        collectionName: 'contracts',
-                        icon: Icons.description,
-                        color: Colors.indigo.shade700,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ContractListPage(),
-                            ),
-                          );
-                        },
-                        onAdd: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AddContractScreen(),
-                            ),
-                          );
-                        },
-                        isSmallMobile: isSmallMobile,
-                      ),
+                    const SizedBox(height: 8),
+                    _buildSectionTitle('User Management', 
+                      isVerySmallMobile: isVerySmallMobile, 
+                      isSmallMobile: isSmallMobile
                     ),
+                    _buildUserManagementGrid(
+                      isVerySmallMobile: isVerySmallMobile,
+                      isSmallMobile: isSmallMobile,
+                    ),
+
+                    
+                    const SizedBox(height: 8),
+                    _buildSectionTitle('Project Management', 
+                      isVerySmallMobile: isVerySmallMobile, 
+                      isSmallMobile: isSmallMobile
+                    ),
+                    _buildProjectManagementRow(
+                      isVerySmallMobile: isVerySmallMobile,
+                      isSmallMobile: isSmallMobile,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildSectionTitle('System Alerts', 
+                      isVerySmallMobile: isVerySmallMobile, 
+                      isSmallMobile: isSmallMobile
+                    ),
+                    _buildSystemAlertsCard(
+                      isVerySmallMobile: isVerySmallMobile,
+                      isSmallMobile: isSmallMobile,
+                    ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              _buildSectionTitle('System Alerts', isMobile: isMobile),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isSmallMobile ? 8.0 : 16.0,
-                ),
-                child: IssueCountBuilder(
-                  title: 'Manage Issues',
-                  isSmallMobile: isSmallMobile,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
 
-  double _getChildAspectRatio(double screenWidth) {
-    if (screenWidth < 360) return 1.3; // Very small devices
-    if (screenWidth < 400) return 1.2; // Small devices
-    return 1.1; // Normal devices
+  Widget _buildUserManagementGrid({
+    required bool isVerySmallMobile,
+    required bool isSmallMobile,
+  }) {
+    final users = [
+      {
+        'title': 'Chief Engineer',
+        'userType': 'Chief Engineer',
+        'addPage': const ChiefEngRegistrationPage(),
+        'icon': Icons.person_pin,
+        'color': Colors.blue,
+      },
+      {
+        'title': 'District Engineer',
+        'userType': 'District Engineer',
+        'addPage': const DistrictEngRegistrationPage(),
+        'icon': Icons.engineering,
+        'color': Colors.green,
+      },
+      {
+        'title': 'Technical Officer',
+        'userType': 'Technical Officer',
+        'addPage': const TORegistrationPage(),
+        'icon': Icons.build,
+        'color': Colors.orange,
+      },
+      {
+        'title': 'Principals',
+        'userType': 'Principal',
+        'addPage': const PrincipalRegistrationPage(),
+        'icon': Icons.school,
+        'color': Colors.purple,
+      },
+    ];
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isVerySmallMobile ? 6.0 : 
+                   isSmallMobile ? 8.0 : 12.0,
+      ),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: isVerySmallMobile ? 1 : 2,
+          crossAxisSpacing: isVerySmallMobile ? 6.0 : 
+                          isSmallMobile ? 8.0 : 12.0,
+          mainAxisSpacing: isVerySmallMobile ? 6.0 : 
+                         isSmallMobile ? 8.0 : 12.0,
+          childAspectRatio: isVerySmallMobile ? 2.5 : 1.8,
+        ),
+        itemCount: users.length,
+        itemBuilder: (context, index) {
+          final user = users[index];
+          return CompactUserCard(
+            title: user['title'] as String,
+            userType: user['userType'] as String,
+            addPage: user['addPage'] as Widget,
+            icon: user['icon'] as IconData,
+            color: user['color'] as Color,
+            isVerySmallMobile: isVerySmallMobile,
+            isSmallMobile: isSmallMobile,
+          );
+        },
+      ),
+    );
   }
 
-  Widget _buildSectionTitle(String title, {required bool isMobile}) {
+  Widget _buildProjectManagementRow({
+    required bool isVerySmallMobile,
+    required bool isSmallMobile,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isVerySmallMobile ? 6.0 : 
+                   isSmallMobile ? 8.0 : 12.0,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: CompactProjectCard(
+              title: 'Contractors',
+              collectionName: 'contractors',
+              icon: Icons.engineering,
+              color: Colors.teal.shade700,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContractorsListPage(),
+                  ),
+                );
+              },
+              onAdd: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddContractorScreen(),
+                  ),
+                );
+              },
+              isVerySmallMobile: isVerySmallMobile,
+              isSmallMobile: isSmallMobile,
+            ),
+          ),
+          SizedBox(width: isVerySmallMobile ? 6.0 : 
+                     isSmallMobile ? 8.0 : 10.0),
+          Expanded(
+            child: CompactProjectCard(
+              title: 'Contracts',
+              collectionName: 'contracts',
+              icon: Icons.description,
+              color: Colors.indigo.shade700,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ContractListPage(),
+                  ),
+                );
+              },
+              onAdd: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddContractScreen(),
+                  ),
+                );
+              },
+              isVerySmallMobile: isVerySmallMobile,
+              isSmallMobile: isSmallMobile,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSystemAlertsCard({
+    required bool isVerySmallMobile,
+    required bool isSmallMobile,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isVerySmallMobile ? 6.0 : 
+                   isSmallMobile ? 8.0 : 12.0,
+      ),
+      child: CompactSystemAlertsCard(
+        title: 'Manage Issues',
+        isVerySmallMobile: isVerySmallMobile,
+        isSmallMobile: isSmallMobile,
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, {
+    required bool isVerySmallMobile, 
+    required bool isSmallMobile
+  }) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        isMobile ? 12.0 : 16.0,
+        isVerySmallMobile ? 8.0 : 
+        isSmallMobile ? 10.0 : 12.0,
         0,
-        isMobile ? 12.0 : 16.0,
-        10.0,
+        isVerySmallMobile ? 8.0 : 
+        isSmallMobile ? 10.0 : 12.0,
+        6.0,
       ),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: isMobile ? 18 : 20,
-          fontWeight: FontWeight.w800,
+          fontSize: isVerySmallMobile ? 14 : 
+                   isSmallMobile ? 16 : 18,
+          fontWeight: FontWeight.w700,
           color: const Color(0xFF2D3436),
-          letterSpacing: 0.5,
         ),
       ),
     );
@@ -333,19 +402,19 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader (Updated with Notification Bell) ---
+// --- DashboardHeader (Compact Version) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
   final Stream<int> unreadNotificationsStream;
-  final bool isMobile;
+  final bool isVerySmallMobile;
   final bool isSmallMobile;
   
   const DashboardHeader({
     super.key, 
     this.userData,
     required this.unreadNotificationsStream,
-    required this.isMobile,
+    required this.isVerySmallMobile,
     required this.isSmallMobile,
   });
 
@@ -357,10 +426,10 @@ class DashboardHeader extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        isMobile ? 16.0 : 20.0,
-        isMobile ? 40.0 : 50.0,
-        isMobile ? 16.0 : 20.0,
-        isMobile ? 20.0 : 30.0,
+        isVerySmallMobile ? 12.0 : 14.0,
+        isVerySmallMobile ? 25.0 : 30.0,
+        isVerySmallMobile ? 12.0 : 14.0,
+        isVerySmallMobile ? 12.0 : 16.0,
       ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -368,139 +437,136 @@ class DashboardHeader extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(isVerySmallMobile ? 16 : 20),
+          bottomRight: Radius.circular(isVerySmallMobile ? 16 : 20),
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.blue.withOpacity(0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  String? imageUrl;
-                  if (snapshot.hasData && snapshot.data!.exists) {
-                    final data = snapshot.data!.data() as Map<String, dynamic>;
-                    imageUrl = data['profile_image'];
-                  }
-                  return CircleAvatar(
-                    radius: isSmallMobile ? 25 : 30,
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
-                        ? NetworkImage(imageUrl)
-                        : null,
-                    child: (imageUrl == null || imageUrl.isEmpty)
-                        ? Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: isSmallMobile ? 30 : 35,
-                          )
-                        : null,
-                  );
-                },
-              ),
-              SizedBox(width: isSmallMobile ? 12 : 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome, $userName',
-                      style: TextStyle(
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              String? imageUrl;
+              if (snapshot.hasData && snapshot.data!.exists) {
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                imageUrl = data['profile_image'];
+              }
+              return CircleAvatar(
+                radius: isVerySmallMobile ? 20 : 24,
+                backgroundColor: Colors.white.withOpacity(0.2),
+                backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
+                    ? NetworkImage(imageUrl)
+                    : null,
+                child: (imageUrl == null || imageUrl.isEmpty)
+                    ? Icon(
+                        Icons.person,
                         color: Colors.white,
-                        fontSize: isSmallMobile ? 18 : 22,
-                        fontWeight: FontWeight.bold,
+                        size: isVerySmallMobile ? 22 : 26,
+                      )
+                    : null,
+              );
+            },
+          ),
+          SizedBox(width: isVerySmallMobile ? 10 : 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Welcome, $userName',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isVerySmallMobile ? 14 : 
+                             isSmallMobile ? 16 : 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  userRole,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: isVerySmallMobile ? 10 : 
+                             isSmallMobile ? 12 : 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.notifications_active,
+                    color: Colors.white,
+                    size: isVerySmallMobile ? 18 : 20,
+                  ),
+                  padding: EdgeInsets.all(isVerySmallMobile ? 6 : 8),
+                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationScreen(),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      userRole,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: isSmallMobile ? 12 : 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
-              const SizedBox(width: 8),
-              // --- NOTIFICATION BELL WITH BADGE ---
-              Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.notifications_active,
-                        color: Colors.white,
-                        size: isSmallMobile ? 20 : 24,
+              Positioned(
+                right: -3,
+                top: -3,
+                child: StreamBuilder<int>(
+                  stream: unreadNotificationsStream,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data == 0) {
+                      return const SizedBox();
+                    }
+                    return Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints(),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NotificationScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  // Badge for unread notifications
-                  Positioned(
-                    right: 4,
-                    top: 4,
-                    child: StreamBuilder<int>(
-                      stream: unreadNotificationsStream,
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData || snapshot.data == 0) {
-                          return const SizedBox();
-                        }
-                        return Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            '${snapshot.data! > 9 ? '9+' : snapshot.data}',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isSmallMobile ? 8 : 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                      constraints: BoxConstraints(
+                        minWidth: isVerySmallMobile ? 12 : 14,
+                        minHeight: isVerySmallMobile ? 12 : 14,
+                      ),
+                      child: Text(
+                        '${snapshot.data! > 9 ? '9+' : snapshot.data}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isVerySmallMobile ? 7 : 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -511,137 +577,30 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- CustomBottomNavBar (Shared Navigation Widget) ---
+// --- COMPACT WIDGETS ---
 // -----------------------------------------------------------------------------
-class CustomBottomNavBar extends StatelessWidget {
-  final int currentIndex;
-  const CustomBottomNavBar({super.key, required this.currentIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    final isSmallMobile = MediaQuery.of(context).size.width < 360;
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          backgroundColor: Colors.white,
-          selectedItemColor: Colors.blue.shade800,
-          unselectedItemColor: Colors.grey.shade400,
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedFontSize: isSmallMobile ? 10 : 12,
-          unselectedFontSize: isSmallMobile ? 10 : 12,
-          iconSize: isSmallMobile ? 20 : 24,
-          onTap: (index) => _onTabTapped(context, index),
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.dashboard_outlined),
-              activeIcon: const Icon(Icons.dashboard),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.person_outline),
-              activeIcon: const Icon(Icons.person),
-              label: 'Profile',
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.settings_outlined),
-              activeIcon: const Icon(Icons.settings),
-              label: 'Settings',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _onTabTapped(BuildContext context, int index) {
-    if (currentIndex == index) return;
-
-    switch (index) {
-      case 0:
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ProvincialEngDashboard(),
-          ),
-          (route) => false,
-        );
-        break;
-      case 1:
-        if (currentIndex == 0) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ProfileManagementPage(),
-            ),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ProfileManagementPage(),
-            ),
-          );
-        }
-        break;
-      case 2:
-        if (currentIndex == 0) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SettingsPage(),
-            ),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SettingsPage(),
-            ),
-          );
-        }
-        break;
-    }
-  }
-}
-
-// -----------------------------------------------------------------------------
-// --- OTHER WIDGETS ---
-// -----------------------------------------------------------------------------
-class UserCountBuilder extends StatelessWidget {
+class CompactUserCard extends StatelessWidget {
   final String userType;
   final String title;
   final Widget addPage;
   final IconData icon;
   final Color color;
+  final bool isVerySmallMobile;
+  final bool isSmallMobile;
 
-  const UserCountBuilder({
+  const CompactUserCard({
     super.key,
     required this.userType,
     required this.title,
     required this.addPage,
     required this.icon,
     required this.color,
+    required this.isVerySmallMobile,
+    required this.isSmallMobile,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isSmallMobile = MediaQuery.of(context).size.width < 360;
-    
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -665,21 +624,22 @@ class UserCountBuilder extends StatelessWidget {
         }
 
         return Container(
+          height: isVerySmallMobile ? 60 : 70,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               onTap: () {
                 Navigator.push(
                   context,
@@ -692,56 +652,97 @@ class UserCountBuilder extends StatelessWidget {
                 );
               },
               child: Padding(
-                padding: EdgeInsets.symmetric(
-                  vertical: isSmallMobile ? 12.0 : 16.0,
-                  horizontal: isSmallMobile ? 6.0 : 8.0,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                padding: EdgeInsets.all(isVerySmallMobile ? 6.0 : 8.0),
+                child: Row(
                   children: [
-                    Icon(
-                      icon,
-                      size: isSmallMobile ? 28 : 32,
-                      color: color,
-                    ),
-                    Text(
-                      total.toString(),
-                      style: TextStyle(
-                        fontSize: isSmallMobile ? 24 : 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                    Container(
+                      width: isVerySmallMobile ? 30 : 36,
+                      height: isVerySmallMobile ? 30 : 36,
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: isVerySmallMobile ? 16 : 18,
                       ),
                     ),
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: isSmallMobile ? 11 : 13,
-                        color: Colors.grey.shade600,
+                    SizedBox(width: isVerySmallMobile ? 8 : 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: isVerySmallMobile ? 11 : 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$total users',
+                            style: TextStyle(
+                              fontSize: isVerySmallMobile ? 9 : 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Row(
+                    SizedBox(width: isVerySmallMobile ? 4 : 6),
+                    Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildDot(Colors.green, isSmallMobile),
-                        Text(
-                          " $active  ",
-                          style: TextStyle(
-                            fontSize: isSmallMobile ? 9 : 11,
-                            color: Colors.grey,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            SizedBox(width: isVerySmallMobile ? 2 : 3),
+                            Text(
+                              '$active',
+                              style: TextStyle(
+                                fontSize: isVerySmallMobile ? 9 : 10,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
-                        _buildDot(Colors.orange, isSmallMobile),
-                        Text(
-                          " $pending",
-                          style: TextStyle(
-                            fontSize: isSmallMobile ? 9 : 11,
-                            color: Colors.grey,
-                          ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            SizedBox(width: isVerySmallMobile ? 2 : 3),
+                            Text(
+                              '$pending',
+                              style: TextStyle(
+                                fontSize: isVerySmallMobile ? 9 : 10,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(width: isVerySmallMobile ? 6 : 8),
                     InkWell(
                       onTap: () {
                         Navigator.push(
@@ -749,26 +750,26 @@ class UserCountBuilder extends StatelessWidget {
                           MaterialPageRoute(builder: (context) => addPage),
                         );
                       },
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(6),
                       child: Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: isSmallMobile ? 16 : 20,
-                          vertical: isSmallMobile ? 4 : 6,
+                          horizontal: isVerySmallMobile ? 8 : 10,
+                          vertical: isVerySmallMobile ? 4 : 5,
                         ),
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '+ Add',
+                          '+',
                           style: TextStyle(
-                            fontSize: isSmallMobile ? 10 : 12,
+                            fontSize: isVerySmallMobile ? 12 : 14,
                             color: color,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -778,29 +779,19 @@ class UserCountBuilder extends StatelessWidget {
       },
     );
   }
-
-  Widget _buildDot(Color color, bool isSmallMobile) {
-    return Container(
-      width: isSmallMobile ? 5 : 6,
-      height: isSmallMobile ? 5 : 6,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
 }
 
-class SimpleCountCard extends StatelessWidget {
+class CompactProjectCard extends StatelessWidget {
   final String title;
   final String collectionName;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
   final VoidCallback onAdd;
+  final bool isVerySmallMobile;
   final bool isSmallMobile;
 
-  const SimpleCountCard({
+  const CompactProjectCard({
     super.key,
     required this.title,
     required this.collectionName,
@@ -808,6 +799,7 @@ class SimpleCountCard extends StatelessWidget {
     required this.color,
     required this.onTap,
     required this.onAdd,
+    required this.isVerySmallMobile,
     required this.isSmallMobile,
   });
 
@@ -822,25 +814,25 @@ class SimpleCountCard extends StatelessWidget {
         }
 
         return Container(
-          height: isSmallMobile ? 110 : 130,
+          height: isVerySmallMobile ? 75 : 85,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
                 color: color.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(10),
               onTap: onTap,
               child: Padding(
-                padding: EdgeInsets.all(isSmallMobile ? 10.0 : 12.0),
+                padding: EdgeInsets.all(isVerySmallMobile ? 8.0 : 10.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -849,60 +841,66 @@ class SimpleCountCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: EdgeInsets.all(isSmallMobile ? 6 : 8),
+                          padding: EdgeInsets.all(isVerySmallMobile ? 4 : 6),
                           decoration: BoxDecoration(
                             color: color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Icon(
                             icon,
                             color: color,
-                            size: isSmallMobile ? 18 : 22,
+                            size: isVerySmallMobile ? 16 : 18,
                           ),
                         ),
                         Text(
                           count,
                           style: TextStyle(
-                            fontSize: isSmallMobile ? 20 : 24,
+                            fontSize: isVerySmallMobile ? 16 : 20,
                             fontWeight: FontWeight.bold,
                             color: color,
                           ),
                         ),
                       ],
                     ),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: isSmallMobile ? 14 : 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    Center(
-                      child: InkWell(
-                        onTap: onAdd,
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 4),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isSmallMobile ? 16 : 20,
-                            vertical: isSmallMobile ? 2 : 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
                           child: Text(
-                            '+ Add',
+                            title,
                             style: TextStyle(
-                              fontSize: isSmallMobile ? 10 : 12,
-                              color: color,
-                              fontWeight: FontWeight.bold,
+                              fontSize: isVerySmallMobile ? 12 : 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: onAdd,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isVerySmallMobile ? 8 : 10,
+                              vertical: isVerySmallMobile ? 3 : 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '+ Add',
+                              style: TextStyle(
+                                fontSize: isVerySmallMobile ? 9 : 11,
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    )
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -914,105 +912,15 @@ class SimpleCountCard extends StatelessWidget {
   }
 }
 
-class ActivityItemCard extends StatelessWidget {
-  final ActivityItem item;
-  const ActivityItemCard({super.key, required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final data = item.snapshot.data() as Map<String, dynamic>;
-    final issueId = item.snapshot.id;
-
-    IconData icon;
-    Color iconColor;
-    String title;
-    String subtitle;
-    bool showButton = false;
-
-    switch (item.itemType) {
-      case 'issue':
-        icon = Icons.warning_rounded;
-        iconColor = Colors.orange;
-        title = '${data['schoolName'] ?? 'Unknown'} - Issue';
-        subtitle = '${data['issueTitle'] ?? 'No Title'}';
-        showButton = true;
-        break;
-      case 'school':
-        icon = Icons.domain;
-        iconColor = Colors.blue;
-        title = data['schoolName'] ?? 'New School';
-        subtitle = 'Added to zone: ${data['educationalZone'] ?? 'Unknown'}';
-        showButton = false;
-        break;
-      case 'user':
-        icon = Icons.person_add_alt_1;
-        iconColor = Colors.green;
-        title = data['name'] ?? 'New User';
-        subtitle = 'Role: ${data['userType'] ?? data['role'] ?? 'N/A'}';
-        showButton = false;
-        break;
-      default:
-        icon = Icons.notifications;
-        iconColor = Colors.grey;
-        title = 'Activity';
-        subtitle = 'Update received';
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: 14.0,
-          vertical: 6.0,
-        ),
-        leading: CircleAvatar(
-          backgroundColor: iconColor.withOpacity(0.1),
-          child: Icon(icon, color: iconColor, size: 22),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 11),
-        ),
-        trailing: showButton
-            ? IconButton(
-                icon: const Icon(Icons.arrow_forward_ios,
-                    size: 14, color: Colors.grey),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => IssueDetailPage(issueId: issueId),
-                    ),
-                  );
-                },
-              )
-            : null,
-      ),
-    );
-  }
-}
-
-class IssueCountBuilder extends StatelessWidget {
+class CompactSystemAlertsCard extends StatelessWidget {
   final String title;
+  final bool isVerySmallMobile;
   final bool isSmallMobile;
 
-  const IssueCountBuilder({
+  const CompactSystemAlertsCard({
     super.key,
     required this.title,
+    required this.isVerySmallMobile,
     required this.isSmallMobile,
   });
 
@@ -1027,55 +935,61 @@ class IssueCountBuilder extends StatelessWidget {
         }
 
         return Container(
-          padding: EdgeInsets.all(isSmallMobile ? 14 : 20),
+          height: isVerySmallMobile ? 65 : 75,
+          padding: EdgeInsets.all(isVerySmallMobile ? 8 : 10),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(isSmallMobile ? 8 : 12),
+                padding: EdgeInsets.all(isVerySmallMobile ? 6 : 8),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.warning_amber_rounded,
                   color: Colors.red,
-                  size: isSmallMobile ? 24 : 30,
+                  size: isVerySmallMobile ? 18 : 20,
                 ),
               ),
-              SizedBox(width: isSmallMobile ? 12 : 20),
+              SizedBox(width: isVerySmallMobile ? 10 : 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: isSmallMobile ? 16 : 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: isVerySmallMobile ? 12 : 14,
+                        fontWeight: FontWeight.w600,
                         color: const Color(0xFF2D3436),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       '$total reported issues',
                       style: TextStyle(
                         color: Colors.grey.shade600,
-                        fontSize: isSmallMobile ? 12 : 14,
+                        fontSize: isVerySmallMobile ? 10 : 12,
                       ),
                     ),
                   ],
                 ),
               ),
+              SizedBox(width: isVerySmallMobile ? 6 : 8),
               ElevatedButton(
                 onPressed: () {
                   Navigator.push(
@@ -1089,18 +1003,22 @@ class IssueCountBuilder extends StatelessWidget {
                   backgroundColor: Colors.blue.shade800,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   elevation: 0,
                   padding: EdgeInsets.symmetric(
-                    horizontal: isSmallMobile ? 12 : 16,
-                    vertical: isSmallMobile ? 8 : 10,
+                    horizontal: isVerySmallMobile ? 8 : 10,
+                    vertical: isVerySmallMobile ? 6 : 8,
                   ),
-                  textStyle: TextStyle(
-                    fontSize: isSmallMobile ? 12 : 14,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: isVerySmallMobile ? 10 : 12,
                   ),
                 ),
-                child: const Text('View All'),
               ),
             ],
           ),
@@ -1110,15 +1028,137 @@ class IssueCountBuilder extends StatelessWidget {
   }
 }
 
-class IssueDetailPage extends StatelessWidget {
-  final String issueId;
-  const IssueDetailPage({super.key, required this.issueId});
-  
+// -----------------------------------------------------------------------------
+// --- CustomBottomNavBar (Compact Version) ---
+// -----------------------------------------------------------------------------
+class CustomBottomNavBar extends StatelessWidget {
+  final int currentIndex;
+  const CustomBottomNavBar({super.key, required this.currentIndex});
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Details")),
-      body: Center(child: Text("Details for $issueId")),
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isVerySmallMobile = screenWidth < 340;
+    final isSmallMobile = screenWidth < 380;
+    
+    return Container(
+      height: isVerySmallMobile ? 50 : 56,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildNavItem(
+              icon: Icons.dashboard_outlined,
+              activeIcon: Icons.dashboard,
+              label: 'Home',
+              isActive: currentIndex == 0,
+              isVerySmallMobile: isVerySmallMobile,
+              isSmallMobile: isSmallMobile,
+              onTap: () => _navigateTo(context, 0),
+            ),
+            _buildNavItem(
+              icon: Icons.person_outline,
+              activeIcon: Icons.person,
+              label: 'Profile',
+              isActive: currentIndex == 1,
+              isVerySmallMobile: isVerySmallMobile,
+              isSmallMobile: isSmallMobile,
+              onTap: () => _navigateTo(context, 1),
+            ),
+            _buildNavItem(
+              icon: Icons.settings_outlined,
+              activeIcon: Icons.settings,
+              label: 'Settings',
+              isActive: currentIndex == 2,
+              isVerySmallMobile: isVerySmallMobile,
+              isSmallMobile: isSmallMobile,
+              onTap: () => _navigateTo(context, 2),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Widget _buildNavItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required bool isActive,
+    required bool isVerySmallMobile,
+    required bool isSmallMobile,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isVerySmallMobile ? 8 : 12,
+          vertical: isVerySmallMobile ? 6 : 8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              color: isActive ? Colors.blue.shade800 : Colors.grey.shade400,
+              size: isVerySmallMobile ? 18 : 20,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: isVerySmallMobile ? 8 : 9,
+                color: isActive ? Colors.blue.shade800 : Colors.grey.shade400,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateTo(BuildContext context, int index) {
+    if (currentIndex == index) return;
+
+    switch (index) {
+      case 0:
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProvincialEngDashboard(),
+          ),
+          (route) => false,
+        );
+        break;
+      case 1:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProfileManagementPage(),
+          ),
+        );
+        break;
+      case 2:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SettingsPage(),
+          ),
+        );
+        break;
+    }
   }
 }
