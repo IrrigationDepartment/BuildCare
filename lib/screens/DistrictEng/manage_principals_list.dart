@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http; // Import HTTP package
 
 class ManagePrincipalsListPage extends StatefulWidget {
-  const ManagePrincipalsListPage({super.key});
+  const ManagePrincipalsListPage({super.key, String? officeFilter});
 
   @override
   State<ManagePrincipalsListPage> createState() =>

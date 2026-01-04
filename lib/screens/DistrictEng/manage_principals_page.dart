@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
 
 // --- IMPORTS FOR PRINCIPAL PAGES ---
 import 'pending_Principal_approvals.dart'; 
@@ -18,16 +19,42 @@ class ManagePrincipalsPage extends StatelessWidget {
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
-  Future<int> _getCollectionCount(String collectionName) async {
+  // Get current user's office from Firestore
+  Future<String?> _getCurrentUserOffice() async {
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection(collectionName)
-          .count()
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return null;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
           .get();
-      return querySnapshot.count ?? 0; 
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        return data['office'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching current user office: $e');
+      return null;
+    }
+  }
+
+  Future<int> _getCollectionCount(String collectionName, {String? office}) async {
+    try {
+      Query query = FirebaseFirestore.instance.collection(collectionName);
+      
+      // Apply office filter for schools if office is provided
+      if (collectionName == 'schools' && office != null) {
+        query = query.where('office', isEqualTo: office);
+      }
+      
+      final querySnapshot = await query.count().get();
+      return querySnapshot.count ?? 0;
     } catch (e) {
       debugPrint('Error fetching count for $collectionName: $e');
-      return 0; 
+      return 0;
     }
   }
 
@@ -49,63 +76,106 @@ class ManagePrincipalsPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: FutureBuilder<int>(
-          future: _getCollectionCount('schools'),
-          builder: (context, schoolSnapshot) {
-            if (schoolSnapshot.connectionState == ConnectionState.waiting) {
+        child: FutureBuilder<String?>(
+          future: _getCurrentUserOffice(),
+          builder: (context, officeSnapshot) {
+            if (officeSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final totalSchools = schoolSnapshot.data ?? 0; 
+            if (officeSnapshot.hasError) {
+              return Center(child: Text('Error: ${officeSnapshot.error}'));
+            }
 
-            return StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .where('userType', isEqualTo: 'Principal') 
-                  .snapshots(),
-              builder: (context, userSnapshot) {
-                if (userSnapshot.connectionState == ConnectionState.waiting) {
+            final currentUserOffice = officeSnapshot.data;
+
+            return FutureBuilder<int>(
+              future: _getCollectionCount('schools', office: currentUserOffice),
+              builder: (context, schoolSnapshot) {
+                if (schoolSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (userSnapshot.hasError) {
-                  return Center(child: Text('Error: ${userSnapshot.error}'));
-                }
+                final totalSchools = schoolSnapshot.data ?? 0;
 
-                if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                    return _buildContent(context, 0, 0, 0, totalSchools);
-                }
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .where('userType', isEqualTo: 'Principal')
+                      .where('office', isEqualTo: currentUserOffice) // Filter by office
+                      .snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                final docs = userSnapshot.data!.docs;
-                final totalPrincipals = docs.length;
+                    if (userSnapshot.hasError) {
+                      return Center(child: Text('Error: ${userSnapshot.error}'));
+                    }
 
-                final activePrincipals = docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data['isActive'] == true;
-                }).length;
+                    if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                      return _buildContent(context, 0, 0, 0, totalSchools, currentUserOffice);
+                    }
 
-                final pendingPrincipals = docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return data['isActive'] == false;
-                }).length;
+                    final docs = userSnapshot.data!.docs;
+                    final totalPrincipals = docs.length;
 
-                return _buildContent(context, totalPrincipals, pendingPrincipals, activePrincipals, totalSchools);
+                    final activePrincipals = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['isActive'] == true;
+                    }).length;
+
+                    final pendingPrincipals = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['isActive'] == false;
+                    }).length;
+
+                    return _buildContent(context, totalPrincipals, pendingPrincipals, activePrincipals, totalSchools, currentUserOffice);
+                  },
+                );
               },
             );
           },
         ),
       ),
-      // Bottom Navigation Bar has been removed
     );
   }
 
-  Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools) {
+  Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatsGrid(context, total, pending, active, totalSchools), 
+          // District Info Header
+          if (district != null && district.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.blue.shade800),
+                    const SizedBox(width: 8),
+                    Text(
+                      'District: $district',
+                      style: TextStyle(
+                        color: Colors.blue.shade800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
+          _buildStatsGrid(context, total, pending, active, totalSchools, district), 
           const SizedBox(height: 24),
           _buildManagementOptions(context),
         ],
@@ -113,7 +183,7 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools) {
+  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
     return Column(
       children: [
         Row(
@@ -127,7 +197,11 @@ class ManagePrincipalsPage extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const PendingPrincipalApprovalsPage()),
+                  MaterialPageRoute(
+                    builder: (context) => PendingPrincipalApprovalsPage(
+                      officeFilter: district,
+                    ),
+                  ),
                 );
               },
             ),
@@ -144,7 +218,11 @@ class ManagePrincipalsPage extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const ManagePrincipalsListPage()),
+                  MaterialPageRoute(
+                    builder: (context) => ManagePrincipalsListPage(
+                      officeFilter: district,
+                    ),
+                  ),
                 );
               },
             ),

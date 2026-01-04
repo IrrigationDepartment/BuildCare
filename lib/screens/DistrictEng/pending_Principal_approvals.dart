@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PendingPrincipalApprovalsPage extends StatelessWidget {
-  const PendingPrincipalApprovalsPage({super.key});
+  const PendingPrincipalApprovalsPage({super.key, String? officeFilter});
 
   // --- Modern Professional Color Palette ---
   static const Color _bgLight = Color(0xFFF3F4F6); // Cool Gray Background
