@@ -1,12 +1,13 @@
+import 'dart:io';
 import 'package:buildcare/screens/ChiefEng/chief_notification.dart';
 import 'package:buildcare/screens/ChiefEng/contract_details_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_contractor_detail.dart';
 import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_distric_eng_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ChiefEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -18,6 +19,28 @@ class ChiefEngDashboard extends StatefulWidget {
 
 class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   int _selectedIndex = 0;
+
+  //image add
+  File? _profileImage;
+  final ImagePicker _picker = ImagePicker();
+
+  
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 500,
+      maxHeight: 500,
+      imageQuality: 80,
+    );
+
+    if (pickedFile != null) {
+      setState(() {
+        _profileImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  //image picker function
 
   List<Widget> get _pages => [
         _buildDashboardPage(),
@@ -97,19 +120,35 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF64B5F6),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 40,
+                  GestureDetector(
+                    onTap:
+                        _pickImage, 
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF64B5F6),
+                        shape: BoxShape.circle,
+                        
+                        image: _profileImage != null
+                            ? DecorationImage(
+                                image: FileImage(_profileImage!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                     
+                      child: _profileImage == null
+                          ? const Icon(
+                              Icons.person,
+                             
+                              color: Colors.white,
+                              size: 30,
+                            )
+                          : null,
                     ),
                   ),
+                  
                   const SizedBox(width: 20),
                   Expanded(
                     child: Column(
@@ -152,6 +191,9 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 ],
               ),
             ),
+
+            //edit the image up
+
             const SizedBox(height: 20),
             Container(
               width: double.infinity,
@@ -1016,10 +1058,7 @@ class SchoolDetailsPage extends StatelessWidget {
   }
 }
 
-
-
 //technical officer
-
 
 class TechnicalOfficerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -1211,7 +1250,6 @@ class TechnicalOfficersListPage extends StatelessWidget {
   }
 }
 
-
 class TechnicalOfficerCard extends StatelessWidget {
   final Map<String, dynamic> officerData;
   final String officerId;
@@ -1343,7 +1381,6 @@ class TechnicalOfficerDetailsPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-           
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -1510,8 +1547,6 @@ class TechnicalOfficerDetailsPage extends StatelessWidget {
     );
   }
 }
-
-
 
 class DistrictEngineerDashboardCardStream extends StatelessWidget {
   const DistrictEngineerDashboardCardStream({Key? key}) : super(key: key);
@@ -1694,15 +1729,12 @@ class DistrictEngineerCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: InkWell(
-        onTap: () {
-         
-        },
+        onTap: () {},
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-             
               CircleAvatar(
                 radius: 30,
                 backgroundColor: const Color(0xFFB3E5FC),
@@ -1712,7 +1744,6 @@ class DistrictEngineerCard extends StatelessWidget {
                   color: Colors.black87,
                 ),
               ),
-
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -1812,16 +1843,14 @@ class DistrictEngineerService {
         .map((snapshot) => snapshot.size);
   }
 
-  
   Stream<QuerySnapshot> getDistrictEngineersStream() {
     return _firestore
         .collection('users')
         .where('userType', isEqualTo: 'District Engineer')
-        .orderBy('name') 
+        .orderBy('name')
         .snapshots();
   }
 
-  
   Future<DocumentSnapshot> getDistrictEngineer(String engineerId) async {
     try {
       return await _firestore.collection('users').doc(engineerId).get();
@@ -1831,8 +1860,6 @@ class DistrictEngineerService {
     }
   }
 }
-
-
 
 class RecentActivitySection extends StatelessWidget {
   const RecentActivitySection({Key? key}) : super(key: key);
