@@ -23,13 +23,20 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
   final _teachersController = TextEditingController();
   final _staffController = TextEditingController();
 
-  // --- State for Dropdown & Checkboxes ---
+  // --- State for Dropdowns & Checkboxes ---
   String? _selectedSchoolType;
   final List<String> _schoolTypes = [
     'Government',
     'Semi-Government',
     'Private',
     'International',
+  ];
+
+  String? _selectedDistrict;
+  final List<String> _districts = [
+    'Galle',
+    'Matara',
+    'Hambanthota',
   ];
 
   bool _hasElectricity = false;
@@ -58,7 +65,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     super.dispose();
   }
 
-  // --- Main Save Function with Notification Logic ---
+  // --- Main Save Function ---
   Future<void> _saveSchool() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -73,6 +80,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
         'schoolPhone': _phoneController.text.trim(),
         'schoolEmail': _emailController.text.trim(),
         'schoolType': _selectedSchoolType,
+        'schoolDistrict': _selectedDistrict, // Saved District
         'educationalZone': _zoneController.text.trim(),
         'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
         'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
@@ -88,19 +96,19 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
         'isActive': false,
       };
 
-      // 1. Save School and get the Document ID
+      // 1. Save School
       DocumentReference schoolRef = await FirebaseFirestore.instance
           .collection('schools')
           .add(schoolData);
 
-      // 2. TRIGGER NOTIFICATION with the schoolId
+      // 2. Trigger Notification
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': 'New School Added',
         'subtitle': '${_nameController.text.trim()} was added by Principal.',
         'timestamp': FieldValue.serverTimestamp(),
         'isRead': false,
         'type': 'school',
-        'schoolId': schoolRef.id, // Linking the ID so notification click works
+        'schoolId': schoolRef.id,
       });
 
       if (mounted) {
@@ -159,8 +167,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Field required';
+                      if (value == null || value.isEmpty) return 'Field required';
                       if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
                         return 'Enter valid email';
                       return null;
@@ -172,13 +179,13 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Field required';
+                      if (value == null || value.isEmpty) return 'Field required';
                       if (value.length != 10) return 'Must be 10 digits';
                       return null;
                     },
                   ),
-                  _buildDropdownField(),
+                  _buildSchoolTypeDropdown(),
+                  _buildDistrictDropdown(), // The new District dropdown
                   _buildTextField(
                     label: 'School Educational Zone',
                     hint: 'Enter Your School Educational Zone',
@@ -207,6 +214,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildInfrastructureCheckboxes(),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -216,6 +224,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     );
   }
 
+  // --- Helper Widget: Header ---
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -231,7 +240,11 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
               fontSize: 20, fontWeight: FontWeight.bold, color: kTextColor),
         ),
         _isLoading
-            ? const CircularProgressIndicator()
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : OutlinedButton(
                 onPressed: _saveSchool,
                 style: OutlinedButton.styleFrom(
@@ -246,6 +259,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     );
   }
 
+  // --- Helper Widget: Standard Text Field ---
   Widget _buildTextField({
     required String label,
     required String hint,
@@ -277,7 +291,8 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     );
   }
 
-  Widget _buildDropdownField() {
+  // --- Helper Widget: School Type Dropdown ---
+  Widget _buildSchoolTypeDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -296,7 +311,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                 .toList(),
             onChanged: (newValue) =>
                 setState(() => _selectedSchoolType = newValue),
-            decoration: _fieldDecoration('Enter Your School Type').copyWith(
+            decoration: _fieldDecoration('Select School Type').copyWith(
               suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
             ),
             validator: (value) => value == null ? 'Please select a type' : null,
@@ -306,6 +321,37 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     );
   }
 
+  // --- Helper Widget: School District Dropdown ---
+  Widget _buildDistrictDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('School District',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: kTextColor)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _selectedDistrict,
+            items: _districts
+                .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                .toList(),
+            onChanged: (newValue) =>
+                setState(() => _selectedDistrict = newValue),
+            decoration: _fieldDecoration('Select School District').copyWith(
+              suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+            ),
+            validator: (value) => value == null ? 'Please select a district' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Helper Widget: Infrastructure Checkboxes ---
   Widget _buildInfrastructureCheckboxes() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
