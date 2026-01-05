@@ -706,10 +706,7 @@ class UserProfileScreen extends StatelessWidget {
             ],
           ),
           
-          const SizedBox(height: 24),
-          
-          // Actions
-          _buildActionButtons(context, user),
+          // Note: "Edit Profile" and "Message" buttons were removed from here
         ],
       ),
     );
@@ -908,40 +905,6 @@ class UserProfileScreen extends StatelessWidget {
     }
     
     return 'Not available';
-  }
-
-  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> user) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.edit),
-            label: const Text('Edit Profile'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.message_outlined),
-            label: const Text('Message'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildErrorState(String message) {
