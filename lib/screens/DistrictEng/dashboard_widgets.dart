@@ -304,7 +304,16 @@ class RecentUsersSection extends StatelessWidget {
                   return const Center(child: Text('No recent users found.'));
                 }
 
-                final userDocs = snapshot.data!.docs;
+                // Filter users to show only TO and Principal
+                final userDocs = snapshot.data!.docs.where((doc) {
+                  final user = doc.data() as Map<String, dynamic>;
+                  final userType = (user['userType'] as String?)?.toLowerCase();
+                  return userType == 'to' || userType == 'principal';
+                }).toList();
+
+                if (userDocs.isEmpty) {
+                  return const Center(child: Text('No TO or Principal users found.'));
+                }
 
                 return ListView.builder(
                   itemCount: userDocs.length,
@@ -346,8 +355,6 @@ class RecentUsersSection extends StatelessWidget {
     );
   }
 }
-
-// ApprovalRequestSection එක මෙතැනින් ඉවත් කරන ලදී.
 
 // -----------------------------------------------------------------------------
 //                                HELPER WIDGETS
