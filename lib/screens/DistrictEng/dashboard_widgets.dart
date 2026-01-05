@@ -714,20 +714,6 @@ class UserProfileScreen extends StatelessWidget {
             ],
           ),
           
-          const SizedBox(height: 16),
-          
-          // Security Information Card
-          _buildInfoCard(
-            context,
-            'Security Information',
-            Icons.security_outlined,
-            [
-              _buildInfoRow('Security Question (Welcome)', 
-                user['securityQuestionWelcome'] ?? 'Not set'),
-              _buildInfoRow('Security Question (Pet)', 
-                user['securityQuestionPet'] ?? 'Not set'),
-            ],
-          ),
           
           const SizedBox(height: 16),
           
@@ -739,7 +725,6 @@ class UserProfileScreen extends StatelessWidget {
             [
               _buildInfoRow('Account Status', 
                 (user['isActive'] == true) ? 'Active' : 'Inactive'),
-              _buildInfoRow('UID', user['uid'] ?? 'Not available'),
               _buildInfoRow('Last Updated', _formatTimestamp(user['updatedAt'])),
             ],
           ),
