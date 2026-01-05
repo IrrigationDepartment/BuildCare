@@ -88,8 +88,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   }
 
   void _initializeActivityStream() {
-    // This stream initialization can be removed since we're not using it anymore
-    // But keeping it for future use if needed
     Stream<List<ActivityItem>> issuesStream = _firestore
         .collection('issues')
         .orderBy('timestamp', descending: true)
@@ -253,6 +251,64 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         'icon': Icons.school,
         'color': Colors.purple,
       },
+      // --- NEW: SCHOOLS CARD ---
+      {
+        'title': 'Schools',
+        'userType': 'school', // internal tag
+        'addPage': null, // Can navigate to generic or show dialog
+        'icon': Icons.location_city,
+        'color': Colors.brown,
+        'collectionName': 'schools', // Custom collection
+        'customRoute': (BuildContext context) {
+          // Custom Route to View Schools
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Scaffold(
+                appBar: AppBar(
+                  title: const Text('Registered Schools'),
+                  backgroundColor: Colors.brown,
+                  foregroundColor: Colors.white,
+                ),
+                body: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('schools').snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(child: Text("No schools found."));
+                    }
+                    final schools = snapshot.data!.docs;
+                    return ListView.builder(
+                      itemCount: schools.length,
+                      padding: const EdgeInsets.all(12),
+                      itemBuilder: (context, index) {
+                        final data = schools[index].data() as Map<String, dynamic>;
+                        return Card(
+                          elevation: 2,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.brown.shade100,
+                              child: const Icon(Icons.school, color: Colors.brown),
+                            ),
+                            title: Text(
+                              data['schoolName'] ?? data['name'] ?? 'Unknown School',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(data['address'] ?? data['district'] ?? 'No Address'),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      },
     ];
 
     return Padding(
@@ -277,9 +333,11 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           return CompactUserCard(
             title: user['title'] as String,
             userType: user['userType'] as String,
-            addPage: user['addPage'] as Widget,
+            addPage: user['addPage'] as Widget?,
             icon: user['icon'] as IconData,
             color: user['color'] as Color,
+            collectionName: user.containsKey('collectionName') ? user['collectionName'] as String? : null,
+            onCustomTap: user.containsKey('customRoute') ? user['customRoute'] as Function(BuildContext)? : null,
             isVerySmallMobile: isVerySmallMobile,
             isSmallMobile: isSmallMobile,
           );
@@ -582,30 +640,44 @@ class DashboardHeader extends StatelessWidget {
 class CompactUserCard extends StatelessWidget {
   final String userType;
   final String title;
-  final Widget addPage;
+  final Widget? addPage;
   final IconData icon;
   final Color color;
   final bool isVerySmallMobile;
   final bool isSmallMobile;
+  // New properties for flexibility
+  final String? collectionName;
+  final Function(BuildContext)? onCustomTap;
 
   const CompactUserCard({
     super.key,
     required this.userType,
     required this.title,
-    required this.addPage,
+    this.addPage,
     required this.icon,
     required this.color,
     required this.isVerySmallMobile,
     required this.isSmallMobile,
+    this.collectionName,
+    this.onCustomTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
+    // Determine which query to use
+    Stream<QuerySnapshot> getStream() {
+      if (collectionName != null) {
+        return FirebaseFirestore.instance.collection(collectionName!).snapshots();
+      } else {
+        return FirebaseFirestore.instance
           .collection('users')
           .where('userType', isEqualTo: userType)
-          .snapshots(),
+          .snapshots();
+      }
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: getStream(),
       builder: (context, snapshot) {
         int total = 0;
         int active = 0;
@@ -615,10 +687,16 @@ class CompactUserCard extends StatelessWidget {
           total = snapshot.data!.docs.length;
           for (var doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
-            if (data['isActive'] == true) {
-              active++;
+            // If collection is not users, treat all as active/available unless specified
+            if (collectionName != null) {
+               // For schools or other entities without isActive, treat as active
+               active++;
             } else {
-              pending++;
+              if (data['isActive'] == true) {
+                active++;
+              } else {
+                pending++;
+              }
             }
           }
         }
@@ -641,15 +719,19 @@ class CompactUserCard extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => UserListPage(
-                      userType: userType,
-                      title: title,
+                if (onCustomTap != null) {
+                  onCustomTap!(context);
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UserListPage(
+                        userType: userType,
+                        title: title,
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
               },
               child: Padding(
                 padding: EdgeInsets.all(isVerySmallMobile ? 6.0 : 8.0),
@@ -686,7 +768,7 @@ class CompactUserCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '$total users',
+                            '$total ${collectionName == 'schools' ? 'Schools' : 'users'}',
                             style: TextStyle(
                               fontSize: isVerySmallMobile ? 9 : 11,
                               color: Colors.grey[600],
@@ -696,80 +778,84 @@ class CompactUserCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: isVerySmallMobile ? 4 : 6),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
+                    // Only show Active/Pending dots if not a custom collection like schools
+                    if (collectionName == null) ...[
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            SizedBox(width: isVerySmallMobile ? 2 : 3),
-                            Text(
-                              '$active',
-                              style: TextStyle(
-                                fontSize: isVerySmallMobile ? 9 : 10,
-                                color: Colors.grey[600],
+                              SizedBox(width: isVerySmallMobile ? 2 : 3),
+                              Text(
+                                '$active',
+                                style: TextStyle(
+                                  fontSize: isVerySmallMobile ? 9 : 10,
+                                  color: Colors.grey[600],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: Colors.orange,
-                                shape: BoxShape.circle,
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: Colors.orange,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            SizedBox(width: isVerySmallMobile ? 2 : 3),
-                            Text(
-                              '$pending',
-                              style: TextStyle(
-                                fontSize: isVerySmallMobile ? 9 : 10,
-                                color: Colors.grey[600],
+                              SizedBox(width: isVerySmallMobile ? 2 : 3),
+                              Text(
+                                '$pending',
+                                style: TextStyle(
+                                  fontSize: isVerySmallMobile ? 9 : 10,
+                                  color: Colors.grey[600],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                     SizedBox(width: isVerySmallMobile ? 6 : 8),
-                    InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => addPage),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isVerySmallMobile ? 8 : 10,
-                          vertical: isVerySmallMobile ? 4 : 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '+',
-                          style: TextStyle(
-                            fontSize: isVerySmallMobile ? 12 : 14,
-                            color: color,
-                            fontWeight: FontWeight.bold,
+                    if (addPage != null)
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => addPage!),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isVerySmallMobile ? 8 : 10,
+                            vertical: isVerySmallMobile ? 4 : 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '+',
+                            style: TextStyle(
+                              fontSize: isVerySmallMobile ? 12 : 14,
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

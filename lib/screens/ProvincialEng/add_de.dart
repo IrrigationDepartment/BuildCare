@@ -272,7 +272,7 @@ class _DistrictEngRegistrationPageState
 
   Widget _buildDropdownFormField() {
     return DropdownButtonFormField<String>(
-      value: _selectedOffice,
+      initialValue: _selectedOffice,
       hint: const Text('Select Your Office'),
       decoration: InputDecoration(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

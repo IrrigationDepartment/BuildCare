@@ -562,7 +562,7 @@ class _ProvincialEngRegistrationPageState
                   color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-              value: value,
+              initialValue: value,
               items: items
                   .map((String office) => DropdownMenuItem<String>(
                       value: office, child: Text(office)))

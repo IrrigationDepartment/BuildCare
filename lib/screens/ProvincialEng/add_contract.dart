@@ -311,8 +311,9 @@ class _AddContractScreenState extends State<AddContractScreen> {
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value!.isEmpty) return 'Please enter project value';
-                    if (double.tryParse(value) == null)
+                    if (double.tryParse(value) == null) {
                       return 'Enter a valid number';
+                    }
                     return null;
                   },
                 ),

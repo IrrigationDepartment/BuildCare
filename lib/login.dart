@@ -86,7 +86,7 @@ class _LoginPageState extends State<LoginPage> {
       final userDoc = querySnapshot.docs.first;
       final userData = userDoc.data();
       final String? email = userData['email'] as String?;
-      final String? uid = userDoc.id; // This is the user's Auth UID
+      final String uid = userDoc.id; // This is the user's Auth UID
 
       if (email == null || email.isEmpty) {
         _showMessage('Login Error',
@@ -103,7 +103,7 @@ class _LoginPageState extends State<LoginPage> {
           email: email,
           password: _passwordController.text.trim(),
         );
-      } on FirebaseAuthException catch (e) {
+      } on FirebaseAuthException {
         // This catches wrong password, user-not-found (which shouldn't happen here), etc.
         _showMessage(
             'Login Failed', 'Invalid NIC or Password. Please try again.');

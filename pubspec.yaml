@@ -40,7 +40,7 @@ dependencies:
   image_picker: ^1.2.1
   http: ^1.1.0
   path: ^1.8.0
-  syncfusion_flutter_charts: ^21.1.35 # Use the latest version
+  syncfusion_flutter_charts: 32.1.21 # Use the latest version
   
 
 dev_dependencies:

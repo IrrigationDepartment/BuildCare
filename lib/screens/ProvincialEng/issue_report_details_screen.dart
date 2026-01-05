@@ -336,7 +336,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                   _getStatusColor(status),
                   status == currentStatus,
                 );
-              }).toList(),
+              }),
             ],
           ),
           actions: [
@@ -1117,7 +1117,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                   );
-                                }).toList(),
+                                }),
                                 if (_statusHistory.length > 3)
                                   TextButton.icon(
                                     onPressed: _showStatusHistory,
