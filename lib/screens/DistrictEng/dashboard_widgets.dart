@@ -304,48 +304,96 @@ class RecentUsersSection extends StatelessWidget {
                   return const Center(child: Text('No recent users found.'));
                 }
 
-                // Filter users to show only TO and Principal
+                // Filter users to show only Technical Officer and Principal
                 final userDocs = snapshot.data!.docs.where((doc) {
                   final user = doc.data() as Map<String, dynamic>;
-                  final userType = (user['userType'] as String?)?.toLowerCase();
-                  return userType == 'to' || userType == 'principal';
+                  final userType = (user['userType'] as String?)?.toLowerCase().trim();
+                  return userType == 'technical officer' || 
+                         userType == 'principal';
                 }).toList();
 
                 if (userDocs.isEmpty) {
-                  return const Center(child: Text('No TO or Principal users found.'));
+                  return const Center(child: Text('No Technical Officer or Principal users found.'));
                 }
 
-                return ListView.builder(
-                  itemCount: userDocs.length,
-                  itemBuilder: (context, index) {
-                    final user = userDocs[index].data() as Map<String, dynamic>;
-                    final docId = userDocs[index].id;
+                // Show only up to 5 recent users in the list
+                final displayUsers = userDocs.take(5).toList();
 
-                    final name = user['name'] ?? 'No Name';
-                    final userType = user['userType'] ?? 'No Role';
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: displayUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = displayUsers[index].data() as Map<String, dynamic>;
+                          final docId = displayUsers[index].id;
+
+                          final name = user['name'] ?? 'No Name';
+                          final userType = user['userType'] ?? 'No Role';
+                          
+                          String formattedDate = 'No Date';
+                          if (user['createdAt'] is Timestamp) {
+                            final timestamp = user['createdAt'] as Timestamp;
+                            final dateTime = timestamp.toDate();
+                            formattedDate = DateFormat('MMM d, yyyy').format(dateTime);
+                          }
+
+                          final title = 'New User: $name';
+                          final subtitle = '$userType - Joined: $formattedDate';
+
+                          return Column(
+                            children: [
+                              _UserActivityItem(
+                                title: title,
+                                subtitle: subtitle,
+                                docId: docId,
+                                onTap: () {
+                                  // Navigate to user profile when tapped
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => UserProfileScreen(userId: docId),
+                                    ),
+                                  );
+                                },
+                              ),
+                              if (index < displayUsers.length - 1)
+                                const Divider(),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
                     
-                    String formattedDate = 'No Date';
-                    if (user['createdAt'] is Timestamp) {
-                      final timestamp = user['createdAt'] as Timestamp;
-                      final dateTime = timestamp.toDate();
-                      formattedDate = DateFormat('MMM d, yyyy').format(dateTime);
-                    }
-
-                    final title = 'New User: $name';
-                    final subtitle = '$userType - Joined: $formattedDate';
-
-                    return Column(
-                      children: [
-                        _UserActivityItem(
-                          title: title,
-                          subtitle: subtitle,
-                          docId: docId,
+                    // "See More" button
+                    if (userDocs.length > 5)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: Theme.of(context).dividerColor,
+                              width: 1.0,
+                            ),
+                          ),
                         ),
-                        if (index < userDocs.length - 1)
-                          const Divider(),
-                      ],
-                    );
-                  },
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AllUsersScreen(
+                                  users: userDocs,
+                                  title: 'Technical Officers & Principals',
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text('See More'),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
@@ -356,6 +404,679 @@ class RecentUsersSection extends StatelessWidget {
   }
 }
 
+
+
+
+
+
+
+
+class _UserActivityItem extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String docId;
+  final VoidCallback? onTap;
+  
+  const _UserActivityItem({
+    required this.title,
+    required this.subtitle,
+    required this.docId,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User avatar/icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.person,
+                color: Theme.of(context).primaryColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
+
+
+
+
+
+
+class AllUsersScreen extends StatelessWidget {
+  final List<QueryDocumentSnapshot> users;
+  final String title;
+
+  const AllUsersScreen({
+    super.key,
+    required this.users,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        centerTitle: true,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              // Implement search functionality
+            },
+          ),
+        ],
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: users.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final user = users[index].data() as Map<String, dynamic>;
+          final docId = users[index].id;
+
+          final name = user['name'] ?? 'No Name';
+          final userType = user['userType'] ?? 'No Role';
+          final email = user['email'] ?? 'No Email';
+          final mobile = user['mobileNo'] ?? 'No Mobile';
+          final isActive = user['isActive'] == true;
+          final profileImage = user['profile_image'];
+
+          return Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              leading: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isActive ? Colors.green : Colors.grey,
+                    width: 2,
+                  ),
+                ),
+                child: profileImage != null && profileImage.isNotEmpty
+                    ? CircleAvatar(
+                        backgroundImage: NetworkImage(profileImage),
+                      )
+                    : CircleAvatar(
+                        backgroundColor: Theme.of(context)
+                            .primaryColor
+                            .withOpacity(0.1),
+                        child: Icon(
+                          Icons.person,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? Colors.green.withOpacity(0.1)
+                          : Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isActive ? 'Active' : 'Inactive',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isActive ? Colors.green : Colors.grey,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    userType,
+                    style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    email,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    mobile,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: Theme.of(context).primaryColor,
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => UserProfileScreen(userId: docId),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class UserProfileScreen extends StatelessWidget {
+  final String userId;
+
+  const UserProfileScreen({super.key, required this.userId});
+  
+  BuildContext? get context => null;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('User Profile'),
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return _buildErrorState('User not found');
+          }
+
+          final user = snapshot.data!.data() as Map<String, dynamic>;
+          return _buildUserProfile(context, user);
+        },
+      ),
+    );
+  }
+
+  Widget _buildUserProfile(BuildContext context, Map<String, dynamic> user) {
+    final theme = Theme.of(context);
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Profile Header
+          _buildProfileHeader(context, user),
+          
+          const SizedBox(height: 24),
+          
+          // User Status Badge
+          _buildStatusBadge(user['status'] ?? 'Unknown'),
+          
+          const SizedBox(height: 24),
+          
+          // Personal Information Card
+          _buildInfoCard(
+            context,
+            'Personal Information',
+            Icons.person_outline,
+            [
+              _buildInfoRow('Name', user['name'] ?? 'Not provided'),
+              _buildInfoRow('NIC', user['nic'] ?? 'Not provided'),
+              _buildInfoRow('Email', user['email'] ?? 'Not provided'),
+              _buildInfoRow('User Type', user['userType'] ?? 'Not provided'),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Contact Information Card
+          _buildInfoCard(
+            context,
+            'Contact Information',
+            Icons.phone_android_outlined,
+            [
+              _buildInfoRow('Mobile', user['mobileNo'] ?? 'Not provided'),
+              _buildInfoRow('Office', user['office'] ?? 'Not provided'),
+              _buildInfoRow('Office Phone', user['officePhone'] ?? 'Not provided'),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Security Information Card
+          _buildInfoCard(
+            context,
+            'Security Information',
+            Icons.security_outlined,
+            [
+              _buildInfoRow('Security Question (Welcome)', 
+                user['securityQuestionWelcome'] ?? 'Not set'),
+              _buildInfoRow('Security Question (Pet)', 
+                user['securityQuestionPet'] ?? 'Not set'),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Account Information Card
+          _buildInfoCard(
+            context,
+            'Account Information',
+            Icons.account_circle_outlined,
+            [
+              _buildInfoRow('Account Status', 
+                (user['isActive'] == true) ? 'Active' : 'Inactive'),
+              _buildInfoRow('UID', user['uid'] ?? 'Not available'),
+              _buildInfoRow('Last Updated', _formatTimestamp(user['updatedAt'])),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Actions
+          _buildActionButtons(context, user),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, Map<String, dynamic> user) {
+    final theme = Theme.of(context);
+    final name = user['name'] ?? 'Unknown User';
+    final email = user['email'] ?? 'No email';
+    final userType = user['userType'] ?? 'No role';
+    final profileImage = user['profile_image'];
+
+    return Center(
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: theme.primaryColor.withOpacity(0.3),
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: profileImage != null && profileImage.isNotEmpty
+                    ? CircleAvatar(
+                        radius: 56,
+                        backgroundImage: NetworkImage(profileImage),
+                      )
+                    : CircleAvatar(
+                        radius: 56,
+                        backgroundColor: theme.primaryColor.withOpacity(0.1),
+                        child: Icon(
+                          Icons.person,
+                          size: 50,
+                          color: theme.primaryColor,
+                        ),
+                      ),
+              ),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: theme.primaryColor),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.verified,
+                  size: 16,
+                  color: (user['isActive'] == true) 
+                      ? Colors.green 
+                      : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          Text(
+            name,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          Text(
+            email,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.grey[600],
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              userType,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color bgColor;
+    Color textColor;
+    IconData icon;
+    
+    switch (status.toLowerCase()) {
+      case 'active':
+        bgColor = Colors.green.withOpacity(0.1);
+        textColor = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      case 'inactive':
+        bgColor = Colors.grey.withOpacity(0.1);
+        textColor = Colors.grey;
+        icon = Icons.pause_circle;
+        break;
+      case 'suspended':
+        bgColor = Colors.orange.withOpacity(0.1);
+        textColor = Colors.orange;
+        icon = Icons.block;
+        break;
+      default:
+        bgColor = Colors.blue.withOpacity(0.1);
+        textColor = Colors.blue;
+        icon = Icons.info;
+    }
+    
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: textColor.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: textColor),
+            const SizedBox(width: 8),
+            Text(
+              status.toUpperCase(),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: textColor,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(BuildContext context, String title, IconData icon, List<Widget> children) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  color: Theme.of(context).primaryColor,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[700],
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'Not available';
+    
+    try {
+      if (timestamp is Timestamp) {
+        final dateTime = timestamp.toDate();
+        return DateFormat('MMM d, yyyy - hh:mm a').format(dateTime);
+      } else if (timestamp is String) {
+        return timestamp;
+      }
+    } catch (e) {
+      return 'Invalid date';
+    }
+    
+    return 'Not available';
+  }
+
+  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> user) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              // Edit profile functionality
+              // Navigator.push(context, MaterialPageRoute(
+              //   builder: (context) => EditUserProfileScreen(userId: userId),
+              // ));
+            },
+            icon: const Icon(Icons.edit),
+            label: const Text('Edit Profile'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              // Message functionality
+              final email = user['email'];
+              if (email != null) {
+                // Implement email/message functionality
+              }
+            },
+            icon: const Icon(Icons.message_outlined),
+            label: const Text('Message'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context!);
+            },
+            child: const Text('Go Back'),
+          ),
+        ],
+      ),
+    );
+  }
+}
 // -----------------------------------------------------------------------------
 //                                HELPER WIDGETS
 // -----------------------------------------------------------------------------
@@ -552,47 +1273,6 @@ class _IssueActivityItem extends StatelessWidget {
               );
             },
             child: const Text('View Issue'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UserActivityItem extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String docId; 
-
-  const _UserActivityItem({
-    required this.title,
-    required this.subtitle,
-    required this.docId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          const Icon(Icons.person_add_alt_1_outlined, color: Colors.teal, size: 30),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(subtitle,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              print('View details for user: $docId');
-            },
-            child: const Text('View User'),
           ),
         ],
       ),
