@@ -404,13 +404,6 @@ class RecentUsersSection extends StatelessWidget {
   }
 }
 
-
-
-
-
-
-
-
 class _UserActivityItem extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -474,14 +467,6 @@ class _UserActivityItem extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
 
 class AllUsersScreen extends StatelessWidget {
   final List<QueryDocumentSnapshot> users;
@@ -670,8 +655,6 @@ class UserProfileScreen extends StatelessWidget {
   }
 
   Widget _buildUserProfile(BuildContext context, Map<String, dynamic> user) {
-    final theme = Theme.of(context);
-    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -679,11 +662,6 @@ class UserProfileScreen extends StatelessWidget {
         children: [
           // Profile Header
           _buildProfileHeader(context, user),
-          
-          const SizedBox(height: 24),
-          
-          // User Status Badge
-          _buildStatusBadge(user['status'] ?? 'Unknown'),
           
           const SizedBox(height: 24),
           
@@ -713,7 +691,6 @@ class UserProfileScreen extends StatelessWidget {
               _buildInfoRow('Office Phone', user['officePhone'] ?? 'Not provided'),
             ],
           ),
-          
           
           const SizedBox(height: 16),
           
@@ -847,60 +824,6 @@ class UserProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
-    Color bgColor;
-    Color textColor;
-    IconData icon;
-    
-    switch (status.toLowerCase()) {
-      case 'active':
-        bgColor = Colors.green.withOpacity(0.1);
-        textColor = Colors.green;
-        icon = Icons.check_circle;
-        break;
-      case 'inactive':
-        bgColor = Colors.grey.withOpacity(0.1);
-        textColor = Colors.grey;
-        icon = Icons.pause_circle;
-        break;
-      case 'suspended':
-        bgColor = Colors.orange.withOpacity(0.1);
-        textColor = Colors.orange;
-        icon = Icons.block;
-        break;
-      default:
-        bgColor = Colors.blue.withOpacity(0.1);
-        textColor = Colors.blue;
-        icon = Icons.info;
-    }
-    
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: textColor.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: textColor),
-            const SizedBox(width: 8),
-            Text(
-              status.toUpperCase(),
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: textColor,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildInfoCard(BuildContext context, String title, IconData icon, List<Widget> children) {
     return Card(
       elevation: 2,
@@ -992,12 +915,7 @@ class UserProfileScreen extends StatelessWidget {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {
-              // Edit profile functionality
-              // Navigator.push(context, MaterialPageRoute(
-              //   builder: (context) => EditUserProfileScreen(userId: userId),
-              // ));
-            },
+            onPressed: () {},
             icon: const Icon(Icons.edit),
             label: const Text('Edit Profile'),
             style: ElevatedButton.styleFrom(
@@ -1011,13 +929,7 @@ class UserProfileScreen extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () {
-              // Message functionality
-              final email = user['email'];
-              if (email != null) {
-                // Implement email/message functionality
-              }
-            },
+            onPressed: () {},
             icon: const Icon(Icons.message_outlined),
             label: const Text('Message'),
             style: OutlinedButton.styleFrom(
@@ -1062,6 +974,7 @@ class UserProfileScreen extends StatelessWidget {
     );
   }
 }
+
 // -----------------------------------------------------------------------------
 //                                HELPER WIDGETS
 // -----------------------------------------------------------------------------
