@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
+import 'package:firebase_auth/firebase_auth.dart';
+
+// Import the Manage Schools Page
+import 'manage_schools_page.dart'; // ADD THIS IMPORT
 
 import 'pending_approvals_page.dart';
 import 'school_master_plan_page.dart';
@@ -29,6 +32,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
 
       if (userDoc.exists) {
         final data = userDoc.data() as Map<String, dynamic>;
+        debugPrint('User office field: ${data['office']}');
         return data['office'] as String?;
       }
       return null;
@@ -38,20 +42,60 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     }
   }
 
-  Future<int> _getCollectionCount(String collectionName,
-      {String? office}) async {
+  // Normalize district name for case-insensitive comparison
+  String _normalizeDistrict(String district) {
+    return district.trim().toLowerCase();
+  }
+
+  Future<int> _getSchoolCountForDistrict(String? office) async {
     try {
-      Query query = FirebaseFirestore.instance.collection(collectionName);
-
-      // Apply office filter for schools if office is provided
-      if (collectionName == 'schools' && office != null) {
-        query = query.where('office', isEqualTo: office);
+      if (office == null || office.isEmpty) {
+        debugPrint('Office is null or empty');
+        return 0;
       }
-
-      final querySnapshot = await query.count().get();
-      return querySnapshot.count ?? 0;
+      
+      final normalizedOffice = _normalizeDistrict(office);
+      debugPrint('Looking for schools with district (normalized): $normalizedOffice');
+      
+      // Query all schools
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .get();
+      
+      debugPrint('Total schools in database: ${querySnapshot.docs.length}');
+      
+      // Check what fields exist in the first document
+      if (querySnapshot.docs.isNotEmpty) {
+        final firstDoc = querySnapshot.docs.first;
+        debugPrint('First school document fields: ${firstDoc.data().keys}');
+        debugPrint('First school office value: ${firstDoc.data()['office']}');
+        debugPrint('First school district value: ${firstDoc.data()['district']}');
+      }
+      
+      // Try different possible field names
+      final filteredSchools = querySnapshot.docs.where((doc) {
+        final data = doc.data();
+        
+        // Check multiple possible field names
+        final schoolDistrict = data['office'] as String? ?? 
+                             data['district'] as String? ?? 
+                             data['schoolDistrict'] as String?;
+        
+        if (schoolDistrict == null) {
+          debugPrint('School ${doc.id} has no district field');
+          return false;
+        }
+        
+        final normalizedSchoolDistrict = _normalizeDistrict(schoolDistrict);
+        debugPrint('School ${doc.id}: $normalizedSchoolDistrict vs User: $normalizedOffice');
+        
+        return normalizedSchoolDistrict == normalizedOffice;
+      }).length;
+      
+      debugPrint('Found $filteredSchools schools for district $office');
+      return filteredSchools;
     } catch (e) {
-      debugPrint('Error fetching count for $collectionName: $e');
+      debugPrint('Error fetching school count for district $office: $e');
       return 0;
     }
   }
@@ -88,7 +132,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             final currentUserOffice = officeSnapshot.data;
 
             return FutureBuilder<int>(
-              future: _getCollectionCount('schools', office: currentUserOffice),
+              future: _getSchoolCountForDistrict(currentUserOffice),
               builder: (context, schoolSnapshot) {
                 if (schoolSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -100,40 +144,53 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
                   stream: FirebaseFirestore.instance
                       .collection('users')
                       .where('userType', isEqualTo: 'Technical Officer')
-                      .where('office', isEqualTo: currentUserOffice)
                       .snapshots(),
                   builder: (context, userSnapshot) {
-                    if (userSnapshot.connectionState ==
-                        ConnectionState.waiting) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
                     if (userSnapshot.hasError) {
-                      return Center(
-                          child: Text('Error: ${userSnapshot.error}'));
+                      return Center(child: Text('Error: ${userSnapshot.error}'));
                     }
 
-                    if (!userSnapshot.hasData ||
-                        userSnapshot.data!.docs.isEmpty) {
-                      return _buildContent(
-                          context, 0, 0, 0, totalSchools, currentUserOffice);
-                    }
+                    final docs = userSnapshot.data?.docs ?? [];
+                    
+                    // Filter technical officers by office (case-insensitive)
+                    final districtTOs = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final toOffice = data['office'] as String?;
+                      
+                      if (currentUserOffice == null || toOffice == null) return false;
+                      
+                      debugPrint('Technical Officer office: $toOffice, User office: $currentUserOffice');
+                      
+                      return _normalizeDistrict(toOffice) == 
+                            _normalizeDistrict(currentUserOffice);
+                    }).toList();
 
-                    final docs = userSnapshot.data!.docs;
-                    final totalTOs = docs.length;
+                    final totalTOs = districtTOs.length;
 
-                    final activeTOs = docs.where((doc) {
+                    final activeTOs = districtTOs.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return data['isActive'] == true;
                     }).length;
 
-                    final pendingTOs = docs.where((doc) {
+                    final pendingTOs = districtTOs.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return data['isActive'] == false;
                     }).length;
 
-                    return _buildContent(context, totalTOs, pendingTOs,
-                        activeTOs, totalSchools, currentUserOffice);
+                    debugPrint('Stats - Technical Officers: $totalTOs, Active: $activeTOs, Pending: $pendingTOs, Schools: $totalSchools');
+
+                    return _buildContent(
+                      context, 
+                      totalTOs, 
+                      pendingTOs, 
+                      activeTOs, 
+                      totalSchools, 
+                      currentUserOffice
+                    );
                   },
                 );
               },
@@ -144,15 +201,41 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, int total, int pending, int active,
-      int totalSchools, String? currentUserOffice) {
+  Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatsGrid(
-              context, total, pending, active, totalSchools, currentUserOffice),
+          // District Info Header
+          if (district != null && district.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.blue.shade800),
+                    const SizedBox(width: 8),
+                    Text(
+                      'District: $district',
+                      style: TextStyle(
+                        color: Colors.blue.shade800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
+          _buildStatsGrid(context, total, pending, active, totalSchools, district), 
           const SizedBox(height: 24),
           _buildManagementOptions(context),
         ],
@@ -160,8 +243,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  Widget _buildStatsGrid(BuildContext context, int total, int pending,
-      int active, int totalSchools, String? currentUserOffice) {
+  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
     return Column(
       children: [
         Row(
@@ -169,13 +251,17 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           children: [
             _buildStatCard('Total TOs', total.toString(), Icons.group_outlined),
             _buildStatCard(
-              'Pending',
+              'Pending', 
               pending.toString(),
               Icons.pending_actions_outlined,
-              onTap: () => Navigator.push(
+              onTap: () {
+                Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const PendingApprovalsPage())),
+                    builder: (context) => const PendingApprovalsPage(),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -184,27 +270,44 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildStatCard(
-              'Active TOs',
-              active.toString(),
+              'Active TOs', 
+              active.toString(), 
               Icons.how_to_reg_outlined,
-              onTap: () => Navigator.push(
+              onTap: () {
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => ManageTechnicalOfficersListPage(
-                      officeFilter: currentUserOffice,
+                      officeFilter: district,
                     ),
-                  )),
+                  ),
+                );
+              },
             ),
+            // MODIFIED THIS CARD TO REDIRECT TO MANAGE SCHOOLS PAGE
             _buildStatCard(
-                'Schools', totalSchools.toString(), Icons.apartment_outlined),
+              'Schools in District', 
+              totalSchools.toString(), 
+              Icons.apartment_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ManageSchoolsPage(
+                      district: district, // Pass the district as parameter
+                      userNic: 'ADMIN', // Required parameter
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(String title, String count, IconData icon,
-      {VoidCallback? onTap}) {
+  Widget _buildStatCard(String title, String count, IconData icon, {VoidCallback? onTap}) {
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -229,10 +332,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -240,10 +340,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
                 children: [
                   Text(
                     count,
-                    style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black),
+                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
                   Icon(icon, size: 36, color: _primaryBlue),
                 ],
@@ -259,51 +356,37 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     return Column(
       children: [
         _buildOptionTile(
-          context,
-          'View School Master Plan',
-          Icons.description_outlined,
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const SchoolMasterPlanPage())),
+            context, 
+            'View School Master Plan', 
+            Icons.description_outlined,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SchoolMasterPlanPage())),
         ),
         const SizedBox(height: 16),
         _buildOptionTile(
-          context,
-          'View Damage Details',
-          Icons.remove_red_eye_outlined,
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      const ViewDamageDetailsPage(userNic: 'ADMIN'))),
-        ),
+            context, 
+            'View Damage Details', 
+            Icons.remove_red_eye_outlined,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ViewDamageDetailsPage(userNic: 'ADMIN'))),
+        ), 
         const SizedBox(height: 16),
         _buildOptionTile(
-          context,
-          'View Contract Details',
-          Icons.edit_note_outlined,
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const ContractsListPage())),
-        ),
+            context, 
+            'View Contract Details', 
+            Icons.edit_note_outlined,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractsListPage())),
+        ), 
         const SizedBox(height: 16),
         _buildOptionTile(
-          context,
-          'View Contractor Details',
-          Icons.edit_note_outlined,
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const ContractorListScreen())),
-        ),
+            context, 
+            'View Contractor Details', 
+            Icons.edit_note_outlined,
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractorListScreen())),
+        ), 
       ],
     );
   }
 
-  Widget _buildOptionTile(BuildContext context, String title, IconData icon,
-      {VoidCallback? onTap}) {
+  Widget _buildOptionTile(BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap ?? () {},
       child: Container(
@@ -323,11 +406,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87)),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
             Icon(icon, size: 28, color: _primaryBlue),
           ],
         ),
