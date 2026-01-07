@@ -6,7 +6,8 @@ import '../../models/school.dart';
 // --- Updated Modern School Details Dialog ---
 class SchoolDetailsDialog extends StatelessWidget {
   final School school;
-  const SchoolDetailsDialog({Key? key, required this.school}) : super(key: key);
+  final Map<String, dynamic> schoolData; // Add this to get raw data
+  const SchoolDetailsDialog({Key? key, required this.school, required this.schoolData}) : super(key: key);
 
   // Helper method to get district from school data
   String _getSchoolDistrict(Map<String, dynamic> data) {
@@ -18,8 +19,6 @@ class SchoolDetailsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the raw data from school
-    final schoolData = school.toJson();
     final district = _getSchoolDistrict(schoolData);
 
     return Dialog(
@@ -133,6 +132,9 @@ class ManageSchoolsPage extends StatefulWidget {
 class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  
+  // Store the document data alongside schools
+  List<Map<String, dynamic>> _schoolsData = [];
 
   // Helper method to normalize district name for comparison
   String _normalizeDistrict(String district) {
@@ -165,10 +167,13 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     });
   }
 
-  void _showSchoolDetails(BuildContext context, School school) {
+  void _showSchoolDetails(BuildContext context, School school, Map<String, dynamic> schoolData) {
     showDialog(
       context: context,
-      builder: (BuildContext context) => SchoolDetailsDialog(school: school),
+      builder: (BuildContext context) => SchoolDetailsDialog(
+        school: school,
+        schoolData: schoolData,
+      ),
     );
   }
 
@@ -315,7 +320,10 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
                   debugPrint('Found ${filteredDocs.length} schools for district ${widget.district}');
                 }
 
-                // Apply search filter
+                // Store the data for use in list view
+                _schoolsData = filteredDocs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+                
+                // Create School objects
                 final List<School> filteredSchools = filteredDocs.map((doc) {
                   return School.fromFirestore(doc);
                 }).where((school) {
@@ -349,11 +357,10 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
                   itemCount: filteredSchools.length,
                   itemBuilder: (context, index) {
                     final school = filteredSchools[index];
-                    final doc = filteredDocs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    final district = _getDistrictDisplayText(data);
+                    final schoolData = _schoolsData[index];
+                    final district = _getDistrictDisplayText(schoolData);
                     
-                    return _buildSchoolCard(school, district);
+                    return _buildSchoolCard(school, schoolData, district);
                   },
                 );
               },
@@ -391,7 +398,7 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     );
   }
 
-  Widget _buildSchoolCard(School school, String district) {
+  Widget _buildSchoolCard(School school, Map<String, dynamic> schoolData, String district) {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       decoration: BoxDecoration(
@@ -406,7 +413,7 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
         ],
       ),
       child: InkWell(
-        onTap: () => _showSchoolDetails(context, school),
+        onTap: () => _showSchoolDetails(context, school, schoolData),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -485,7 +492,7 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
                 children: [
                   // View Details Button
                   ElevatedButton.icon(
-                    onPressed: () => _showSchoolDetails(context, school),
+                    onPressed: () => _showSchoolDetails(context, school, schoolData),
                     icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
                     label: const Text('View Details'),
                     style: ElevatedButton.styleFrom(
