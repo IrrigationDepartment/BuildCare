@@ -8,6 +8,7 @@ import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ChiefEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -20,27 +21,130 @@ class ChiefEngDashboard extends StatefulWidget {
 class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   int _selectedIndex = 0;
 
-  //image add
+  // Image variables
   File? _profileImage;
+  String? _profileImageUrl;
+  bool _isUploading = false;
   final ImagePicker _picker = ImagePicker();
 
-  
-  Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 500,
-      maxHeight: 500,
-      imageQuality: 80,
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingImage();
+  }
 
-    if (pickedFile != null) {
-      setState(() {
-        _profileImage = File(pickedFile.path);
-      });
+  
+  Future<void> _loadExistingImage() async {
+    try {
+      String userId = widget.userData['uid'] ?? '';
+      if (userId.isEmpty) return;
+
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (doc.exists && doc.data() != null) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data.containsKey('profileImage') && data['profileImage'] != null) {
+          setState(() {
+            _profileImageUrl = data['profileImage'];
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading image: $e');
     }
   }
 
-  //image picker function
+  
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _profileImage = File(pickedFile.path);
+        });
+        await _uploadImageToFirebase();
+      }
+    } catch (e) {
+      _showSnackBar('Image can t select  $e', Colors.red);
+    }
+  }
+
+ 
+  Future<void> _uploadImageToFirebase() async {
+    if (_profileImage == null) return;
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      String userId = widget.userData['uid'] ?? '';
+      if (userId.isEmpty) {
+        throw Exception('User ID not find');
+      }
+
+      // Firebase Storage reference 
+      String fileName =
+          'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child(fileName);
+
+      
+      if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+        try {
+          Reference oldImageRef =
+              FirebaseStorage.instance.refFromURL(_profileImageUrl!);
+          await oldImageRef.delete();
+        } catch (e) {
+          print('Error deleting old image: $e');
+        }
+      }
+
+     
+      UploadTask uploadTask = storageRef.putFile(_profileImage!);
+      TaskSnapshot taskSnapshot = await uploadTask;
+      String downloadUrl = await taskSnapshot.ref.getDownloadURL();
+
+     
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'profileImage': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        _profileImageUrl = downloadUrl;
+        _isUploading = false;
+      });
+
+      _showSnackBar('Profile image faild upload', Colors.green);
+    } catch (e) {
+      setState(() {
+        _isUploading = false;
+      });
+      _showSnackBar('can t Upload : $e', Colors.red);
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   List<Widget> get _pages => [
         _buildDashboardPage(),
@@ -121,34 +225,60 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap:
-                        _pickImage, 
-                    child: Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF64B5F6),
-                        shape: BoxShape.circle,
-                        
-                        image: _profileImage != null
-                            ? DecorationImage(
-                                image: FileImage(_profileImage!),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                     
-                      child: _profileImage == null
-                          ? const Icon(
-                              Icons.person,
-                             
-                              color: Colors.white,
-                              size: 30,
-                            )
-                          : null,
+                    onTap: _isUploading ? null : _pickImage,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF64B5F6),
+                            shape: BoxShape.circle,
+                            image: _getProfileImageDecoration(),
+                          ),
+                          child: _shouldShowPersonIcon()
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 30,
+                                )
+                              : null,
+                        ),
+                        if (_isUploading)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (!_isUploading)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF64B5F6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  
                   const SizedBox(width: 20),
                   Expanded(
                     child: Column(
@@ -172,8 +302,8 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                             children: [
                               const TextSpan(text: 'ChiefEng-: '),
                               TextSpan(
-                                text:
-                                    widget.userData['name'] ?? 'Chief Engineer',
+                                text: widget.userData['name'] ??
+                                    'Chief Engineer',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -191,9 +321,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 ],
               ),
             ),
-
-            //edit the image up
-
             const SizedBox(height: 20),
             Container(
               width: double.infinity,
@@ -220,6 +347,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                     children: [
                       SchoolsDashboardCard(),
                       TechnicalOfficerDashboardCardStream(),
+                       
                       DistrictEngineerDashboardCardStream(),
                     ],
                   ),
@@ -358,6 +486,27 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
     );
   }
 
+  DecorationImage? _getProfileImageDecoration() {
+    if (_profileImage != null) {
+      return DecorationImage(
+        image: FileImage(_profileImage!),
+        fit: BoxFit.cover,
+      );
+    } else if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      return DecorationImage(
+        image: NetworkImage(_profileImageUrl!),
+        fit: BoxFit.cover,
+      );
+    }
+    return null;
+  }
+
+  bool _shouldShowPersonIcon() {
+    return _profileImage == null &&
+        (_profileImageUrl == null || _profileImageUrl!.isEmpty) &&
+        !_isUploading;
+  }
+
   Widget _buildActionButton(String title, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -409,10 +558,57 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              CircleAvatar(
-                radius: 60,
-                backgroundColor: const Color(0xFF64B5F6),
-                child: const Icon(Icons.person, size: 60, color: Colors.white),
+              GestureDetector(
+                onTap: _isUploading ? null : _pickImage,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF64B5F6),
+                        shape: BoxShape.circle,
+                        image: _getProfileImageDecoration(),
+                      ),
+                      child: _shouldShowPersonIcon()
+                          ? const Icon(Icons.person,
+                              size: 60, color: Colors.white)
+                          : null,
+                    ),
+                    if (_isUploading)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (!_isUploading)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF64B5F6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
               Text(
@@ -620,6 +816,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   }
 }
 
+
 //school dashboard
 
 class SchoolService {
@@ -697,7 +894,8 @@ class _SchoolsDashboardCardState extends State<SchoolsDashboardCard> {
       child: _buildOverviewCard(
         'Total Schools',
         _isLoading ? '...' : _schoolsCount.toString(),
-        const Color(0xFFB3E5FC),
+      //  const Color(0xFFB3E5FC),
+        const Color.fromARGB(255, 170, 153, 233),
       ),
     );
   }
@@ -1561,17 +1759,24 @@ class DistrictEngineerDashboardCardStream extends StatelessWidget {
 
         return GestureDetector(
           onTap: () {
-            Navigator.push(
+            // Navigator.push(
+            //   context,
+            //   MaterialPageRoute(
+            //     builder: (context) => const DistrictEngineersListPage(),
+            //   ),
+            // );
+             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const DistrictEngineersListPage(),
+                builder: (context) => const ActiveDistrictEngineerScreen(),
               ),
             );
           },
           child: _buildOverviewCard(
             'District Engineers',
             isLoading ? '...' : count.toString(),
-            const Color(0xFFB3E5FC),
+            const Color.fromARGB(255, 105, 166, 197),
+            // const Color.fromARGB(255, 170, 153, 233),
           ),
         );
       },
@@ -1626,7 +1831,7 @@ class DistrictEngineersListPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('District Engineers'),
+        title: const Text('District Engineersj'),
         backgroundColor: const Color(0xFF64B5F6),
         foregroundColor: Colors.white,
         elevation: 0,
