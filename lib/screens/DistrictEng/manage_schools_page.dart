@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/services.dart';
 import 'edit_school_page.dart';
 import '../../models/school.dart';
 
@@ -9,8 +8,20 @@ class SchoolDetailsDialog extends StatelessWidget {
   final School school;
   const SchoolDetailsDialog({Key? key, required this.school}) : super(key: key);
 
+  // Helper method to get district from school data
+  String _getSchoolDistrict(Map<String, dynamic> data) {
+    return data['office'] as String? ?? 
+           data['district'] as String? ?? 
+           data['schoolDistrict'] as String? ?? 
+           'N/A';
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Get the raw data from school
+    final schoolData = school.toJson();
+    final district = _getSchoolDistrict(schoolData);
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       elevation: 0,
@@ -46,6 +57,7 @@ class SchoolDetailsDialog extends StatelessWidget {
               _buildDetailItem('Phone', school.phoneNumber, Icons.phone_outlined),
               _buildDetailItem('Type', school.type, Icons.category_outlined),
               _buildDetailItem('Zone', school.zone, Icons.map_outlined),
+              _buildDetailItem('District', district, Icons.location_city_outlined),
               
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 10),
@@ -110,8 +122,9 @@ class SchoolDetailsDialog extends StatelessWidget {
 }
 
 class ManageSchoolsPage extends StatefulWidget {
+  final String? district;
   final String userNic;
-  const ManageSchoolsPage({Key? key, required this.userNic}) : super(key: key);
+  const ManageSchoolsPage({Key? key, this.district, required this.userNic}) : super(key: key);
 
   @override
   State<ManageSchoolsPage> createState() => _ManageSchoolsPageState();
@@ -120,6 +133,18 @@ class ManageSchoolsPage extends StatefulWidget {
 class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  // Helper method to normalize district name for comparison
+  String _normalizeDistrict(String district) {
+    return district.trim().toLowerCase();
+  }
+
+  // Helper method to get district from school document data
+  String? _getSchoolDistrictFromData(Map<String, dynamic> data) {
+    return data['office'] as String? ?? 
+           data['district'] as String? ?? 
+           data['schoolDistrict'] as String?;
+  }
 
   @override
   void initState() {
@@ -178,21 +203,62 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     }
   }
 
+  // Helper method to get district display text for a school
+  String _getDistrictDisplayText(Map<String, dynamic> data) {
+    final district = _getSchoolDistrictFromData(data);
+    return district ?? 'N/A';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA), // Soft background color
+      backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        title: const Text('Manage Schools', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        title: Text(
+          widget.district != null ? 'Schools in ${widget.district}' : 'Manage Schools',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
         foregroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Column(
         children: [
+          // District Info Header (only show if district is provided)
+          if (widget.district != null && widget.district!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0, left: 16, right: 16, bottom: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.blue.shade800),
+                    const SizedBox(width: 8),
+                    Text(
+                      'District: ${widget.district}',
+                      style: TextStyle(
+                        color: Colors.blue.shade800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: _buildSearchBar(),
           ),
           Expanded(
@@ -202,19 +268,93 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+                
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No schools found.'));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.school_outlined, size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.district != null 
+                            ? 'No schools found in ${widget.district}'
+                            : 'No schools found.',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
-                final List<School> filteredSchools = snapshot.data!.docs
-                    .map((doc) => School.fromFirestore(doc))
-                    .where((s) => s.name.toLowerCase().contains(_searchQuery) || s.address.toLowerCase().contains(_searchQuery))
-                    .toList();
+                final docs = snapshot.data!.docs;
+                debugPrint('Total schools in database: ${docs.length}');
+                
+                // Filter by district if provided - using same logic as first code
+                List<DocumentSnapshot> filteredDocs = docs;
+                
+                if (widget.district != null && widget.district!.isNotEmpty) {
+                  final normalizedDistrict = _normalizeDistrict(widget.district!);
+                  debugPrint('Filtering schools for district (normalized): $normalizedDistrict');
+                  
+                  filteredDocs = docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final schoolDistrict = _getSchoolDistrictFromData(data);
+                    
+                    if (schoolDistrict == null) {
+                      debugPrint('School ${doc.id} has no district field');
+                      return false;
+                    }
+                    
+                    final normalizedSchoolDistrict = _normalizeDistrict(schoolDistrict);
+                    debugPrint('School ${doc.id}: $normalizedSchoolDistrict vs Filter: $normalizedDistrict');
+                    
+                    return normalizedSchoolDistrict == normalizedDistrict;
+                  }).toList();
+                  
+                  debugPrint('Found ${filteredDocs.length} schools for district ${widget.district}');
+                }
+
+                // Apply search filter
+                final List<School> filteredSchools = filteredDocs.map((doc) {
+                  return School.fromFirestore(doc);
+                }).where((school) {
+                  if (_searchQuery.isEmpty) return true;
+                  
+                  return school.name.toLowerCase().contains(_searchQuery) || 
+                         school.address.toLowerCase().contains(_searchQuery);
+                }).toList();
+
+                if (filteredSchools.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off_outlined, size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.district != null
+                            ? 'No schools found in ${widget.district} matching "$_searchQuery"'
+                            : 'No schools match your search criteria.',
+                          style: TextStyle(color: Colors.grey.shade600),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
                 return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: filteredSchools.length,
-                  itemBuilder: (context, index) => _buildSchoolCard(filteredSchools[index]),
+                  itemBuilder: (context, index) {
+                    final school = filteredSchools[index];
+                    final doc = filteredDocs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final district = _getDistrictDisplayText(data);
+                    
+                    return _buildSchoolCard(school, district);
+                  },
                 );
               },
             ),
@@ -237,9 +377,12 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Search by name or address...',
-          prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF1E88E5)),
           suffixIcon: _searchQuery.isNotEmpty 
-            ? IconButton(icon: const Icon(Icons.clear), onPressed: () => _searchController.clear()) 
+            ? IconButton(
+                icon: const Icon(Icons.clear, color: Colors.grey),
+                onPressed: () => _searchController.clear(),
+              ) 
             : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
@@ -248,78 +391,134 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     );
   }
 
-  Widget _buildSchoolCard(School school) {
+  Widget _buildSchoolCard(School school, String district) {
     return Container(
-      margin: const EdgeInsets.only(top: 16),
+      margin: const EdgeInsets.only(top: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 1,
+            blurRadius: 3,
+          ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: IntrinsicHeight(
-          child: Row(
+      child: InkWell(
+        onTap: () => _showSchoolDetails(context, school),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Status Vertical Bar
-              Container(width: 5, color: school.isActive ? Colors.green : Colors.red),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(school.name, 
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
-                          ),
-                          _buildStatusChip(school.isActive),
-                        ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      school.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                      const SizedBox(height: 4),
-                      Text(school.address, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                      const SizedBox(height: 12),
-                      
-                      // Card Details Grid
-                      _buildMiniDetail(Icons.person_outline, 'By: ${school.addedByNic ?? 'N/A'}'),
-                      _buildMiniDetail(Icons.calendar_today_outlined, 'On: ${school.formattedAddedAt}'),
-                      if (school.lastEditedAt != null)
-                        _buildMiniDetail(Icons.edit_outlined, 'Edit: ${school.formattedLastEditedAt}'),
-                      
-                      const Divider(height: 24),
-                      
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Action Buttons Group
-                          Row(
-                            children: [
-                              _buildCircularAction(Icons.remove_red_eye, Colors.blue, () => _showSchoolDetails(context, school)),
-                              const SizedBox(width: 8),
-                              _buildCircularAction(Icons.edit, Colors.orange, () => _navigateToEditPage(context, school)),
-                            ],
-                          ),
-                          // Toggle Status Button
-                          TextButton.icon(
-                            onPressed: () => _updateSchoolStatus(school, !school.isActive),
-                            icon: Icon(school.isActive ? Icons.block : Icons.check_circle_outline, size: 16),
-                            label: Text(school.isActive ? 'Deactivate' : 'Activate'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: school.isActive ? Colors.red : Colors.green,
-                              backgroundColor: (school.isActive ? Colors.red : Colors.green).withOpacity(0.08),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: school.isActive 
+                        ? Colors.green.withOpacity(0.1) 
+                        : Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      school.isActive ? 'ACTIVE' : 'INACTIVE',
+                      style: TextStyle(
+                        color: school.isActive ? Colors.green : Colors.red,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                school.address,
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              
+              // School info row
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildInfoItem(Icons.location_city_outlined, district),
+                  ),
+                  Expanded(
+                    child: _buildInfoItem(Icons.people_outline, '${school.students} students'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildInfoItem(Icons.phone_outlined, school.phoneNumber),
+                  ),
+                  Expanded(
+                    child: _buildInfoItem(Icons.category_outlined, school.type),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // View Details Button
+                  ElevatedButton.icon(
+                    onPressed: () => _showSchoolDetails(context, school),
+                    icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                    label: const Text('View Details'),
+                    style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF1E88E5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  
+                  // Toggle Status Button
+                  TextButton.icon(
+                    onPressed: () => _updateSchoolStatus(school, !school.isActive),
+                    icon: Icon(
+                      school.isActive ? Icons.block : Icons.check_circle_outline,
+                      size: 16,
+                    ),
+                    label: Text(school.isActive ? 'Deactivate' : 'Activate'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: school.isActive ? Colors.red : Colors.green,
+                      backgroundColor: (school.isActive ? Colors.red : Colors.green).withOpacity(0.08),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  
+                  // Edit Button
+                  IconButton(
+                    onPressed: () => _navigateToEditPage(context, school),
+                    icon: const Icon(Icons.edit_outlined, color: Colors.orange),
+                    tooltip: 'Edit School',
+                  ),
+                ],
               ),
             ],
           ),
@@ -328,39 +527,19 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
     );
   }
 
-  Widget _buildStatusChip(bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(isActive ? 'ACTIVE' : 'INACTIVE', 
-        style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 10, fontWeight: FontWeight.bold)),
-    );
-  }
-
-  Widget _buildMiniDetail(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: Colors.grey),
-          const SizedBox(width: 6),
-          Text(text, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCircularAction(IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-        child: Icon(icon, color: color, size: 18),
-      ),
+  Widget _buildInfoItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.grey),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

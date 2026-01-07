@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
+import 'package:firebase_auth/firebase_auth.dart';
 
 // --- IMPORTS FOR PRINCIPAL PAGES ---
 import 'pending_Principal_approvals.dart'; 
@@ -11,6 +11,9 @@ import 'school_master_plan_page.dart';
 import 'view_damage_details_page.dart';
 import 'view_contract_details_page.dart';
 import 'view_contractor_details_page.dart';
+
+// Import the Manage Schools Page
+import 'manage_schools_page.dart'; // ADD THIS IMPORT
 
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
@@ -32,6 +35,7 @@ class ManagePrincipalsPage extends StatelessWidget {
 
       if (userDoc.exists) {
         final data = userDoc.data() as Map<String, dynamic>;
+        debugPrint('User office field: ${data['office']}');
         return data['office'] as String?;
       }
       return null;
@@ -41,19 +45,60 @@ class ManagePrincipalsPage extends StatelessWidget {
     }
   }
 
-  Future<int> _getCollectionCount(String collectionName, {String? office}) async {
+  // Normalize district name for case-insensitive comparison
+  String _normalizeDistrict(String district) {
+    return district.trim().toLowerCase();
+  }
+
+  Future<int> _getSchoolCountForDistrict(String? office) async {
     try {
-      Query query = FirebaseFirestore.instance.collection(collectionName);
-      
-      // Apply office filter for schools if office is provided
-      if (collectionName == 'schools' && office != null) {
-        query = query.where('office', isEqualTo: office);
+      if (office == null || office.isEmpty) {
+        debugPrint('Office is null or empty');
+        return 0;
       }
       
-      final querySnapshot = await query.count().get();
-      return querySnapshot.count ?? 0;
+      final normalizedOffice = _normalizeDistrict(office);
+      debugPrint('Looking for schools with district (normalized): $normalizedOffice');
+      
+      // Query all schools
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .get();
+      
+      debugPrint('Total schools in database: ${querySnapshot.docs.length}');
+      
+      // Check what fields exist in the first document
+      if (querySnapshot.docs.isNotEmpty) {
+        final firstDoc = querySnapshot.docs.first;
+        debugPrint('First school document fields: ${firstDoc.data().keys}');
+        debugPrint('First school office value: ${firstDoc.data()['office']}');
+        debugPrint('First school district value: ${firstDoc.data()['district']}');
+      }
+      
+      // Try different possible field names
+      final filteredSchools = querySnapshot.docs.where((doc) {
+        final data = doc.data();
+        
+        // Check multiple possible field names
+        final schoolDistrict = data['office'] as String? ?? 
+                             data['district'] as String? ?? 
+                             data['schoolDistrict'] as String?;
+        
+        if (schoolDistrict == null) {
+          debugPrint('School ${doc.id} has no district field');
+          return false;
+        }
+        
+        final normalizedSchoolDistrict = _normalizeDistrict(schoolDistrict);
+        debugPrint('School ${doc.id}: $normalizedSchoolDistrict vs User: $normalizedOffice');
+        
+        return normalizedSchoolDistrict == normalizedOffice;
+      }).length;
+      
+      debugPrint('Found $filteredSchools schools for district $office');
+      return filteredSchools;
     } catch (e) {
-      debugPrint('Error fetching count for $collectionName: $e');
+      debugPrint('Error fetching school count for district $office: $e');
       return 0;
     }
   }
@@ -90,7 +135,7 @@ class ManagePrincipalsPage extends StatelessWidget {
             final currentUserOffice = officeSnapshot.data;
 
             return FutureBuilder<int>(
-              future: _getCollectionCount('schools', office: currentUserOffice),
+              future: _getSchoolCountForDistrict(currentUserOffice),
               builder: (context, schoolSnapshot) {
                 if (schoolSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -102,7 +147,6 @@ class ManagePrincipalsPage extends StatelessWidget {
                   stream: FirebaseFirestore.instance
                       .collection('users')
                       .where('userType', isEqualTo: 'Principal')
-                      .where('office', isEqualTo: currentUserOffice) // Filter by office
                       .snapshots(),
                   builder: (context, userSnapshot) {
                     if (userSnapshot.connectionState == ConnectionState.waiting) {
@@ -113,24 +157,43 @@ class ManagePrincipalsPage extends StatelessWidget {
                       return Center(child: Text('Error: ${userSnapshot.error}'));
                     }
 
-                    if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                      return _buildContent(context, 0, 0, 0, totalSchools, currentUserOffice);
-                    }
+                    final docs = userSnapshot.data?.docs ?? [];
+                    
+                    // Filter principals by office (case-insensitive)
+                    final districtPrincipals = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final principalOffice = data['office'] as String?;
+                      
+                      if (currentUserOffice == null || principalOffice == null) return false;
+                      
+                      debugPrint('Principal office: $principalOffice, User office: $currentUserOffice');
+                      
+                      return _normalizeDistrict(principalOffice) == 
+                            _normalizeDistrict(currentUserOffice);
+                    }).toList();
 
-                    final docs = userSnapshot.data!.docs;
-                    final totalPrincipals = docs.length;
+                    final totalPrincipals = districtPrincipals.length;
 
-                    final activePrincipals = docs.where((doc) {
+                    final activePrincipals = districtPrincipals.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return data['isActive'] == true;
                     }).length;
 
-                    final pendingPrincipals = docs.where((doc) {
+                    final pendingPrincipals = districtPrincipals.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       return data['isActive'] == false;
                     }).length;
 
-                    return _buildContent(context, totalPrincipals, pendingPrincipals, activePrincipals, totalSchools, currentUserOffice);
+                    debugPrint('Stats - Principals: $totalPrincipals, Active: $activePrincipals, Pending: $pendingPrincipals, Schools: $totalSchools');
+
+                    return _buildContent(
+                      context, 
+                      totalPrincipals, 
+                      pendingPrincipals, 
+                      activePrincipals, 
+                      totalSchools, 
+                      currentUserOffice
+                    );
                   },
                 );
               },
@@ -226,7 +289,23 @@ class ManagePrincipalsPage extends StatelessWidget {
                 );
               },
             ),
-            _buildStatCard('Schools', totalSchools.toString(), Icons.apartment_outlined),
+            // MODIFIED THIS CARD TO REDIRECT TO MANAGE SCHOOLS PAGE
+            _buildStatCard(
+              'Schools in District', 
+              totalSchools.toString(), 
+              Icons.apartment_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ManageSchoolsPage(
+                      district: district, // Pass the district as parameter
+                      userNic: 'ADMIN', // Required parameter
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ],
