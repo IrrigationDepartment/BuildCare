@@ -16,7 +16,7 @@ class DamageDetailsListScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Issue Report',
+          'DamageDetailsListScreen Report',
           style: TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -304,18 +304,18 @@ class _DamageDetailsPageState extends State<DamageDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.blue[50],
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF64B5F6),
+        foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Issue Details',
           style: TextStyle(
-            color: Colors.black,
             fontSize: 18,
             fontWeight: FontWeight.w500,
           ),
@@ -335,111 +335,23 @@ class DamageDetailCard extends StatelessWidget {
     this.issueId,
   });
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-
-
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text(
-            '• ',
-            style: TextStyle(fontSize: 14.0, fontWeight: FontWeight.bold),
-          ),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontSize: 14.0, fontWeight: FontWeight.bold),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14.0),
-              softWrap: true,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(dynamic date) {
-    if (date == null) return 'N/A';
-    if (date is Timestamp) {
-      final DateTime dateTime = date.toDate();
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
-    }
-    return date.toString();
-  }
-
-  List<Widget> _buildImagesSection(List<dynamic> imageUrls) {
-    return [
-      const SizedBox(height: 10),
-      const Text(
-        '• Images:',
-        style: TextStyle(
-          fontSize: 14.0,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      const SizedBox(height: 8),
-      SizedBox(
-        height: 100,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          itemCount: imageUrls.length,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  imageUrls[index],
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.error),
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      width: 100,
-                      height: 100,
-                      color: Colors.grey[300],
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     if (issueId == null || issueId!.isEmpty) {
-      return const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Text('No issue ID provided'),
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No issue ID provided',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -452,102 +364,643 @@ class DamageDetailCard extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(
+              color: Color(0xFF64B5F6),
+            ),
           );
         }
 
         if (snapshot.hasError) {
           return Center(
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text(
-                  'Error: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.red),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading issue details',
+                  style: TextStyle(color: Colors.red[400], fontSize: 16),
                 ),
-              ),
+              ],
             ),
           );
         }
 
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Center(
-            child: Card(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text('Issue details not found'),
-              ),
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.report_outlined, size: 80, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'Issue not found',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           );
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>;
-        List<dynamic> imageUrls = data['imageUrls'] ?? [];
+        final imageUrls = data['imageUrls'] as List<dynamic>? ?? [];
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10.0),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(15.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  // Header Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      const Text(
-                        'View Issue Details',
-                        style: TextStyle(
-                          fontSize: 18.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Card
+              _buildHeaderCard(data),
+              const SizedBox(height: 16),
 
-                  const Divider(thickness: 1, height: 15),
+              // Images Section
+              if (imageUrls.isNotEmpty) _buildImagesSection(imageUrls),
+              if (imageUrls.isNotEmpty) const SizedBox(height: 16),
 
-                  // Issue Details Section
-                  _buildDetailRow(
-                      'Issue Title          ', data['issueTitle'] ?? 'N/A'),
-                  _buildDetailRow(
-                      'School Name      ', data['schoolName'] ?? 'N/A'),
-                  _buildDetailRow(
-                      'Building Name    ', data['buildingName'] ?? 'N/A'),
-                  _buildDetailRow('Building Area      ',
-                      data['buildingArea']?.toString() ?? 'N/A'),
-                  _buildDetailRow(
-                      'Damage Type      ', data['damageType'] ?? 'N/A'),
-                  _buildDetailRow('Number of Floors ',
-                      data['numFloors']?.toString() ?? 'N/A'),
-                  _buildDetailRow('Number of Classrooms',
-                      data['numClassrooms']?.toString() ?? 'N/A'),
-                  _buildDetailRow('Date of Occurrence',
-                      _formatDate(data['dateOfOccurance'])),
-                  _buildDetailRow(
-                      'Description           ', data['description'] ?? 'N/A'),
-                  _buildDetailRow(
-                      'Status                    ', data['status'] ?? 'N/A'),
-                  _buildDetailRow(
-                      'Added By NIC        ', data['addedByNic'] ?? 'N/A'),
-
-                  // Images Section
-                  if (imageUrls.isNotEmpty) ..._buildImagesSection(imageUrls),
+              // Basic Information
+              _buildSectionCard(
+                'Basic Information',
+                Icons.info_outline,
+                Colors.blue,
+                [
+                  _buildInfoRow('Issue Title', data['issueTitle']),
+                  _buildInfoRow('School Name', data['schoolName']),
+                  _buildInfoRow('School Type', data['schoolType']),
+                  _buildInfoRow('Building Name', data['buildingName']),
+                  _buildInfoRow('Damage Type', data['damageType']),
+                  _buildInfoRow('Description', data['description']),
                 ],
               ),
-            ),
+              const SizedBox(height: 16),
+
+              // Building Details
+              _buildSectionCard(
+                'Building Details',
+                Icons.apartment,
+                Colors.orange,
+                [
+                  _buildStatRow(
+                    Icons.square_foot,
+                    'Building Area',
+                    data['buildingArea']?.toString() ?? 'N/A',
+                    Colors.orange,
+                  ),
+                  _buildStatRow(
+                    Icons.layers,
+                    'Number of Floors',
+                    data['numFloors']?.toString() ?? 'N/A',
+                    Colors.purple,
+                  ),
+                  _buildStatRow(
+                    Icons.meeting_room,
+                    'Number of Classrooms',
+                    data['numClassrooms']?.toString() ?? 'N/A',
+                    Colors.teal,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Status & Timeline
+              _buildSectionCard(
+                'Status & Timeline',
+                Icons.timeline,
+                Colors.green,
+                [
+                  _buildStatusRow('Status', data['status'] ?? 'Pending'),
+                  _buildInfoRow(
+                    'Date of Occurrence',
+                    _formatTimestamp(data['dateOfOccurance']),
+                  ),
+                  _buildInfoRow('Added By NIC', data['addedByNic']),
+                  if (data['addedAt'] != null)
+                    _buildInfoRow(
+                      'Added At',
+                      _formatTimestamp(data['addedAt']),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // All Document Fields
+              _buildAllFieldsCard(data),
+            ],
           ),
         );
       },
     );
+  }
+
+  Widget _buildHeaderCard(Map<String, dynamic> data) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF64B5F6), Color(0xFF42A5F5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.report_problem,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data['issueTitle'] ?? 'Issue Report',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        data['schoolName'] ?? 'Unknown School',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagesSection(List<dynamic> imageUrls) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.photo_library, color: Colors.red, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Damage Images (${imageUrls.length})',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 120,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: imageUrls.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        // Show full image
+                        showDialog(
+                          context: context,
+                          builder: (context) => Dialog(
+                            child: Image.network(imageUrls[index]),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Image.network(
+                            imageUrls[index],
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.error, size: 40),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(
+    String title,
+    IconData icon,
+    Color color,
+    List<Widget> children,
+  ) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value?.toString() ?? 'N/A',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[800],
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(IconData icon, String label, String value, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusRow(String label, String status) {
+    Color statusColor;
+    switch (status.toLowerCase()) {
+      case 'in progress':
+        statusColor = Colors.blue;
+        break;
+      case 'pending':
+        statusColor = Colors.orange;
+        break;
+      case 'resolved':
+      case 'completed':
+        statusColor = Colors.green;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        break;
+      default:
+        statusColor = Colors.grey;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor, width: 1),
+                  ),
+                  child: Text(
+                    status,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllFieldsCard(Map<String, dynamic> data) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.deepPurple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.dataset,
+                    color: Colors.deepPurple,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'All Document Fields',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...data.entries.map((entry) {
+              return _buildDynamicField(entry.key, entry.value);
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDynamicField(String key, dynamic value) {
+    String displayValue = _formatValue(value);
+    IconData icon = _getIconForField(key);
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.grey[600]),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: Text(
+              _formatFieldName(key),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: Text(
+              displayValue,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[800],
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatFieldName(String fieldName) {
+    String result = fieldName.replaceAllMapped(
+      RegExp(r'([A-Z])'),
+      (match) => ' ${match.group(0)}',
+    );
+    return result[0].toUpperCase() + result.substring(1);
+  }
+
+  String _formatValue(dynamic value) {
+    if (value == null) return 'N/A';
+    
+    if (value is bool) {
+      return value ? 'Yes' : 'No';
+    }
+    
+    if (value is Timestamp) {
+      return _formatTimestamp(value);
+    }
+    
+    if (value is Map) {
+      return value.entries
+          .map((e) => '${e.key}: ${e.value}')
+          .join(', ');
+    }
+    
+    if (value is List) {
+      if (value.isEmpty) return 'None';
+      if (value.first.toString().startsWith('http')) {
+        return '${value.length} image(s)';
+      }
+      return value.join(', ');
+    }
+    
+    return value.toString();
+  }
+
+  IconData _getIconForField(String fieldName) {
+    final name = fieldName.toLowerCase();
+    
+    if (name.contains('title') || name.contains('name')) return Icons.title;
+    if (name.contains('school')) return Icons.school;
+    if (name.contains('building')) return Icons.apartment;
+    if (name.contains('area')) return Icons.square_foot;
+    if (name.contains('damage')) return Icons.warning;
+    if (name.contains('floor')) return Icons.layers;
+    if (name.contains('classroom')) return Icons.meeting_room;
+    if (name.contains('date') || name.contains('time')) return Icons.access_time;
+    if (name.contains('description')) return Icons.description;
+    if (name.contains('status')) return Icons.flag;
+    if (name.contains('nic')) return Icons.badge;
+    if (name.contains('image')) return Icons.photo;
+    
+    return Icons.info_outline;
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+
+    try {
+      DateTime date;
+      if (timestamp is Timestamp) {
+        date = timestamp.toDate();
+      } else if (timestamp is String) {
+        date = DateTime.parse(timestamp);
+      } else {
+        return 'N/A';
+      }
+
+      return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return 'N/A';
+    }
   }
 }
