@@ -1,7 +1,7 @@
 import 'package:buildcare/screens/ChiefEng/contract_details_page.dart';
-import 'package:buildcare/screens/ChiefEng/dashboard.dart';
 import 'package:buildcare/screens/ChiefEng/view_contractor_detail.dart';
 import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
+import 'package:buildcare/screens/ChiefEng/view_school_details.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
