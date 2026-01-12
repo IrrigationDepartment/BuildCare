@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'add_contractor_screen.dart'; // Import to enable viewing details
 
 class ContractorsListPage extends StatelessWidget {
   const ContractorsListPage({super.key});
@@ -16,15 +17,22 @@ class ContractorsListPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Add logic to add new contractor
+          // Navigate to add new contractor
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddContractorScreen(),
+            ),
+          );
         },
         backgroundColor: Colors.teal,
         child: const Icon(Icons.add),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // ASSUMPTION: You have a collection named 'contractors'
-        stream:
-            FirebaseFirestore.instance.collection('contractors').snapshots(),
+        // CHANGED: Corrected collection name to 'contractor_details' to match AddContractorScreen
+        stream: FirebaseFirestore.instance
+            .collection('contractor_details')
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -49,8 +57,8 @@ class ContractorsListPage extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              var data =
-                  snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              var doc = snapshot.data!.docs[index];
+              var data = doc.data() as Map<String, dynamic>;
 
               return Card(
                 elevation: 0,
@@ -63,18 +71,28 @@ class ContractorsListPage extends StatelessWidget {
                   leading: CircleAvatar(
                     backgroundColor: Colors.teal.shade100,
                     child: Text(
-                      (data['name'] ?? 'C')[0].toUpperCase(),
+                      (data['contractorName'] ?? 'C')[0].toUpperCase(),
                       style: TextStyle(color: Colors.teal.shade800),
                     ),
                   ),
-                  title: Text(data['name'] ?? 'Unknown Contractor',
+                  // Displaying Contractor Name
+                  title: Text(data['contractorName'] ?? 'Unknown Contractor',
                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle:
-                      Text(data['specialization'] ?? 'General Construction'),
+                  // Displaying Company Name as subtitle
+                  subtitle: Text(data['companyName'] ?? 'No Company Name'),
                   trailing: const Icon(Icons.arrow_forward_ios,
                       size: 16, color: Colors.grey),
                   onTap: () {
-                    // Navigate to detail
+                    // Navigate to AddContractorScreen in View/Edit mode
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddContractorScreen(
+                          contractorId: doc.id,
+                          initialData: data,
+                        ),
+                      ),
+                    );
                   },
                 ),
               );

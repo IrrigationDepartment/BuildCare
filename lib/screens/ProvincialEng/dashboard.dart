@@ -5,7 +5,7 @@ import 'package:rxdart/rxdart.dart';
 
 // --- PAGE IMPORTS ---
 import 'view_issues.dart';
-import 'contractors_list.dart';
+import 'contractors_list.dart'; // Make sure this file exists
 import 'contract_list.dart';
 
 // --- REGISTRATION PAGE IMPORTS ---
@@ -146,7 +146,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     // Get screen dimensions
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final isVerySmallMobile = screenWidth < 340; // iPhone SE, small Android
+    final isVerySmallMobile = screenWidth < 340; 
     final isSmallMobile = screenWidth < 380; 
     final isMediumMobile = screenWidth < 600;
 
@@ -186,8 +186,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                       isVerySmallMobile: isVerySmallMobile,
                       isSmallMobile: isSmallMobile,
                     ),
-
-                    
                     const SizedBox(height: 8),
                     _buildSectionTitle('Project Management', 
                       isVerySmallMobile: isVerySmallMobile, 
@@ -251,16 +249,15 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         'icon': Icons.school,
         'color': Colors.purple,
       },
-      // --- NEW: SCHOOLS CARD ---
+      // --- SCHOOLS CARD ---
       {
         'title': 'Schools',
-        'userType': 'school', // internal tag
-        'addPage': null, // Can navigate to generic or show dialog
+        'userType': 'school',
+        'addPage': null,
         'icon': Icons.location_city,
         'color': Colors.brown,
-        'collectionName': 'schools', // Custom collection
+        'collectionName': 'schools',
         'customRoute': (BuildContext context) {
-          // Custom Route to View Schools
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -346,6 +343,9 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // --- PROJECT MANAGEMENT ROW (Updated for Contractors Count) ---
+  // ---------------------------------------------------------------------------
   Widget _buildProjectManagementRow({
     required bool isVerySmallMobile,
     required bool isSmallMobile,
@@ -360,7 +360,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           Expanded(
             child: CompactProjectCard(
               title: 'Contractors',
-              collectionName: 'contractors',
+              // *** IMPORTANT: Matches the collection name in add_contractor_screen.dart ***
+              collectionName: 'contractor_details', 
               icon: Icons.engineering,
               color: Colors.teal.shade700,
               onTap: () {
@@ -867,6 +868,9 @@ class CompactUserCard extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// --- COMPACT PROJECT CARD (Includes Counter Logic) ---
+// -----------------------------------------------------------------------------
 class CompactProjectCard extends StatelessWidget {
   final String title;
   final String collectionName;
@@ -891,11 +895,14 @@ class CompactProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // This StreamBuilder listens to the collection (e.g., 'contractor_details')
+    // and updates the 'count' text whenever the number of documents changes.
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection(collectionName).snapshots(),
       builder: (context, snapshot) {
         String count = '...';
         if (snapshot.hasData) {
+          // Updates the count dynamically
           count = snapshot.data!.docs.length.toString();
         }
 
@@ -938,6 +945,7 @@ class CompactProjectCard extends StatelessWidget {
                             size: isVerySmallMobile ? 16 : 18,
                           ),
                         ),
+                        // Display the count
                         Text(
                           count,
                           style: TextStyle(
