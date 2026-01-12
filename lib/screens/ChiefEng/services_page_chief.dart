@@ -58,7 +58,7 @@ class DistrictEngineerDashboardCardStream extends StatelessWidget {
       icon: Icons.engineering,
       iconColor: Colors.blue.shade300,
       iconBackgroundColor: Colors.blue.shade50,
-      width: 150,
+      width: 163,
       height: 80,
     );
     // return Container(
@@ -545,10 +545,11 @@ class DashboardCard extends StatelessWidget {
               child: Icon(
                 icon,
                 color: iconColor,
-                size: 22,
+                size: 25,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
+
             // Text Content with Flexible
             Expanded(
               child: Column(
@@ -563,19 +564,20 @@ class DashboardCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w900,
                         color: Colors.grey.shade800,
                         height: 1.2,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 5),
                   Text(
-                    count,
+                    "$count users",
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                       color: Colors.grey.shade600,
                     ),
                   ),
@@ -685,7 +687,7 @@ class _SchoolsDashboardCardState extends State<SchoolsDashboardCard> {
       title: title,
       count: count,
       icon: Icons.school,
-      width: 150,
+      width: 163,
       height: 80,
       iconColor: Colors.white,
       iconBackgroundColor: color,
@@ -1567,11 +1569,12 @@ class TechnicalOfficerDashboardCardStream extends StatelessWidget {
 
   Widget _buildOverviewCard(String title, String count, Color color) {
     return DashboardCard(
-        title: "Tecnical Officer",
-        count: count,
-        icon: Icons.engineering,
-        width: 150,
-        height: 80);
+      title: "Tecnical Officer",
+      count: count,
+      icon: Icons.engineering,
+      width: 163,
+      height: 80,
+    );
   }
 }
 

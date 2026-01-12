@@ -340,7 +340,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                   Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           // SchoolsDashboardCard(),
                           // DistrictEngineerDashboardCardStream()
@@ -354,7 +354,9 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                       ),
 
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        // mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+
                         children: [
                           SchoolsDashboardCard(),
                         ],
@@ -373,7 +375,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '   Other Details',
+                '   Project Management',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -381,7 +383,8 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 ),
               ),
             ),
-            SizedBox(height: 15),
+            SizedBox(height: 10),
+            
 
             const SizedBox(height: 12),
             _buildActionButton(
