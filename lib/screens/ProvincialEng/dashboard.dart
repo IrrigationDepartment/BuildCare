@@ -4,8 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 
 // --- PAGE IMPORTS ---
+// Make sure these files exist in your project
 import 'view_issues.dart';
-import 'contractors_list.dart'; // Make sure this file exists
+import 'contractors_list.dart'; 
 import 'contract_list.dart';
 
 // --- REGISTRATION PAGE IMPORTS ---
@@ -360,7 +361,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           Expanded(
             child: CompactProjectCard(
               title: 'Contractors',
-              // *** IMPORTANT: Matches the collection name in add_contractor_screen.dart ***
+              // Matches collection in add_contractor_screen.dart
               collectionName: 'contractor_details', 
               icon: Icons.engineering,
               color: Colors.teal.shade700,
@@ -389,6 +390,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           Expanded(
             child: CompactProjectCard(
               title: 'Contracts',
+              // Matches collection in add_contract.dart
               collectionName: 'contracts',
               icon: Icons.description,
               color: Colors.indigo.shade700,
@@ -646,7 +648,6 @@ class CompactUserCard extends StatelessWidget {
   final Color color;
   final bool isVerySmallMobile;
   final bool isSmallMobile;
-  // New properties for flexibility
   final String? collectionName;
   final Function(BuildContext)? onCustomTap;
 
@@ -665,7 +666,6 @@ class CompactUserCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine which query to use
     Stream<QuerySnapshot> getStream() {
       if (collectionName != null) {
         return FirebaseFirestore.instance.collection(collectionName!).snapshots();
@@ -688,9 +688,7 @@ class CompactUserCard extends StatelessWidget {
           total = snapshot.data!.docs.length;
           for (var doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
-            // If collection is not users, treat all as active/available unless specified
             if (collectionName != null) {
-               // For schools or other entities without isActive, treat as active
                active++;
             } else {
               if (data['isActive'] == true) {
@@ -779,7 +777,6 @@ class CompactUserCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: isVerySmallMobile ? 4 : 6),
-                    // Only show Active/Pending dots if not a custom collection like schools
                     if (collectionName == null) ...[
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -869,7 +866,7 @@ class CompactUserCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- COMPACT PROJECT CARD (Includes Counter Logic) ---
+// --- COMPACT PROJECT CARD (With Counters) ---
 // -----------------------------------------------------------------------------
 class CompactProjectCard extends StatelessWidget {
   final String title;
@@ -895,14 +892,11 @@ class CompactProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // This StreamBuilder listens to the collection (e.g., 'contractor_details')
-    // and updates the 'count' text whenever the number of documents changes.
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection(collectionName).snapshots(),
       builder: (context, snapshot) {
         String count = '...';
         if (snapshot.hasData) {
-          // Updates the count dynamically
           count = snapshot.data!.docs.length.toString();
         }
 
@@ -945,7 +939,6 @@ class CompactProjectCard extends StatelessWidget {
                             size: isVerySmallMobile ? 16 : 18,
                           ),
                         ),
-                        // Display the count
                         Text(
                           count,
                           style: TextStyle(

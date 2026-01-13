@@ -17,17 +17,14 @@ class AddContractScreen extends StatefulWidget {
 }
 
 class _AddContractScreenState extends State<AddContractScreen> {
-  // --- Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // --- Form Controllers & State ---
   final TextEditingController _cidaController = TextEditingController();
   final TextEditingController _contractorController = TextEditingController();
   final TextEditingController _typeController = TextEditingController();
   final TextEditingController _valueController = TextEditingController();
-  // Date-picker
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
 
@@ -38,14 +35,12 @@ class _AddContractScreenState extends State<AddContractScreen> {
   @override
   void initState() {
     super.initState();
-    // Check if we are in 'Edit' mode
     if (widget.contractId != null && widget.initialData != null) {
       _isEditMode = true;
       _populateForm(widget.initialData!);
     }
   }
 
-  // --- Helper: Populate form for 'Edit' mode ---
   void _populateForm(Map<String, dynamic> data) {
     _cidaController.text = data['cidaRegisterNumber']?.toString() ?? '';
     _contractorController.text = data['contractorName']?.toString() ?? '';
@@ -81,7 +76,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
     super.dispose();
   }
 
-  // --- Date Picker Function ---
   Future<void> _selectDate(BuildContext context, bool isStart) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -102,18 +96,15 @@ class _AddContractScreenState extends State<AddContractScreen> {
     }
   }
 
-  // --- Firebase Save / Update Logic ---
   Future<void> _saveContractDetails() async {
     if (_formKey.currentState!.validate()) {
       if (_startDate == null || _endDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Please select both Start and End dates.')),
+          const SnackBar(content: Text('Please select both Start and End dates.')),
         );
         return;
       }
 
-      // Data map to be saved/updated
       final Map<String, dynamic> contractData = {
         'cidaRegisterNumber': _cidaController.text.trim(),
         'contractorName': _contractorController.text.trim(),
@@ -125,7 +116,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
       try {
         if (_isEditMode) {
-          // --- UPDATE Logic ---
           contractData['lastUpdated'] = FieldValue.serverTimestamp();
           await FirebaseFirestore.instance
               .collection('contracts')
@@ -133,24 +123,19 @@ class _AddContractScreenState extends State<AddContractScreen> {
               .update(contractData);
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Contract details updated successfully!')),
+            const SnackBar(content: Text('Contract details updated successfully!')),
           );
-          // Close both the 'Edit' (this) and 'View' (previous) screens to return to the list
-          Navigator.of(context).pop(); // Close Edit screen
-          Navigator.of(context).pop(); // Close View screen
+          Navigator.of(context).pop(); 
+          Navigator.of(context).pop(); 
         } else {
-          // --- ADD (New) Logic ---
           contractData['timestamp'] = FieldValue.serverTimestamp();
           await FirebaseFirestore.instance
               .collection('contracts')
               .add(contractData);
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Contract details saved successfully!')),
+            const SnackBar(content: Text('Contract details saved successfully!')),
           );
-          // Close the 'Add' screen and return to the list
           Navigator.pop(context);
         }
       } catch (e) {
@@ -161,7 +146,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
     }
   }
 
-  // --- Widget for custom text fields ---
   Widget _buildTextField({
     required String label,
     required String hintText,
@@ -179,15 +163,11 @@ class _AddContractScreenState extends State<AddContractScreen> {
         children: [
           Text(
             '$label:',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF333333),
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF333333)),
           ),
           const SizedBox(height: 8),
           TextFormField(
-            controller: controller, // Pass the respective controller
+            controller: controller,
             readOnly: isDate,
             onTap: isDate ? onTap : null,
             keyboardType: keyboardType,
@@ -198,12 +178,8 @@ class _AddContractScreenState extends State<AddContractScreen> {
               hintStyle: const TextStyle(color: Color(0xFF757575)),
               filled: true,
               fillColor: Colors.white,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               suffixIcon: Padding(
                 padding: const EdgeInsets.only(right: 12.0),
                 child: Icon(suffixIcon, color: kPrimaryBlue),
@@ -227,22 +203,16 @@ class _AddContractScreenState extends State<AddContractScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          // Change the title based on 'Edit' mode
           _isEditMode ? 'Edit Contract' : 'Add Contract Details',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF333333),
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333333)),
         ),
         centerTitle: true,
         actions: [
           TextButton(
             onPressed: _saveContractDetails,
             child: Text(
-              // Change the button text based on 'Edit' mode
               _isEditMode ? 'Update' : 'Save',
-              style: const TextStyle(
-                  color: kPrimaryBlue, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: kPrimaryBlue, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -255,54 +225,43 @@ class _AddContractScreenState extends State<AddContractScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // 1. CIDA Registration Number
                 _buildTextField(
                   label: 'CIDA Registration Number',
                   hintText: 'Enter Your Registration Number',
                   suffixIcon: Icons.badge,
                   controller: _cidaController,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter CIDA number' : null,
+                  validator: (value) => value!.isEmpty ? 'Please enter CIDA number' : null,
                 ),
-                // 2. Contractor Name
                 _buildTextField(
                   label: 'Contractor Name',
                   hintText: 'Enter Contractor Name',
                   suffixIcon: Icons.person,
                   controller: _contractorController,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter contractor name' : null,
+                  validator: (value) => value!.isEmpty ? 'Please enter contractor name' : null,
                 ),
-                // 3. Type of Contract
                 _buildTextField(
                   label: 'Type of Contract',
                   hintText: 'Enter Contract Type',
                   suffixIcon: Icons.category,
                   controller: _typeController,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter contract type' : null,
+                  validator: (value) => value!.isEmpty ? 'Please enter contract type' : null,
                 ),
-                // 4. Start Date
                 _buildTextField(
                   label: 'Start date',
                   hintText: 'Enter Project Start Date',
                   suffixIcon: Icons.calendar_today,
-                  controller:
-                      _startDateController, // Pass the date controller
+                  controller: _startDateController,
                   isDate: true,
                   onTap: () => _selectDate(context, true),
                 ),
-                // 5. End Date
                 _buildTextField(
                   label: 'End date',
                   hintText: 'Enter Project End Date',
                   suffixIcon: Icons.calendar_today,
-                  controller:
-                      _endDateController, // Pass the date controller
+                  controller: _endDateController,
                   isDate: true,
                   onTap: () => _selectDate(context, false),
                 ),
-                // 6. Value
                 _buildTextField(
                   label: 'Value',
                   hintText: 'Value of the Project',
@@ -311,9 +270,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value!.isEmpty) return 'Please enter project value';
-                    if (double.tryParse(value) == null) {
-                      return 'Enter a valid number';
-                    }
+                    if (double.tryParse(value) == null) return 'Enter a valid number';
                     return null;
                   },
                 ),
