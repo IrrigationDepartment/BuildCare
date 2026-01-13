@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'damage_details_dialog.dart';
-import 'add_issue_screen.dart'; // AddIssueScreen එක මෙහි import කරන්න
+import 'add_issue_screen.dart'; 
 
 class ViewDamageDetailsPage extends StatefulWidget {
   final String userNic;
@@ -29,7 +29,10 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
         iconTheme: const IconThemeData(color: kTextColor),
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('issues').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('issues')
+            .orderBy('timestamp', descending: true) 
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
