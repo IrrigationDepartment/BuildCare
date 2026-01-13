@@ -1,6 +1,316 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
+
+class ContractorDetailsDashboardCardStream extends StatelessWidget {
+  const ContractorDetailsDashboardCardStream({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: ContractorDetailsService().getContractorsCountStream(),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final count = snapshot.data ?? 0;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ContractorDetailsListScreen(),
+              ),
+            );
+          },
+          child: _buildOverviewCard(
+            'Contractors',
+            isLoading ? '...' : count.toString(),
+            const Color.fromARGB(255, 255, 152, 0),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String count, Color color) {
+    return DashboardCard(
+      title: "Contractor\nDetails",
+      count: count,
+      icon: Icons.business,
+      iconColor: Colors.orange.shade300,
+      iconBackgroundColor: Colors.orange.shade50,
+      width: 163,
+      height: 80,
+    );
+  }
+}
+
+
+class DashboardCard extends StatelessWidget {
+  final String title;
+  final String count;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackgroundColor;
+  final double width;
+  final double height;
+
+  const DashboardCard({
+    Key? key,
+    required this.title,
+    required this.count,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackgroundColor,
+    required this.width,
+    required this.height,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconBackgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "$count contrators",
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+class ContractorDetailsService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Get total contractors count (Future)
+  Future<int> getTotalContractorsCount() async {
+    try {
+      QuerySnapshot snapshot =
+          await _firestore.collection('contractor_details').get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting contractors count: $e');
+      return 0;
+    }
+  }
+
+  // Get contractors count as Stream (real-time updates)
+  Stream<int> getContractorsCountStream() {
+    return _firestore
+        .collection('contractor_details')
+        .snapshots()
+        .map((snapshot) => snapshot.size);
+  }
+
+  // Get contractors count by company name
+  Future<int> getContractorsCountByCompany(String companyName) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('contractor_details')
+          .where('companyName', isEqualTo: companyName)
+          .get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting contractors count by company: $e');
+      return 0;
+    }
+  }
+
+  // Get all contractors as Stream
+  Stream<QuerySnapshot> getContractorsStream() {
+    return _firestore
+        .collection('contractor_details')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  // Get single contractor by ID
+  Future<DocumentSnapshot> getContractor(String contractorId) async {
+    try {
+      return await _firestore
+          .collection('contractor_details')
+          .doc(contractorId)
+          .get();
+    } catch (e) {
+      print('Error getting contractor: $e');
+      rethrow;
+    }
+  }
+
+  // Get contractors by CIDA registration number
+  Future<List<DocumentSnapshot>> getContractorsByCIDA(String cidaNumber) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('contractor_details')
+          .where('cidaRegistrationNumber', isEqualTo: cidaNumber)
+          .get();
+
+      return snapshot.docs;
+    } catch (e) {
+      print('Error getting contractors by CIDA: $e');
+      return [];
+    }
+  }
+
+  // Get contractors statistics
+  Future<Map<String, dynamic>> getContractorsStatistics() async {
+    try {
+      final snapshot = await _firestore.collection('contractor_details').get();
+
+      // Get unique companies
+      Set<String> uniqueCompanies = {};
+      int thisMonth = 0;
+      int thisYear = 0;
+      final now = DateTime.now();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        // Count unique companies
+        if (data['companyName'] != null && data['companyName'] != '') {
+          uniqueCompanies.add(data['companyName']);
+        }
+
+        // Count registrations this month and year
+        if (data['timestamp'] != null && data['timestamp'] is Timestamp) {
+          try {
+            final date = (data['timestamp'] as Timestamp).toDate();
+
+            if (date.year == now.year && date.month == now.month) {
+              thisMonth++;
+            }
+
+            if (date.year == now.year) {
+              thisYear++;
+            }
+          } catch (e) {
+            print('Error parsing timestamp: $e');
+          }
+        }
+      }
+
+      return {
+        'total': snapshot.size,
+        'uniqueCompanies': uniqueCompanies.length,
+        'thisMonth': thisMonth,
+        'thisYear': thisYear,
+      };
+    } catch (e) {
+      print('Error getting contractors statistics: $e');
+      return {
+        'total': 0,
+        'uniqueCompanies': 0,
+        'thisMonth': 0,
+        'thisYear': 0,
+      };
+    }
+  }
+
+  // Search contractors by name or company
+  Stream<QuerySnapshot> searchContractors(String searchQuery) {
+    return _firestore
+        .collection('contractor_details')
+        .where('contractorName', isGreaterThanOrEqualTo: searchQuery)
+        .where('contractorName', isLessThan: searchQuery + 'z')
+        .snapshots();
+  }
+
+  // Get contractors registered in a date range
+  Future<List<DocumentSnapshot>> getContractorsByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('contractor_details')
+          .where('timestamp',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .get();
+
+      return snapshot.docs;
+    } catch (e) {
+      print('Error getting contractors by date range: $e');
+      return [];
+    }
+  }
+
+  // Get all unique company names
+  Future<List<String>> getUniqueCompanyNames() async {
+    try {
+      final snapshot = await _firestore.collection('contractor_details').get();
+      Set<String> companies = {};
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['companyName'] != null && data['companyName'] != '') {
+          companies.add(data['companyName']);
+        }
+      }
+
+      return companies.toList()..sort();
+    } catch (e) {
+      print('Error getting unique company names: $e');
+      return [];
+    }
+  }
+}
+
+
+
 class ContractorDetailsListScreen extends StatelessWidget {
   const ContractorDetailsListScreen({Key? key}) : super(key: key);
 
@@ -65,7 +375,7 @@ class ContractorDetailsListScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
-              
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(
@@ -143,8 +453,6 @@ class ContractorDetailsListScreen extends StatelessWidget {
 }
 
 
-
-
 class ContractorDetailsViewScreen extends StatelessWidget {
   final String contractorId;
 
@@ -178,6 +486,7 @@ class ContractorDetailsViewScreen extends StatelessWidget {
     );
   }
 }
+
 
 class ContractorDetailCard extends StatelessWidget {
   final String contractorId;
@@ -249,9 +558,7 @@ class ContractorDetailCard extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
@@ -343,11 +650,11 @@ class ContractorDetailCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  
+
                   const SizedBox(height: 24),
                   const Divider(thickness: 1),
                   const SizedBox(height: 16),
-                  
+
                   // Contractor Details
                   const Text(
                     'Contractor Information',
@@ -357,32 +664,32 @@ class ContractorDetailCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   _buildDetailRow(
                     'CIDA Registration Number',
                     data['cidaRegistrationNumber']?.toString() ?? 'N/A',
                   ),
-                  
+
                   _buildDetailRow(
                     'Contractor Company Name',
                     data['companyName'] ?? 'N/A',
                   ),
-                  
+
                   _buildDetailRow(
                     'Contractor Name',
                     data['contractorName'] ?? 'N/A',
                   ),
-                  
+
                   _buildDetailRow(
                     'Contact Number',
                     data['contactNumber']?.toString() ?? 'N/A',
                   ),
-                  
+
                   _buildDetailRow(
                     'NIC Number',
                     data['nicNumber']?.toString() ?? 'N/A',
                   ),
-                  
+
                   // Timestamp
                   if (data['timestamp'] != null) ...[
                     const SizedBox(height: 8),
@@ -391,16 +698,84 @@ class ContractorDetailCard extends StatelessWidget {
                       _formatTimestamp(data['timestamp']),
                     ),
                   ],
-                  
-                 
+
                   const SizedBox(height: 24),
-                
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class ContractorStatisticsWidget extends StatelessWidget {
+  const ContractorStatisticsWidget({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ContractorDetailsService().getContractorsStatistics(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final stats = snapshot.data!;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Contractor Statistics',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildStatRow('Total Contractors', stats['total'].toString()),
+                _buildStatRow(
+                    'Unique Companies', stats['uniqueCompanies'].toString()),
+                _buildStatRow(
+                    'Registered This Month', stats['thisMonth'].toString()),
+                _buildStatRow(
+                    'Registered This Year', stats['thisYear'].toString()),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.blue,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

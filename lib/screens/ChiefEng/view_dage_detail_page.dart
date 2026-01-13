@@ -1,6 +1,257 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
+class IssuesDashboardCardStream extends StatelessWidget {
+  const IssuesDashboardCardStream({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: IssuesService().getIssuesCountStream(),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final count = snapshot.data ?? 0;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const DamageDetailsListScreen(),
+              ),
+            );
+          },
+          child: _buildOverviewCard(
+            'Issues',
+            isLoading ? '...' : count.toString(),
+            const Color.fromARGB(255, 255, 87, 87),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String count, Color color) {
+    return DashboardCard(
+      title: "Issues\nReported",
+      count: count,
+      icon: Icons.report_problem,
+      iconColor: Colors.red.shade300,
+      iconBackgroundColor: Colors.red.shade50,
+      width: 163,
+      height: 80,
+    );
+  }
+}
+
+
+
+class DashboardCard extends StatelessWidget {
+  final String title;
+  final String count;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackgroundColor;
+  final double width;
+  final double height;
+
+  const DashboardCard({
+    Key? key,
+    required this.title,
+    required this.count,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackgroundColor,
+    required this.width,
+    required this.height,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconBackgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 15,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "$count  issues",
+                  style: const TextStyle(
+                    fontSize: 11,
+
+
+
+                    fontWeight: FontWeight.w400,
+
+
+
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class IssuesService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Get total issues count (Future)
+  Future<int> getTotalIssuesCount() async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('issues').get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting issues count: $e');
+      return 0;
+    }
+  }
+
+  // Get issues count as Stream (real-time updates)
+  Stream<int> getIssuesCountStream() {
+    return _firestore
+        .collection('issues')
+        .snapshots()
+        .map((snapshot) => snapshot.size);
+  }
+
+  // Get issues count by status
+  Future<int> getIssuesCountByStatus(String status) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('issues')
+          .where('status', isEqualTo: status)
+          .get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting issues count by status: $e');
+      return 0;
+    }
+  }
+
+  // Get issues count by status as Stream
+  Stream<int> getIssuesCountByStatusStream(String status) {
+    return _firestore
+        .collection('issues')
+        .where('status', isEqualTo: status)
+        .snapshots()
+        .map((snapshot) => snapshot.size);
+  }
+
+  // Get all issues as Stream
+  Stream<QuerySnapshot> getIssuesStream() {
+    return _firestore
+        .collection('issues')
+        .orderBy('addedAt', descending: true)
+        .snapshots();
+  }
+
+  // Get single issue by ID
+  Future<DocumentSnapshot> getIssue(String issueId) async {
+    try {
+      return await _firestore.collection('issues').doc(issueId).get();
+    } catch (e) {
+      print('Error getting issue: $e');
+      rethrow;
+    }
+  }
+
+  // Get issues statistics
+  Future<Map<String, int>> getIssuesStatistics() async {
+    try {
+      final snapshot = await _firestore.collection('issues').get();
+
+      int pending = 0;
+      int inProgress = 0;
+      int resolved = 0;
+      int rejected = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final status = (data['status'] ?? 'Pending').toString().toLowerCase();
+
+        switch (status) {
+          case 'pending':
+            pending++;
+            break;
+          case 'in progress':
+            inProgress++;
+            break;
+          case 'resolved':
+          case 'completed':
+            resolved++;
+            break;
+          case 'rejected':
+            rejected++;
+            break;
+        }
+      }
+
+      return {
+        'total': snapshot.size,
+        'pending': pending,
+        'inProgress': inProgress,
+        'resolved': resolved,
+        'rejected': rejected,
+      };
+    } catch (e) {
+      print('Error getting issues statistics: $e');
+      return {
+        'total': 0,
+        'pending': 0,
+        'inProgress': 0,
+        'resolved': 0,
+        'rejected': 0,
+      };
+    }
+  }
+}
+
+
 class DamageDetailsListScreen extends StatelessWidget {
   const DamageDetailsListScreen({Key? key}) : super(key: key);
 
@@ -16,7 +267,7 @@ class DamageDetailsListScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'DamageDetailsListScreen Report',
+          'Issues Report',
           style: TextStyle(
             color: Colors.black,
             fontSize: 18,
@@ -119,6 +370,8 @@ class DamageDetailsListScreen extends StatelessWidget {
     );
   }
 }
+
+
 
 class IssueCard extends StatelessWidget {
   final String title;
@@ -288,6 +541,8 @@ class IssueCard extends StatelessWidget {
   }
 }
 
+
+
 class DamageDetailsPage extends StatefulWidget {
   final String? issueId;
 
@@ -326,6 +581,8 @@ class _DamageDetailsPageState extends State<DamageDetailsPage> {
     );
   }
 }
+
+
 
 class DamageDetailCard extends StatelessWidget {
   final String? issueId;
@@ -414,15 +671,10 @@ class DamageDetailCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Card
               _buildHeaderCard(data),
               const SizedBox(height: 16),
-
-              // Images Section
-              if (imageUrls.isNotEmpty) _buildImagesSection(imageUrls),
+              if (imageUrls.isNotEmpty) _buildImagesSection(context, imageUrls),
               if (imageUrls.isNotEmpty) const SizedBox(height: 16),
-
-              // Basic Information
               _buildSectionCard(
                 'Basic Information',
                 Icons.info_outline,
@@ -437,8 +689,6 @@ class DamageDetailCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // Building Details
               _buildSectionCard(
                 'Building Details',
                 Icons.apartment,
@@ -465,8 +715,6 @@ class DamageDetailCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // Status & Timeline
               _buildSectionCard(
                 'Status & Timeline',
                 Icons.timeline,
@@ -486,8 +734,6 @@ class DamageDetailCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // All Document Fields
               _buildAllFieldsCard(data),
             ],
           ),
@@ -560,7 +806,7 @@ class DamageDetailCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImagesSection(List<dynamic> imageUrls) {
+  Widget _buildImagesSection(BuildContext context, List<dynamic> imageUrls) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -577,7 +823,8 @@ class DamageDetailCard extends StatelessWidget {
                     color: Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.photo_library, color: Colors.red, size: 24),
+                  child: const Icon(Icons.photo_library,
+                      color: Colors.red, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -601,7 +848,6 @@ class DamageDetailCard extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 12.0),
                     child: GestureDetector(
                       onTap: () {
-                        // Show full image
                         showDialog(
                           context: context,
                           builder: (context) => Dialog(
@@ -633,8 +879,10 @@ class DamageDetailCard extends StatelessWidget {
                                 color: Colors.grey[200],
                                 child: Center(
                                   child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
+                                    value: loadingProgress.expectedTotalBytes !=
+                                            null
+                                        ? loadingProgress
+                                                .cumulativeBytesLoaded /
                                             loadingProgress.expectedTotalBytes!
                                         : null,
                                   ),
@@ -817,7 +1065,8 @@ class DamageDetailCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -887,7 +1136,7 @@ class DamageDetailCard extends StatelessWidget {
   Widget _buildDynamicField(String key, dynamic value) {
     String displayValue = _formatValue(value);
     IconData icon = _getIconForField(key);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -940,21 +1189,19 @@ class DamageDetailCard extends StatelessWidget {
 
   String _formatValue(dynamic value) {
     if (value == null) return 'N/A';
-    
+
     if (value is bool) {
       return value ? 'Yes' : 'No';
     }
-    
+
     if (value is Timestamp) {
       return _formatTimestamp(value);
     }
-    
+
     if (value is Map) {
-      return value.entries
-          .map((e) => '${e.key}: ${e.value}')
-          .join(', ');
+      return value.entries.map((e) => '${e.key}: ${e.value}').join(', ');
     }
-    
+
     if (value is List) {
       if (value.isEmpty) return 'None';
       if (value.first.toString().startsWith('http')) {
@@ -962,13 +1209,13 @@ class DamageDetailCard extends StatelessWidget {
       }
       return value.join(', ');
     }
-    
+
     return value.toString();
   }
 
   IconData _getIconForField(String fieldName) {
     final name = fieldName.toLowerCase();
-    
+
     if (name.contains('title') || name.contains('name')) return Icons.title;
     if (name.contains('school')) return Icons.school;
     if (name.contains('building')) return Icons.apartment;
@@ -976,12 +1223,13 @@ class DamageDetailCard extends StatelessWidget {
     if (name.contains('damage')) return Icons.warning;
     if (name.contains('floor')) return Icons.layers;
     if (name.contains('classroom')) return Icons.meeting_room;
-    if (name.contains('date') || name.contains('time')) return Icons.access_time;
+    if (name.contains('date') || name.contains('time'))
+      return Icons.access_time;
     if (name.contains('description')) return Icons.description;
     if (name.contains('status')) return Icons.flag;
     if (name.contains('nic')) return Icons.badge;
     if (name.contains('image')) return Icons.photo;
-    
+
     return Icons.info_outline;
   }
 

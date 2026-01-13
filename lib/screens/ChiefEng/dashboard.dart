@@ -199,15 +199,17 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   Widget _buildDashboardPage() {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                // color: Colors.white,
+                color: Colors.blueAccent.shade200,
+                borderRadius: BorderRadius.circular(15),
+                //borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -223,8 +225,8 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                     child: Stack(
                       children: [
                         Container(
-                          width: 70,
-                          height: 70,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
                             color: const Color(0xFF64B5F6),
                             shape: BoxShape.circle,
@@ -253,23 +255,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                               ),
                             ),
                           ),
-                        if (!_isUploading)
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF64B5F6),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                size: 14,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                   ),
@@ -278,30 +263,39 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Welcome !',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                         RichText(
                           text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 15,
-                              color: Colors.grey,
-                            ),
                             children: [
-                              const TextSpan(text: 'ChiefEng-: '),
+                              TextSpan(
+                                text: 'Welcome! ',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                               TextSpan(
                                 text:
                                     widget.userData['name'] ?? 'Chief Engineer',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Chief Engineer.. '),
                             ],
                           ),
                           maxLines: 3,
@@ -350,7 +344,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                         ],
                       ),
                       SizedBox(
-                        height: 10,
+                        height: 20,
                       ),
 
                       Row(
@@ -372,69 +366,100 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
 
             // RecentActivitySection(),
 
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '   Project Management',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+            //user management
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade300, width: 2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Project Management',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IssuesDashboardCardStream(),
+                          MasterPlansDashboardCardStream(),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 20,
+                      ),
+
+                      Row(
+                        // mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                        children: [
+                          ContractDetailsDashboardCardStream(),
+                          // GestureDetector(
+                          //   onTap: () {
+                          //     Navigator.push(
+                          //         context,
+                          //         MaterialPageRoute(
+                          //             builder: (context) =>
+                          //                 ContractDetailsListScreen()));
+                          //   },
+                          //   child: DashboardCarddash(
+                          //     title: 'Contract Details',
+                          //     icon: Icons.edit_document,
+                          //     width: 163,
+                          //     height: 80,
+                          //     // iconColor: Colors.white,
+                          //     // iconBackgroundColor: Colors.purple.shade200,
+                          //     // const Color.fromARGB(255, 170, 153, 233),
+                          //     iconColor: Colors.white,
+                          //     iconBackgroundColor:
+                          //         Color.fromARGB(255, 170, 153, 233),
+                          //   ),
+                          // ),
+                          // GestureDetector(
+                          //   onTap: () {
+                          //     Navigator.push(
+                          //         context,
+                          //         MaterialPageRoute(
+                          //             builder: (context) =>
+                          //                 ContractorDetailsListScreen()));
+                          //   },
+                          //   child: DashboardCarddash(
+                          //     title: 'Contarctor Details',
+                          //     icon: Icons.edit_document,
+                          //     width: 163,
+                          //     height: 80,
+                          //     iconColor: Colors.white,
+                          //     iconBackgroundColor: Colors.greenAccent.shade100,
+                          //   ),
+                          // ),
+                          ContractorDetailsDashboardCardStream(),
+
+                          // SchoolsDashboardCard(),
+                        ],
+                      ),
+
+                      //SchoolsDashboardCard(),
+                    ],
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 10),
-            
 
-            const SizedBox(height: 12),
-            _buildActionButton(
-              'View School Master Plan',
-              Icons.description,
-              () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => SchoolMasterPlanScreen()));
-              },
-            ),
-            _buildActionButton(
-              'View  issue Details',
-              Icons.home_repair_service,
-              () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => DamageDetailsListScreen()));
-
-                // Navigator.push(
-                //     context,
-                //     MaterialPageRoute(
-                //         builder: (context) => IssueListScreen()));
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              'View Contract Details',
-              Icons.receipt_long,
-              () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ContractDetailsListScreen()));
-              },
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              'View Contractor Details ',
-              Icons.person_search,
-              () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ContractorDetailsListScreen()));
-              },
-            ),
-            const SizedBox(height: 20),
+            //user managment
           ],
         ),
       ),
@@ -1211,3 +1236,95 @@ class IssueDetailsPage extends StatelessWidget {
     );
   }
 }
+
+//dashboardcarddash
+//dashboardcarddash
+
+class DashboardCarddash extends StatelessWidget {
+  final String title;
+  //final String count;
+  final IconData icon;
+  final double width;
+  final double height;
+  final Color iconColor;
+  final Color iconBackgroundColor;
+  final VoidCallback? onTap;
+
+  const DashboardCarddash({
+    super.key,
+    required this.title,
+    // required this.count,
+    required this.icon,
+    required this.width,
+    required this.height,
+    this.iconColor = const Color(0xFFF48FB1),
+    this.iconBackgroundColor = const Color(0xFFFCE4EC),
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: width,
+        height: height,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.grey.shade300,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Icon Container
+            Container(
+              width: 28,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconBackgroundColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 25,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Text Content with Flexible
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.grey.shade800,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+//dashboardcarddash

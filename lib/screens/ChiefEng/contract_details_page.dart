@@ -1,6 +1,329 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
+class ContractDetailsDashboardCardStream extends StatelessWidget {
+  const ContractDetailsDashboardCardStream({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: ContractDetailsService().getContractsCountStream(),
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final count = snapshot.data ?? 0;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ContractDetailsListScreen(),
+              ),
+            );
+          },
+          child: _buildOverviewCard(
+            'Contracts',
+            isLoading ? '...' : count.toString(),
+            const Color.fromARGB(255, 76, 175, 80),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String count, Color color) {
+    return DashboardCard(
+      title: "Contract\nDetails",
+      count: count,
+      icon: Icons.description,
+      iconColor: Colors.green.shade300,
+      iconBackgroundColor: Colors.green.shade50,
+      width: 163,
+      height: 80,
+    );
+  }
+}
+
+
+
+class DashboardCard extends StatelessWidget {
+  final String title;
+  final String count;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackgroundColor;
+  final double width;
+  final double height;
+
+  const DashboardCard({
+    Key? key,
+    required this.title,
+    required this.count,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackgroundColor,
+    required this.width,
+    required this.height,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: iconBackgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+
+                    //color: Colors.grey.shade800,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "${count} contracts",
+                  style: const TextStyle(
+                    fontSize: 10,
+
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+class ContractDetailsService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Get total contracts count (Future)
+  Future<int> getTotalContractsCount() async {
+    try {
+      QuerySnapshot snapshot =
+          await _firestore.collection('contract_details').get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting contracts count: $e');
+      return 0;
+    }
+  }
+
+  // Get contracts count as Stream (real-time updates)
+  Stream<int> getContractsCountStream() {
+    return _firestore
+        .collection('contract_details')
+        .snapshots()
+        .map((snapshot) => snapshot.size);
+  }
+
+  // Get contracts count by status
+  Future<int> getContractsCountByStatus(String status) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('contract_details')
+          .where('status', isEqualTo: status)
+          .get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting contracts count by status: $e');
+      return 0;
+    }
+  }
+
+  // Get contracts count by type
+  Future<int> getContractsCountByType(String type) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('contract_details')
+          .where('typeOfContract', isEqualTo: type)
+          .get();
+      return snapshot.size;
+    } catch (e) {
+      print('Error getting contracts count by type: $e');
+      return 0;
+    }
+  }
+
+  // Get contracts count by type as Stream
+  Stream<int> getContractsCountByTypeStream(String type) {
+    return _firestore
+        .collection('contract_details')
+        .where('typeOfContract', isEqualTo: type)
+        .snapshots()
+        .map((snapshot) => snapshot.size);
+  }
+
+  // Get all contracts as Stream
+  Stream<QuerySnapshot> getContractsStream() {
+    return _firestore
+        .collection('contract_details')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  // Get single contract by ID
+  Future<DocumentSnapshot> getContract(String contractId) async {
+    try {
+      return await _firestore
+          .collection('contract_details')
+          .doc(contractId)
+          .get();
+    } catch (e) {
+      print('Error getting contract: $e');
+      rethrow;
+    }
+  }
+
+  // Get contracts statistics
+  Future<Map<String, dynamic>> getContractsStatistics() async {
+    try {
+      final snapshot = await _firestore.collection('contract_details').get();
+
+      int active = 0;
+      int completed = 0;
+      int upcoming = 0;
+      double totalValue = 0;
+
+      final now = DateTime.now();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        // Calculate contract value
+        if (data['contractValue'] != null) {
+          try {
+            final value = data['contractValue'] is String
+                ? double.parse(data['contractValue'])
+                : (data['contractValue'] as num).toDouble();
+            totalValue += value;
+          } catch (e) {
+            print('Error parsing contract value: $e');
+          }
+        }
+
+        // Calculate status based on dates
+        if (data['startDate'] != null && data['endDate'] != null) {
+          try {
+            final startDate = (data['startDate'] as Timestamp).toDate();
+            final endDate = (data['endDate'] as Timestamp).toDate();
+
+            if (now.isBefore(startDate)) {
+              upcoming++;
+            } else if (now.isAfter(endDate)) {
+              completed++;
+            } else {
+              active++;
+            }
+          } catch (e) {
+            print('Error parsing dates: $e');
+          }
+        }
+      }
+
+      return {
+        'total': snapshot.size,
+        'active': active,
+        'completed': completed,
+        'upcoming': upcoming,
+        'totalValue': totalValue,
+      };
+    } catch (e) {
+      print('Error getting contracts statistics: $e');
+      return {
+        'total': 0,
+        'active': 0,
+        'completed': 0,
+        'upcoming': 0,
+        'totalValue': 0.0,
+      };
+    }
+  }
+
+  // Get active contracts count
+  Stream<int> getActiveContractsCountStream() {
+    return _firestore.collection('contract_details').snapshots().map((snapshot) {
+      final now = DateTime.now();
+      int count = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['startDate'] != null && data['endDate'] != null) {
+          try {
+            final startDate = (data['startDate'] as Timestamp).toDate();
+            final endDate = (data['endDate'] as Timestamp).toDate();
+
+            if (now.isAfter(startDate) && now.isBefore(endDate)) {
+              count++;
+            }
+          } catch (e) {
+            // Skip invalid dates
+          }
+        }
+      }
+      return count;
+    });
+  }
+
+  // Get contracts by contractor name
+  Future<List<DocumentSnapshot>> getContractsByContractor(
+      String contractorName) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('contract_details')
+          .where('contractorName', isEqualTo: contractorName)
+          .get();
+
+      return snapshot.docs;
+    } catch (e) {
+      print('Error getting contracts by contractor: $e');
+      return [];
+    }
+  }
+}
+
+
+
 class ContractDetailsListScreen extends StatelessWidget {
   const ContractDetailsListScreen({Key? key}) : super(key: key);
 
@@ -201,6 +524,8 @@ class ContractDetailsViewScreen extends StatelessWidget {
   }
 }
 
+
+
 class ContractDetailCard extends StatelessWidget {
   final String contractId;
 
@@ -279,6 +604,26 @@ class ContractDetailCard extends StatelessWidget {
     }
   }
 
+  String _getContractStatus(dynamic startDate, dynamic endDate) {
+    if (startDate == null || endDate == null) return 'Unknown';
+
+    try {
+      final DateTime now = DateTime.now();
+      final DateTime start = (startDate as Timestamp).toDate();
+      final DateTime end = (endDate as Timestamp).toDate();
+
+      if (now.isBefore(start)) {
+        return 'Upcoming';
+      } else if (now.isAfter(end)) {
+        return 'Completed';
+      } else {
+        return 'Active';
+      }
+    } catch (e) {
+      return 'Unknown';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
@@ -289,9 +634,7 @@ class ContractDetailCard extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(
-              color: Colors.blue,
-            ),
+            child: CircularProgressIndicator(color: Colors.blue),
           );
         }
 
@@ -300,11 +643,7 @@ class ContractDetailCard extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.error_outline,
-                  color: Colors.red,
-                  size: 60,
-                ),
+                const Icon(Icons.error_outline, color: Colors.red, size: 60),
                 const SizedBox(height: 16),
                 Text(
                   'Error: ${snapshot.error}',
@@ -321,18 +660,12 @@ class ContractDetailCard extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.description_outlined,
-                  color: Colors.grey[400],
-                  size: 80,
-                ),
+                Icon(Icons.description_outlined,
+                    size: 80, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
                   'Contract details not found',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
               ],
             ),
@@ -340,15 +673,12 @@ class ContractDetailCard extends StatelessWidget {
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>?;
-        
+
         if (data == null) {
           return Center(
             child: Text(
               'No data available',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
             ),
           );
         }
@@ -458,7 +788,6 @@ class ContractDetailCard extends StatelessWidget {
                     data['submitBy']?.toString() ?? 'N/A',
                   ),
 
-                  // Timestamp
                   if (data['timestamp'] != null) ...[
                     _buildDetailRow(
                       'Created Date',
@@ -466,7 +795,7 @@ class ContractDetailCard extends StatelessWidget {
                     ),
                   ],
 
-                  // Status & Actions
+                  // Status
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -498,25 +827,5 @@ class ContractDetailCard extends StatelessWidget {
         );
       },
     );
-  }
-
-  String _getContractStatus(dynamic startDate, dynamic endDate) {
-    if (startDate == null || endDate == null) return 'Unknown';
-
-    try {
-      final DateTime now = DateTime.now();
-      final DateTime start = (startDate as Timestamp).toDate();
-      final DateTime end = (endDate as Timestamp).toDate();
-
-      if (now.isBefore(start)) {
-        return 'Upcoming';
-      } else if (now.isAfter(end)) {
-        return 'Completed';
-      } else {
-        return 'Active';
-      }
-    } catch (e) {
-      return 'Unknown';
-    }
   }
 }

@@ -76,8 +76,8 @@ class _DashboardNotificationButtonState
           children: [
             IconButton(
               icon: const Icon(
-                Icons.notifications,
-                color: Color(0xFF64B5F6),
+                Icons.notifications_active,
+                color: Colors.white,
                 size: 32,
               ),
               onPressed: () {
@@ -331,12 +331,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       borderRadius: BorderRadius.circular(8),
                       onTap: () async {
                         try {
-                         
                           if (isUnread) {
                             await doc.reference.update({'isRead': true});
                           }
 
-                        
                           if (mounted) {
                             showDialog(
                               context: context,
@@ -490,7 +488,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 }
 
-
 class NotificationDetailDialog extends StatelessWidget {
   final Map<String, dynamic> data;
 
@@ -499,18 +496,15 @@ class NotificationDetailDialog extends StatelessWidget {
     required this.data,
   });
 
- 
   void _navigateToPage(BuildContext context, String? type) {
-    Navigator.pop(context); 
+    Navigator.pop(context);
 
-  
     final relatedDocumentId = data['relatedDocumentId'] as String? ??
         data['issueId'] as String? ??
         data['schoolId'] as String? ??
         data['contractorId'] as String? ??
         data['contractId'] as String?;
 
-    
     if (relatedDocumentId == null || relatedDocumentId.isEmpty) {
       debugPrint(
           ' Navigation failed - Available fields: ${data.keys.toList()}');
@@ -540,7 +534,6 @@ class NotificationDetailDialog extends StatelessWidget {
 
     switch (type?.toLowerCase()) {
       case 'school':
-       
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -554,13 +547,18 @@ class NotificationDetailDialog extends StatelessWidget {
 
       case 'damage':
       case 'issue':
-      
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => DamageDetailsPage(
+        //       issueId: relatedDocumentId,
+        //     ),
+        //   ),
+        // );
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DamageDetailsPage(
-              issueId: relatedDocumentId,
-            ),
+            builder: (context) => DamageDetailsListScreen(),
           ),
         );
         _showNavigationMessage(
@@ -568,7 +566,6 @@ class NotificationDetailDialog extends StatelessWidget {
         break;
 
       case 'contractor':
-      
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -582,7 +579,6 @@ class NotificationDetailDialog extends StatelessWidget {
         break;
 
       case 'contract':
-       
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -595,7 +591,6 @@ class NotificationDetailDialog extends StatelessWidget {
         break;
 
       case 'masterplan':
-       
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -606,13 +601,11 @@ class NotificationDetailDialog extends StatelessWidget {
         break;
 
       case 'repair':
-       
         _showNavigationMessage(
             context, 'Repair Report Details', relatedDocumentId);
         break;
 
       case 'engineer':
-       
         _showNavigationMessage(context, 'Engineer Details', relatedDocumentId);
         break;
 
@@ -666,7 +659,6 @@ class NotificationDetailDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
             Row(
               children: [
                 Container(
@@ -702,7 +694,6 @@ class NotificationDetailDialog extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-           
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -773,7 +764,6 @@ class NotificationDetailDialog extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            
             GestureDetector(
               onTap: () => _navigateToPage(context, data['type']),
               child: Container(
