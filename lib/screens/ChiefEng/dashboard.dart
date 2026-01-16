@@ -1,10 +1,12 @@
-import 'dart:io';
 import 'package:buildcare/screens/ChiefEng/chief_notification.dart';
 import 'package:buildcare/screens/ChiefEng/contract_details_page.dart';
+import 'package:buildcare/screens/ChiefEng/sample/edit_profile_page.dart';
+import 'package:buildcare/screens/ChiefEng/sample/sequrty_question_page.dart';
 import 'package:buildcare/screens/ChiefEng/services_page_chief.dart';
 import 'package:buildcare/screens/ChiefEng/view_contractor_detail.dart';
 import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
+import 'package:buildcare/screens/ProvincialEng/app_settings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,8 +23,7 @@ class ChiefEngDashboard extends StatefulWidget {
 class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   int _selectedIndex = 0;
 
-  // Image variables
-  File? _profileImage;
+  // Image variables - NO dart:io imports!
   String? _profileImageUrl;
   bool _isUploading = false;
   final ImagePicker _picker = ImagePicker();
@@ -66,28 +67,31 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
       );
 
       if (pickedFile != null) {
-        setState(() {
-          _profileImage = File(pickedFile.path);
-        });
-        await _uploadImageToFirebase();
+        await _uploadImageToFirebase(pickedFile);
       }
     } catch (e) {
-      _showSnackBar('Image can t select  $e', Colors.red);
+      _showSnackBar('Image can\'t select: $e', Colors.red);
     }
   }
 
-  Future<void> _uploadImageToFirebase() async {
-    if (_profileImage == null) return;
-
+  Future<void> _uploadImageToFirebase(XFile pickedFile) async {
     setState(() {
       _isUploading = true;
     });
 
     try {
+      print('Starting upload process...');
+
       String userId = widget.userData['uid'] ?? '';
       if (userId.isEmpty) {
-        throw Exception('User ID not find');
+        throw Exception('User ID not found');
       }
+      print('User ID: $userId');
+
+      // Read image as bytes - works on ALL platforms
+      print('Reading image bytes...');
+      final bytes = await pickedFile.readAsBytes();
+      print('Image size: ${bytes.length} bytes');
 
       // Firebase Storage reference
       String fileName =
@@ -96,37 +100,64 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
           .ref()
           .child('profile_images')
           .child(fileName);
+      print('Storage reference created: $fileName');
 
+      // Delete old image if exists
       if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
         try {
+          print('Deleting old image...');
           Reference oldImageRef =
               FirebaseStorage.instance.refFromURL(_profileImageUrl!);
           await oldImageRef.delete();
+          print('Old image deleted successfully');
         } catch (e) {
           print('Error deleting old image: $e');
         }
       }
 
-      UploadTask uploadTask = storageRef.putFile(_profileImage!);
-      TaskSnapshot taskSnapshot = await uploadTask;
-      String downloadUrl = await taskSnapshot.ref.getDownloadURL();
+      // Upload using putData - works on web AND mobile!
+      print('Starting upload to Firebase Storage...');
+      UploadTask uploadTask = storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
 
+      // Wait for upload to complete
+      TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() {
+        print('Upload completed!');
+      });
+
+      print('Getting download URL...');
+      String downloadUrl = await taskSnapshot.ref.getDownloadURL();
+      print('Download URL: $downloadUrl');
+
+      // Update Firestore
+      print('Updating Firestore...');
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'profileImage': downloadUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      print('Firestore updated successfully');
 
-      setState(() {
-        _profileImageUrl = downloadUrl;
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _profileImageUrl = downloadUrl;
+          _isUploading = false;
+        });
+        _showSnackBar('Profile image uploaded successfully! ✓', Colors.green);
+      }
 
-      _showSnackBar('Profile image faild upload', Colors.green);
-    } catch (e) {
-      setState(() {
-        _isUploading = false;
-      });
-      _showSnackBar('can t Upload : $e', Colors.red);
+      print('Upload process completed successfully!');
+    } catch (e, stackTrace) {
+      print(' Upload error: $e');
+      print('Stack trace: $stackTrace');
+
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+        _showSnackBar('Upload failed: ${e.toString()}', Colors.red);
+      }
     }
   }
 
@@ -206,10 +237,8 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                // color: Colors.white,
                 color: Colors.blueAccent.shade200,
                 borderRadius: BorderRadius.circular(15),
-                //borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -220,43 +249,91 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               ),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: _isUploading ? null : _pickImage,
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF64B5F6),
-                            shape: BoxShape.circle,
-                            image: _getProfileImageDecoration(),
-                          ),
-                          child: _shouldShowPersonIcon()
-                              ? const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 30,
-                                )
-                              : null,
-                        ),
-                        if (_isUploading)
-                          Positioned.fill(
-                            child: Container(
+                  // StreamBuilder for real-time profile image updates
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(widget.userData['uid'])
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      String? imageUrl;
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        final data =
+                            snapshot.data!.data() as Map<String, dynamic>;
+                        imageUrl = data['profileImage'];
+                      }
+
+                      return GestureDetector(
+                        onTap: _isUploading ? null : _pickImage,
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.5),
+                                color: const Color(0xFF64B5F6),
                                 shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
+                                image: (imageUrl != null && imageUrl.isNotEmpty)
+                                    ? DecorationImage(
+                                        image: NetworkImage(imageUrl),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
                               ),
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
+                              child: (imageUrl == null || imageUrl.isEmpty)
+                                  ? const Icon(Icons.person,
+                                      color: Colors.white, size: 35)
+                                  : null,
+                            ),
+                            if (_isUploading)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.5),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                      ],
-                    ),
+                            if (!_isUploading)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFF64B5F6),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    size: 14,
+                                    color: Color(0xFF64B5F6),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(width: 20),
                   Expanded(
@@ -266,7 +343,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                         RichText(
                           text: TextSpan(
                             children: [
-                              TextSpan(
+                              const TextSpan(
                                 text: 'Welcome! ',
                                 style: TextStyle(
                                   fontSize: 20,
@@ -277,7 +354,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                               TextSpan(
                                 text:
                                     widget.userData['name'] ?? 'Chief Engineer',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
                                   color: Colors.white,
@@ -288,14 +365,14 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                         ),
                         const SizedBox(height: 6),
                         RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
+                          text: const TextSpan(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
                             ),
                             children: [
-                              const TextSpan(text: 'Chief Engineer.. '),
+                              TextSpan(text: 'Chief Engineer.. '),
                             ],
                           ),
                           maxLines: 3,
@@ -310,7 +387,6 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               ),
             ),
             const SizedBox(height: 30),
-
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
@@ -336,38 +412,23 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // SchoolsDashboardCard(),
-                          // DistrictEngineerDashboardCardStream()
-                          // ,
                           TechnicalOfficerDashboardCardStream(),
                           DistrictEngineerDashboardCardStream(),
                         ],
                       ),
-                      SizedBox(
-                        height: 20,
-                      ),
-
+                      const SizedBox(height: 20),
                       Row(
-                        // mainAxisAlignment: MainAxisAlignment.spaceAround,
                         crossAxisAlignment: CrossAxisAlignment.start,
-
                         children: [
                           SchoolsDashboardCard(),
                         ],
                       ),
-
-                      //SchoolsDashboardCard(),
                     ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 30),
-
-            // RecentActivitySection(),
-
-            //user management
-
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
@@ -397,94 +458,24 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                           MasterPlansDashboardCardStream(),
                         ],
                       ),
-                      SizedBox(
-                        height: 20,
-                      ),
-
+                      const SizedBox(height: 20),
                       Row(
-                        // mainAxisAlignment: MainAxisAlignment.spaceAround,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
                         children: [
                           ContractDetailsDashboardCardStream(),
-                          // GestureDetector(
-                          //   onTap: () {
-                          //     Navigator.push(
-                          //         context,
-                          //         MaterialPageRoute(
-                          //             builder: (context) =>
-                          //                 ContractDetailsListScreen()));
-                          //   },
-                          //   child: DashboardCarddash(
-                          //     title: 'Contract Details',
-                          //     icon: Icons.edit_document,
-                          //     width: 163,
-                          //     height: 80,
-                          //     // iconColor: Colors.white,
-                          //     // iconBackgroundColor: Colors.purple.shade200,
-                          //     // const Color.fromARGB(255, 170, 153, 233),
-                          //     iconColor: Colors.white,
-                          //     iconBackgroundColor:
-                          //         Color.fromARGB(255, 170, 153, 233),
-                          //   ),
-                          // ),
-                          // GestureDetector(
-                          //   onTap: () {
-                          //     Navigator.push(
-                          //         context,
-                          //         MaterialPageRoute(
-                          //             builder: (context) =>
-                          //                 ContractorDetailsListScreen()));
-                          //   },
-                          //   child: DashboardCarddash(
-                          //     title: 'Contarctor Details',
-                          //     icon: Icons.edit_document,
-                          //     width: 163,
-                          //     height: 80,
-                          //     iconColor: Colors.white,
-                          //     iconBackgroundColor: Colors.greenAccent.shade100,
-                          //   ),
-                          // ),
                           ContractorDetailsDashboardCardStream(),
-
-                          // SchoolsDashboardCard(),
                         ],
                       ),
-
-                      //SchoolsDashboardCard(),
                     ],
                   ),
                 ],
               ),
             ),
-
-            //user managment
           ],
         ),
       ),
     );
-  }
-
-  DecorationImage? _getProfileImageDecoration() {
-    if (_profileImage != null) {
-      return DecorationImage(
-        image: FileImage(_profileImage!),
-        fit: BoxFit.cover,
-      );
-    } else if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
-      return DecorationImage(
-        image: NetworkImage(_profileImageUrl!),
-        fit: BoxFit.cover,
-      );
-    }
-    return null;
-  }
-
-  bool _shouldShowPersonIcon() {
-    return _profileImage == null &&
-        (_profileImageUrl == null || _profileImageUrl!.isEmpty) &&
-        !_isUploading;
   }
 
   Widget _buildActionButton(String title, IconData icon, VoidCallback onTap) {
@@ -538,57 +529,76 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              GestureDetector(
-                onTap: _isUploading ? null : _pickImage,
-                child: Stack(
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF64B5F6),
-                        shape: BoxShape.circle,
-                        image: _getProfileImageDecoration(),
-                      ),
-                      child: _shouldShowPersonIcon()
-                          ? const Icon(Icons.person,
-                              size: 60, color: Colors.white)
-                          : null,
-                    ),
-                    if (_isUploading)
-                      Positioned.fill(
-                        child: Container(
+              StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(widget.userData['uid'])
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  String? imageUrl;
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    final data = snapshot.data!.data() as Map<String, dynamic>;
+                    imageUrl = data['profileImage'];
+                  }
+
+                  return GestureDetector(
+                    onTap: _isUploading ? null : _pickImage,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 120,
+                          height: 120,
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
+                            color: const Color(0xFF64B5F6),
                             shape: BoxShape.circle,
+                            image: (imageUrl != null && imageUrl.isNotEmpty)
+                                ? DecorationImage(
+                                    image: NetworkImage(imageUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-                          child: const Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
+                          child: (imageUrl == null || imageUrl.isEmpty)
+                              ? const Icon(Icons.person,
+                                  size: 60, color: Colors.white)
+                              : null,
+                        ),
+                        if (_isUploading)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    if (!_isUploading)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF64B5F6),
-                            shape: BoxShape.circle,
+                        if (!_isUploading)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF64B5F6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                      ],
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 20),
               Text(
@@ -626,7 +636,15 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditProfilePage(
+                            userData: widget.userData,
+                          ),
+                        ));
+                  },
                   icon: const Icon(Icons.edit),
                   label: const Text('Edit Profile'),
                   style: ElevatedButton.styleFrom(
@@ -712,20 +730,49 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
           ),
           const SizedBox(height: 20),
           _buildSettingsSection('Account Settings'),
+          
           _buildSettingsItem(
-              icon: Icons.person, title: 'Edit Profile', onTap: () {}),
+              icon: Icons.lock,
+              title: 'Change Password',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChangePasswordPage(),
+                  ),
+                );
+
+                //ChangePasswordPage
+              }),
           _buildSettingsItem(
-              icon: Icons.lock, title: 'Change Password', onTap: () {}),
+              icon: Icons.security,
+              title: 'Securty Questions',
+              onTap: () {
+                //SecurityQuestionsScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SecurityQuestionsScreen(),
+                  ),
+                );
+              }),
+          // SizedBox(height: 20),
+          // _buildSettingsSection('App Settings'),
           _buildSettingsItem(
-              icon: Icons.security, title: 'Privacy & Security', onTap: () {}),
-          const SizedBox(height: 20),
-          _buildSettingsSection('App Settings'),
-          _buildSettingsItem(
-              icon: Icons.notifications, title: 'Notifications', onTap: () {}),
-          _buildSettingsItem(
-              icon: Icons.language, title: 'Language', onTap: () {}),
-          _buildSettingsItem(
-              icon: Icons.dark_mode, title: 'Theme', onTap: () {}),
+              icon: Icons.notifications,
+              title: 'Notifications',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationsPage(),
+                  ),
+                );
+              }),
+          // _buildSettingsItem(
+          //     icon: Icons.language, title: 'Language', onTap: () {}),
+          // _buildSettingsItem(
+          //     icon: Icons.dark_mode, title: 'Theme', onTap: () {}),
           const SizedBox(height: 30),
           SizedBox(
             width: double.infinity,
@@ -950,7 +997,7 @@ class IssueActivityCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 11,
                     color: Colors.grey,
                   ),
@@ -1237,12 +1284,8 @@ class IssueDetailsPage extends StatelessWidget {
   }
 }
 
-//dashboardcarddash
-//dashboardcarddash
-
 class DashboardCarddash extends StatelessWidget {
   final String title;
-  //final String count;
   final IconData icon;
   final double width;
   final double height;
@@ -1253,7 +1296,6 @@ class DashboardCarddash extends StatelessWidget {
   const DashboardCarddash({
     super.key,
     required this.title,
-    // required this.count,
     required this.icon,
     required this.width,
     required this.height,
@@ -1280,7 +1322,6 @@ class DashboardCarddash extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Icon Container
             Container(
               width: 28,
               height: 38,
@@ -1295,8 +1336,6 @@ class DashboardCarddash extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-
-            // Text Content with Flexible
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1327,4 +1366,3 @@ class DashboardCarddash extends StatelessWidget {
   }
 }
 
-//dashboardcarddash
