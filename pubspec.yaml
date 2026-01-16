@@ -41,7 +41,8 @@ dependencies:
   http: ^1.1.0
   path: ^1.8.0
   syncfusion_flutter_charts: 32.1.21 # Use the latest version
-  
+  url_launcher: ^6.2.3
+
 
 dev_dependencies:
   flutter_test:
