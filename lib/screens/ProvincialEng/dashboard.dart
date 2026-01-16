@@ -8,7 +8,7 @@ import 'package:rxdart/rxdart.dart';
 import 'view_issues.dart';
 import 'contractors_list.dart'; 
 import 'contract_list.dart';
-
+import 'school_analysis.dart';
 // --- REGISTRATION PAGE IMPORTS ---
 import 'add_ce.dart';
 import 'add_de.dart';
@@ -217,6 +217,164 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     );
   }
 
+
+  Widget _buildProjectManagementRow({
+  required bool isVerySmallMobile,
+  required bool isSmallMobile,
+}) {
+  return Padding(
+    padding: EdgeInsets.symmetric(
+      horizontal: isVerySmallMobile ? 6.0 : 
+                 isSmallMobile ? 8.0 : 12.0,
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: CompactProjectCard(
+                title: 'Contractors',
+                collectionName: 'contractor_details', 
+                icon: Icons.engineering,
+                color: Colors.teal.shade700,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ContractorsListPage(),
+                    ),
+                  );
+                },
+                onAdd: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddContractorScreen(),
+                    ),
+                  );
+                },
+                isVerySmallMobile: isVerySmallMobile,
+                isSmallMobile: isSmallMobile,
+              ),
+            ),
+            SizedBox(width: isVerySmallMobile ? 6.0 : 
+                       isSmallMobile ? 8.0 : 10.0),
+            Expanded(
+              child: CompactProjectCard(
+                title: 'Contracts',
+                collectionName: 'contracts',
+                icon: Icons.description,
+                color: Colors.indigo.shade700,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ContractListPage(),
+                    ),
+                  );
+                },
+                onAdd: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddContractScreen(),
+                    ),
+                  );
+                },
+                isVerySmallMobile: isVerySmallMobile,
+                isSmallMobile: isSmallMobile,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: isVerySmallMobile ? 8.0 : 
+                   isSmallMobile ? 10.0 : 12.0),
+        // --- NEW SCHOOL ANALYSIS CARD ---
+        Container(
+          height: isVerySmallMobile ? 75 : 85,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.deepPurple.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SchoolAnalysisPage(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: EdgeInsets.all(isVerySmallMobile ? 10.0 : 12.0),
+                child: Row(
+                  children: [
+                    Container(
+                      width: isVerySmallMobile ? 40 : 48,
+                      height: isVerySmallMobile ? 40 : 48,
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.analytics,
+                        color: Colors.deepPurple,
+                        size: isVerySmallMobile ? 20 : 24,
+                      ),
+                    ),
+                    SizedBox(width: isVerySmallMobile ? 12 : 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'School Analysis',
+                            style: TextStyle(
+                              fontSize: isVerySmallMobile ? 14 : 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.deepPurple.shade800,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Analyze school information & statistics',
+                            style: TextStyle(
+                              fontSize: isVerySmallMobile ? 10 : 12,
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: Colors.deepPurple,
+                      size: isVerySmallMobile ? 20 : 24,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
   Widget _buildUserManagementGrid({
     required bool isVerySmallMobile,
     required bool isSmallMobile,
@@ -347,77 +505,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   // ---------------------------------------------------------------------------
   // --- PROJECT MANAGEMENT ROW (Updated for Contractors Count) ---
   // ---------------------------------------------------------------------------
-  Widget _buildProjectManagementRow({
-    required bool isVerySmallMobile,
-    required bool isSmallMobile,
-  }) {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: isVerySmallMobile ? 6.0 : 
-                   isSmallMobile ? 8.0 : 12.0,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: CompactProjectCard(
-              title: 'Contractors',
-              // Matches collection in add_contractor_screen.dart
-              collectionName: 'contractor_details', 
-              icon: Icons.engineering,
-              color: Colors.teal.shade700,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ContractorsListPage(),
-                  ),
-                );
-              },
-              onAdd: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddContractorScreen(),
-                  ),
-                );
-              },
-              isVerySmallMobile: isVerySmallMobile,
-              isSmallMobile: isSmallMobile,
-            ),
-          ),
-          SizedBox(width: isVerySmallMobile ? 6.0 : 
-                     isSmallMobile ? 8.0 : 10.0),
-          Expanded(
-            child: CompactProjectCard(
-              title: 'Contracts',
-              // Matches collection in add_contract.dart
-              collectionName: 'contracts',
-              icon: Icons.description,
-              color: Colors.indigo.shade700,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ContractListPage(),
-                  ),
-                );
-              },
-              onAdd: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddContractScreen(),
-                  ),
-                );
-              },
-              isVerySmallMobile: isVerySmallMobile,
-              isSmallMobile: isSmallMobile,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSystemAlertsCard({
     required bool isVerySmallMobile,
