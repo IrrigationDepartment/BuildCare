@@ -16,7 +16,7 @@ import 'app_settings.dart';
 import 'profile.dart';
 
 // ====================================================================
-// DATA MODEL (Original)
+// DATA MODEL
 // ====================================================================
 class RecentActivityItem {
   final String id;
@@ -46,7 +46,7 @@ class TODashboard extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<TODashboard> {
-  // --- Style Constants (Original) ---
+  // --- Style Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kLightBlue = Color(0xFFE3F2FD);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
@@ -83,7 +83,7 @@ class _DashboardScreenState extends State<TODashboard> {
   }
 
   // ====================================================================
-  // UPDATED DATA FETCHING WITH FILTERING
+  // DATA FETCHING (Filtering by Role)
   // ====================================================================
   Future<List<RecentActivityItem>> _fetchRecentActivities() async {
     final String userNic = widget.userData['nic'] ?? '';
@@ -96,29 +96,20 @@ class _DashboardScreenState extends State<TODashboard> {
     try {
       Query issuesQuery = FirebaseFirestore.instance.collection('issues');
       
-      // Apply filtering based on user role
       if (userRole == 'District Engineer') {
-        // District Engineer: Filter by office district
         issuesQuery = issuesQuery.where('office', isEqualTo: userOffice);
       } else if (userRole == 'Principal') {
-        // Principal: Show only their own activities
         issuesQuery = issuesQuery.where('addedByNic', isEqualTo: userNic);
-      } else {
-        // Other roles (like Technical Officer): Show all
-        // Or you can add specific filtering here
       }
       
       final issuesSnap = await issuesQuery.get();
-
       for (var doc in issuesSnap.docs) {
         var data = doc.data() as Map<String, dynamic>?;
         if (data != null) {
           allActivities.add(RecentActivityItem(
             id: doc.id,
-            title:
-                "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
-            subtitle:
-                "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
+            title: "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
+            subtitle: "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
             icon: Icons.home_work_outlined,
             timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
             type: 'issue',
@@ -131,20 +122,13 @@ class _DashboardScreenState extends State<TODashboard> {
 
     try {
       Query schoolsQuery = FirebaseFirestore.instance.collection('schools');
-      
-      // Apply filtering based on user role
       if (userRole == 'District Engineer') {
-        // District Engineer: Filter by office district
         schoolsQuery = schoolsQuery.where('educationalZone', isEqualTo: userOffice);
       } else if (userRole == 'Principal') {
-        // Principal: Show only their own schools
         schoolsQuery = schoolsQuery.where('addedByNic', isEqualTo: userNic);
-      } else {
-        // Other roles: Show all
       }
       
       final schoolsSnap = await schoolsQuery.get();
-
       for (var doc in schoolsSnap.docs) {
         var data = doc.data() as Map<String, dynamic>?;
         if (data != null) {
@@ -162,39 +146,6 @@ class _DashboardScreenState extends State<TODashboard> {
       debugPrint("Error fetching schools: $e");
     }
 
-    // Also fetch master plans if needed
-    try {
-      Query masterPlansQuery = FirebaseFirestore.instance.collection('schoolMasterPlans');
-      
-      if (userRole == 'District Engineer') {
-        // District Engineer: Filter by office district
-        // Assuming there's a way to link master plans to districts
-        // You might need to join with schools collection
-      } else if (userRole == 'Principal') {
-        // Principal: Show only their own master plans
-        masterPlansQuery = masterPlansQuery.where('addedByNic', isEqualTo: userNic);
-      }
-      
-      final masterPlansSnap = await masterPlansQuery.get();
-
-      for (var doc in masterPlansSnap.docs) {
-        var data = doc.data() as Map<String, dynamic>?;
-        if (data != null) {
-          allActivities.add(RecentActivityItem(
-            id: doc.id,
-            title: "Master Plan: ${data['schoolName'] ?? 'School'}",
-            subtitle: "Uploaded on ${data['uploadDate'] ?? 'Unknown Date'}",
-            icon: Icons.architecture,
-            timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? now,
-            type: 'masterplan',
-          ));
-        }
-      }
-    } catch (e) {
-      debugPrint("Error fetching master plans: $e");
-    }
-
-    // Sort by timestamp and return top 5
     allActivities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return allActivities.take(5).toList();
   }
@@ -203,15 +154,9 @@ class _DashboardScreenState extends State<TODashboard> {
     Widget? page;
     switch (type) {
       case 'issue':
-        page = IssueReportDetailsScreen(
-            issueId: id, userNic: widget.userData['nic'] ?? '');
+        page = IssueReportDetailsScreen(issueId: id, userNic: widget.userData['nic'] ?? '');
         break;
       case 'school':
-        page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '');
-        break;
-      case 'masterplan':
-        // You can add navigation for master plan details here
-        // For now, just navigate to schools
         page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '');
         break;
     }
@@ -237,15 +182,12 @@ class _DashboardScreenState extends State<TODashboard> {
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings), label: 'Settings'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: kPrimaryBlue,
-        unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
         backgroundColor: Colors.white,
-        elevation: 10,
         type: BottomNavigationBarType.fixed,
       ),
       body: bodyContent,
@@ -278,11 +220,12 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- HEADER WITH NOTIFICATION BELL (Added) ---
+  // --- HEADER SECTION ---
   Widget _buildWelcomeHeader() {
     String userRole = widget.userData['userType'] ?? 'User';
     String userOffice = widget.userData['office'] ?? '';
     String displayRole = userRole;
+    String userNic = widget.userData['nic'] ?? '';
     
     if (userRole == 'District Engineer' && userOffice.isNotEmpty) {
       displayRole = '$userRole - $userOffice District';
@@ -308,36 +251,31 @@ class _DashboardScreenState extends State<TODashboard> {
               children: [
                 Text(
                   'Welcome, ${widget.userData['name'] ?? ''}!',
-                  style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: kTextColor),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kTextColor),
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(displayRole,
-                    style: const TextStyle(fontSize: 16, color: kSubTextColor)),
+                Text(displayRole, style: const TextStyle(fontSize: 16, color: kSubTextColor)),
               ],
             ),
           ),
           Stack(
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_none_rounded,
-                    size: 28, color: kTextColor),
+                icon: const Icon(Icons.notifications_none_rounded, size: 28, color: kTextColor),
                 onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (context) => const NotificationScreen())),
+                    MaterialPageRoute(builder: (context) => const NotificationScreen())),
               ),
+              // මැන බලන Stream එක 'addedByNic' ලෙස යාවත්කාලීන කර ඇත
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('notifications')
                     .where('isRead', isEqualTo: false)
-                    .where('userId', isEqualTo: widget.userData['nic'] ?? '')
+                    .where('addedByNic', isEqualTo: userNic)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
-                    return const SizedBox();
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox();
+                  
                   return Positioned(
                     right: 8,
                     top: 8,
@@ -346,14 +284,12 @@ class _DashboardScreenState extends State<TODashboard> {
                       decoration: BoxDecoration(
                           color: Colors.red,
                           borderRadius: BorderRadius.circular(10)),
-                      constraints:
-                          const BoxConstraints(minWidth: 16, minHeight: 16),
-                      child: Text('${snapshot.data!.docs.length}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        '${snapshot.data!.docs.length}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   );
                 },
@@ -367,61 +303,21 @@ class _DashboardScreenState extends State<TODashboard> {
 
   Widget _buildGridMenu() {
     String userRole = widget.userData['userType'] ?? '';
-    List<Widget> menuItems = [];
-
-    // Common menu items for all users
-    menuItems.addAll([
+    List<Widget> menuItems = [
       _buildMenuCard(
           icon: Icons.school,
           title: 'Manage School',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => ManageSchoolsScreen(
-                      userNic: widget.userData['nic'] ?? '')))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '')))),
       _buildMenuCard(
           icon: Icons.assessment,
           title: 'Issues Report',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => IssueReportListScreen(
-                      userNic: widget.userData['nic'] ?? '')))),
-    ]);
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => IssueReportListScreen(userNic: widget.userData['nic'] ?? '')))),
+    ];
 
-    // Add role-specific menu items
     if (userRole == 'District Engineer' || userRole == 'Technical Officer') {
       menuItems.addAll([
-        _buildMenuCard(
-            icon: Icons.description,
-            title: 'Contract Details',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const ContractDetailsScreen()))),
-        _buildMenuCard(
-            icon: Icons.business_center,
-            title: 'Contractor Details',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const ContractorListScreen()))),
-      ]);
-    } else if (userRole == 'Principal') {
-      menuItems.addAll([
-        _buildMenuCard(
-            icon: Icons.architecture,
-            title: 'Master Plans',
-            onTap: () {
-              // Navigate to master plans screen
-              // You can create a separate screen for this
-            }),
-        _buildMenuCard(
-            icon: Icons.report,
-            title: 'My Reports',
-            onTap: () {
-              // Navigate to principal's reports
-            }),
+        _buildMenuCard(icon: Icons.description, title: 'Contract Details', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractDetailsScreen()))),
+        _buildMenuCard(icon: Icons.business_center, title: 'Contractor Details', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractorListScreen()))),
       ]);
     }
 
@@ -435,10 +331,7 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  Widget _buildMenuCard(
-      {required IconData icon,
-      required String title,
-      required VoidCallback onTap}) {
+  Widget _buildMenuCard({required IconData icon, required String title, required VoidCallback onTap}) {
     return Card(
       elevation: 2,
       color: kCardColor,
@@ -446,14 +339,14 @@ class _DashboardScreenState extends State<TODashboard> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 40, color: kPrimaryBlue),
-          const SizedBox(height: 12),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: kTextColor))
-        ]),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center, 
+          children: [
+            Icon(icon, size: 40, color: kPrimaryBlue),
+            const SizedBox(height: 12),
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kTextColor))
+          ]
+        ),
       ),
     );
   }
@@ -462,64 +355,47 @@ class _DashboardScreenState extends State<TODashboard> {
     return const Row(children: [
       Icon(Icons.history, color: kSubTextColor),
       SizedBox(width: 8),
-      Text('Recent Activity',
-          style: TextStyle(
-              fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor))
+      Text('Recent Activity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor))
     ]);
   }
 
-  // --- RECENT ACTIVITY SECTION (Preserved original interface) ---
   Widget _buildRecentActivitySection() {
     return FutureBuilder<List<RecentActivityItem>>(
       future: _recentActivitiesFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
-          return const Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(20),
             width: double.infinity,
-            decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
             child: const Column(children: [
               Icon(Icons.inbox, size: 40, color: Colors.grey),
               SizedBox(height: 8),
-              Text('No recent activity found.',
-                  style: TextStyle(color: kSubTextColor))
+              Text('No recent activity found.', style: TextStyle(color: kSubTextColor))
             ]),
           );
         }
         return Column(
-          children: snapshot.data!
-              .map((activity) => _buildActivityCard(
-                    title: activity.title,
-                    subtitle: activity.subtitle,
-                    icon: activity.icon,
-                    onTap: () => _navigateToDetails(activity.type, activity.id),
-                  ))
-              .toList(),
+          children: snapshot.data!.map((activity) => _buildActivityCard(
+            title: activity.title,
+            subtitle: activity.subtitle,
+            icon: activity.icon,
+            onTap: () => _navigateToDetails(activity.type, activity.id),
+          )).toList(),
         );
       },
     );
   }
 
-  Widget _buildActivityCard(
-      {required String title,
-      required String subtitle,
-      required IconData icon,
-      required VoidCallback onTap}) {
+  Widget _buildActivityCard({required String title, required String subtitle, required IconData icon, required VoidCallback onTap}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
           color: kCardColor,
           borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4))
-          ]),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
       child: Row(
         children: [
           Icon(icon, color: kPrimaryBlue, size: 28),
@@ -528,29 +404,16 @@ class _DashboardScreenState extends State<TODashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: kTextColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: kTextColor), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(fontSize: 13, color: kSubTextColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(subtitle, style: const TextStyle(fontSize: 13, color: kSubTextColor), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
           const SizedBox(width: 8),
           OutlinedButton(
             onPressed: onTap,
-            style: OutlinedButton.styleFrom(
-                foregroundColor: kPrimaryBlue,
-                side: const BorderSide(color: kLightBlue),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20))),
+            style: OutlinedButton.styleFrom(foregroundColor: kPrimaryBlue, side: const BorderSide(color: kLightBlue), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
             child: const Text('View'),
           ),
         ],

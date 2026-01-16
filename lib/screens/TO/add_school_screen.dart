@@ -28,8 +28,6 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
   final List<String> _schoolTypes = [
     'Government',
     'Semi-Government',
-    'Private',
-    'International',
   ];
 
   String? _selectedDistrict;

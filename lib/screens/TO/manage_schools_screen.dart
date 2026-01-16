@@ -38,34 +38,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     super.dispose();
   }
 
-  // --- This function is no longer used but can be kept for other pages ---
-  // ignore: unused_element
-  Future<void> _updateSchoolStatus(String schoolId, bool isActive) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(schoolId)
-          .update({
-        'isActive': isActive,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('School status updated!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update status: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -96,8 +68,11 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           _buildSearchBar(),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance.collection('schools').snapshots(),
+              // මෙහිදී addedAt field එක descending order එකට සකස් කර ඇත
+              stream: FirebaseFirestore.instance
+                  .collection('schools')
+                  .orderBy('addedAt', descending: true) 
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -164,14 +139,12 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     );
   }
 
-  // --- MODIFIED school card: Only the trailing button navigates ---
   Widget _buildSchoolCard(DocumentSnapshot schoolDoc) {
     final schoolData = schoolDoc.data() as Map<String, dynamic>;
     final String schoolId = schoolDoc.id;
     final String schoolName = schoolData['schoolName'] ?? 'Unnamed School';
     final String schoolAddress = schoolData['schoolAddress'] ?? 'No Address';
 
-    // Helper function for navigation
     void navigateToDetails() {
       Navigator.push(
         context,
@@ -201,8 +174,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           schoolAddress,
           style: const TextStyle(color: kSubTextColor),
         ),
-
-        // --- TRAILING BUTTON: Only this navigates ---
         trailing: TextButton.icon(
           icon: const Icon(Icons.info_outline, size: 18),
           label: const Text('View Details'),
@@ -213,11 +184,8 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          onPressed: navigateToDetails, // This button navigates
+          onPressed: navigateToDetails,
         ),
-        // ---------------------------------
-
-        // --- IMPORTANT: Set onTap to null so the full card does not navigate ---
         onTap: null,
       ),
     );
