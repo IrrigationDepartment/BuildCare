@@ -41,18 +41,19 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
+
           if (!snapshot.hasData || !snapshot.data!.exists) {
             return const Center(child: Text('School details not found.'));
           }
 
+          // Extracting school data
           final schoolData = snapshot.data!.data() as Map<String, dynamic>;
-          final infrastructure =
-              schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
-          
-          // පාසල ඇතුළත් කළ පරිශීලකයාගේ ID එක (මෙම field එක Firestore හි තිබිය යුතුය)
+          final String schoolName = schoolData['schoolName'] ?? 'Unnamed School';
+          final infrastructure = schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
           final String? addedByUserId = schoolData['addedBy'];
 
           return SingleChildScrollView(
@@ -60,28 +61,24 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. General Info Card
+                // 1. Basic Info Card
                 _buildInfoCard(schoolData),
                 const SizedBox(height: 15),
 
-                // 2. Added By Info Section (නව කොටස)
-                if (addedByUserId != null) 
-                  _buildAddedBySection(addedByUserId)
-                else
-                  _buildSimpleNote("Registered user info not available."),
-
+                // 2. Added By Section (Dynamic)
+                if (addedByUserId != null) _buildAddedBySection(addedByUserId),
                 const SizedBox(height: 15),
 
-                // 3. Stats Card (Students/Teachers/Staff)
+                // 3. Personnel and Student Stats
                 _buildStatsCard(schoolData),
                 const SizedBox(height: 15),
 
-                // 4. Infrastructure Card
+                // 4. Infrastructure Status
                 _buildInfrastructureCard(infrastructure),
                 const SizedBox(height: 20),
 
-                // 5. Action Buttons
-                _buildActionButtons(context, schoolData),
+                // 5. Action Buttons (Pass schoolName to Master Plan screen)
+                _buildActionButtons(context, schoolData, schoolName),
               ],
             ),
           );
@@ -90,33 +87,52 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
     );
   }
 
-  // --- නව Widget: ඇතුළත් කළ පුද්ගලයාගේ නම සහ තනතුර පෙන්වීම ---
+  // --- UI Components ---
+
+  Widget _buildInfoCard(Map<String, dynamic> data) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDetailRow('School Name', data['schoolName'], isHeader: true),
+          const Divider(height: 20),
+          _buildDetailRow('Address', data['schoolAddress']),
+          _buildDetailRow('E-mail', data['schoolEmail']),
+          _buildDetailRow('Phone', data['schoolPhone']),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAddedBySection(String userId) {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: LinearProgressIndicator());
+          return const LinearProgressIndicator();
         }
-        
-        String name = "Unknown User";
-        String position = "N/A";
+
+        String name = "System User";
+        String position = "Officer";
 
         if (snapshot.hasData && snapshot.data!.exists) {
           final userData = snapshot.data!.data() as Map<String, dynamic>;
-          name = userData['name'] ?? "Unknown User";
-          position = userData['userType'] ?? "Officer"; // userType හෝ position ලෙස භාවිතා කරන්න
+          name = userData['name'] ?? name;
+          position = userData['userType'] ?? position;
         }
 
         return Container(
-          width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
-            ],
           ),
           child: Row(
             children: [
@@ -129,8 +145,8 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Registered By", style: TextStyle(fontSize: 12, color: kSubTextColor)),
-                  Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kTextColor)),
-                  Text(position, style: const TextStyle(fontSize: 13, color: kPrimaryBlue, fontWeight: FontWeight.w600)),
+                  Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(position, style: const TextStyle(fontSize: 13, color: kPrimaryBlue)),
                 ],
               ),
             ],
@@ -140,60 +156,20 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
     );
   }
 
-  Widget _buildSimpleNote(String note) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      child: Text(note, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
-    );
-  }
-
-  // --- පවතින අනෙකුත් Widgets (වෙනස් කර නැත) ---
-
-  Widget _buildInfoCard(Map<String, dynamic> data) {
-    return Container(
-      width: double.infinity, 
-      padding: const EdgeInsets.all(20.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.15), spreadRadius: 1, blurRadius: 5, offset: const Offset(0, 3)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDetailRow('School Name', data['schoolName'], isHeader: true), 
-          const Divider(height: 20, thickness: 1.5, color: kBackgroundColor),
-          _buildDetailRow('Address', data['schoolAddress']),
-          _buildDetailRow('E-mail', data['schoolEmail']),
-          _buildDetailRow('Phone', data['schoolPhone']),
-          _buildDetailRow('Type', data['schoolType']),
-          _buildDetailRow('Zone', data['educationalZone']),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatsCard(Map<String, dynamic> data) {
     return Container(
-      width: double.infinity, 
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.15), spreadRadius: 1, blurRadius: 5, offset: const Offset(0, 3)),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Personnel and Student Count', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor)),
-          const Divider(height: 20, thickness: 1, color: kBackgroundColor),
+          const Text('Capacity Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 15),
           _buildStatItem('Students', data['numStudents']?.toString(), Icons.group),
           _buildStatItem('Teachers', data['numTeachers']?.toString(), Icons.person_pin_circle),
-          _buildStatItem('Staff', data['numNonAcademic']?.toString(), Icons.business_center),
         ],
       ),
     );
@@ -201,75 +177,70 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
 
   Widget _buildStatItem(String label, String? value, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Icon(icon, color: kPrimaryBlue, size: 24),
+          Icon(icon, color: kPrimaryBlue),
           const SizedBox(width: 12),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 16, color: kTextColor, fontWeight: FontWeight.w500)),
-                Text(value ?? 'N/A', style: const TextStyle(fontSize: 18, color: kPrimaryBlue, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 16)),
+          const Spacer(),
+          Text(value ?? '0', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kPrimaryBlue)),
         ],
       ),
     );
   }
-  
-  Widget _buildInfrastructureCard(Map<String, dynamic> infrastructure) {
+
+  Widget _buildInfrastructureCard(Map<String, dynamic> infra) {
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 5, offset: const Offset(0, 3)),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Infrastructure Components', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor)),
-          const SizedBox(height: 12),
-          _buildInfrastructureItem('Electricity', infrastructure['electricity'] ?? false),
-          _buildInfrastructureItem('Water Supply', infrastructure['waterSupply'] ?? false),
-          _buildInfrastructureItem('Sanitation', infrastructure['sanitation'] ?? false),
-          _buildInfrastructureItem('Communication', infrastructure['communication'] ?? false),
+          const Text('Infrastructure', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 15),
+          _buildInfrastructureItem('Electricity', infra['electricity'] ?? false),
+          _buildInfrastructureItem('Water Supply', infra['waterSupply'] ?? false),
         ],
       ),
     );
   }
 
-  Widget _buildInfrastructureItem(String label, bool hasComponent) {
+  Widget _buildInfrastructureItem(String label, bool has) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Icon(hasComponent ? Icons.check_circle_outline : Icons.cancel_outlined, color: hasComponent ? kActiveColor : kInactiveColor, size: 22),
+          Icon(has ? Icons.check_circle : Icons.cancel, color: has ? kActiveColor : kInactiveColor),
           const SizedBox(width: 12),
-          Text(label, style: const TextStyle(fontSize: 16, color: kTextColor)),
+          Text(label, style: const TextStyle(fontSize: 16)),
         ],
       ),
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> data) {
+  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> data, String schoolName) {
     return Column(
       children: [
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => EditSchoolScreen(schoolId: widget.schoolId, schoolData: data)));
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => EditSchoolScreen(schoolId: widget.schoolId, schoolData: data))
+              );
             },
             icon: const Icon(Icons.edit, color: Colors.white),
             label: const Text('Edit School Details', style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(backgroundColor: kAccentColor, padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kAccentColor,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -277,11 +248,19 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ViewMasterPlanScreen()));
+              // Master Plan screen එකට schoolName එක යැවීම
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => ViewMasterPlanScreen(schoolName: schoolName))
+              );
             },
             icon: const Icon(Icons.map_outlined, color: Colors.white),
             label: const Text('View Master Plan', style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimaryBlue, padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kPrimaryBlue,
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           ),
         ),
       ],
@@ -289,20 +268,14 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
   }
 
   Widget _buildDetailRow(String label, String? value, {bool isHeader = false}) {
-    final displayValue = value ?? 'N/A';
-    final double fontSize = isHeader ? 22 : 16;
-    final fontWeightValue = isHeader ? FontWeight.bold : FontWeight.w500; 
-
     return Padding(
-      padding: EdgeInsets.only(bottom: isHeader ? 0 : 8.0),
-      child: RichText(
-        text: TextSpan(
-          style: DefaultTextStyle.of(context).style.copyWith(fontSize: fontSize, color: kTextColor, decoration: TextDecoration.none),
-          children: <TextSpan>[
-            TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-            TextSpan(text: displayValue, style: TextStyle(fontWeight: fontWeightValue)),
-          ],
-        ),
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: kSubTextColor, fontSize: 12)),
+          Text(value ?? 'N/A', style: TextStyle(fontSize: isHeader ? 22 : 16, fontWeight: isHeader ? FontWeight.bold : FontWeight.normal, color: kTextColor)),
+        ],
       ),
     );
   }
