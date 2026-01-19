@@ -15,7 +15,7 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
-  // Current User Data for the Review Record
+  // Current User Data (The person WRITING the review)
   String _currentEngineerName = '';
   String _currentEngineerNic = '';
   bool _isLoadingUser = true;
@@ -26,7 +26,7 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
     _fetchCurrentUserData();
   }
 
-  // 1. Get the Logged-in Engineer's Name and NIC
+  // 1. Get the Logged-in User's details
   Future<void> _fetchCurrentUserData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -40,8 +40,9 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
           final data = userDoc.data() as Map<String, dynamic>;
           if (mounted) {
             setState(() {
-              _currentEngineerName = data['name'] ?? 'Unknown Engineer';
-              _currentEngineerNic = data['nic'] ?? 'Unknown NIC';
+              _currentEngineerName = data['name'] ?? 'Unknown User';
+              // Ensure this field matches your Users collection (e.g., 'nic' or 'NIC')
+              _currentEngineerNic = data['nic'] ?? '';
               _isLoadingUser = false;
             });
           }
@@ -53,31 +54,66 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
     }
   }
 
-  // 2. Function to Add a Review to Firestore
-  Future<void> _addReviewToFirebase(String docId, String note) async {
+  // 2. Function to Add Review AND Notification simultaneously
+  Future<void> _addReviewToFirebase(
+      {required String docId,
+      required String note,
+      required String planOwnerNic,
+      required String schoolName}) async {
     if (note.isEmpty) return;
 
     try {
-      // We create a 'reviews' sub-collection inside the master plan document
-      // This keeps a perfect history record.
-      await FirebaseFirestore.instance
+      // A. Start a Batch Write (Ensures both save, or neither saves)
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // B. Reference for the Review (Stored inside the plan)
+      DocumentReference reviewRef = FirebaseFirestore.instance
           .collection('schoolMasterPlans')
           .doc(docId)
-          .collection('reviews') 
-          .add({
+          .collection('reviews')
+          .doc(); // Auto-ID
+
+      // C. Reference for the Notification (Stored in public collection)
+      DocumentReference notificationRef = FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(); // Auto-ID
+
+      // D. Set Review Data
+      batch.set(reviewRef, {
         'note': note,
         'reviewerName': _currentEngineerName,
         'reviewerNic': _currentEngineerNic,
-        'reviewedAt': Timestamp.now(), // Captures Date and Time
+        'reviewedAt': FieldValue.serverTimestamp(),
       });
 
+      // E. Set Notification Data
+      // This creates the specific document your NotificationPage is listening for
+      batch.set(notificationRef, {
+        'receiverNic': planOwnerNic, // Who receives it (The Plan Owner)
+        'senderNic': _currentEngineerNic, // Who sent it
+        'senderName': _currentEngineerName,
+        'title': 'New Review Received',
+        'message': '$_currentEngineerName added a review for $schoolName',
+        'type': 'review', // Used for the icon logic
+        'isRead': false,
+        'relatedPlanId': docId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // F. Commit the Batch
+      await batch.commit();
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Review added successfully"), backgroundColor: Colors.green),
+        const SnackBar(
+            content: Text("Review sent successfully!"),
+            backgroundColor: Colors.green),
       );
       Navigator.pop(context); // Close dialog
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error adding review: $e"), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text("Error adding review: $e"),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -120,7 +156,7 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
     );
   }
 
-  // 3. Stream ALL Master Plans (No filtering)
+  // 3. Stream ALL Master Plans
   Widget _buildAllMasterPlansStream() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -152,14 +188,16 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
   }
 
   // --- DIALOG: Add Review ---
-  void _showAddReviewDialog(BuildContext context, String docId) {
+  void _showAddReviewDialog(BuildContext context, String docId,
+      String planOwnerNic, String schoolName) {
     final TextEditingController noteController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: const Text("Add Review Note"),
           content: TextField(
             controller: noteController,
@@ -176,8 +214,16 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _primaryBlue),
-              onPressed: () => _addReviewToFirebase(docId, noteController.text),
-              child: const Text("Submit Review", style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                _addReviewToFirebase(
+                    docId: docId,
+                    note: noteController.text,
+                    planOwnerNic: planOwnerNic, // Pass owner NIC
+                    schoolName: schoolName // Pass School Name
+                    );
+              },
+              child: const Text("Submit Review",
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -194,7 +240,7 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
           title: const Text("Review History"),
           content: SizedBox(
             width: double.maxFinite,
-            height: 300, // Fixed height for the list
+            height: 300,
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('schoolMasterPlans')
@@ -213,18 +259,20 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
                 return ListView.builder(
                   itemCount: snapshot.data!.docs.length,
                   itemBuilder: (context, index) {
-                    final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                    final data = snapshot.data!.docs[index].data()
+                        as Map<String, dynamic>;
                     final String note = data['note'] ?? '';
                     final String reviewer = data['reviewerName'] ?? 'Unknown';
                     final Timestamp? ts = data['reviewedAt'];
-                    final String dateStr = ts != null 
-                        ? DateFormat('yyyy-MM-dd hh:mm a').format(ts.toDate()) 
+                    final String dateStr = ts != null
+                        ? DateFormat('yyyy-MM-dd h:mm a').format(ts.toDate())
                         : 'Unknown Date';
 
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.comment, color: Colors.grey),
-                      title: Text(note, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(note,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text("By: $reviewer\n$dateStr"),
                       isThreeLine: true,
                     );
@@ -255,10 +303,13 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
               Image.network(imageUrl, fit: BoxFit.contain),
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close"))
             ],
           ),
         );
@@ -272,7 +323,12 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 3, spreadRadius: 1)],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 3,
+              spreadRadius: 1)
+        ],
       ),
       child: const TextField(
         decoration: InputDecoration(
@@ -284,15 +340,19 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
     );
   }
 
-  Widget _buildPlanTile(BuildContext context, String docId, Map<String, dynamic> data) {
+  Widget _buildPlanTile(
+      BuildContext context, String docId, Map<String, dynamic> data) {
     final String schoolName = data['schoolName'] ?? 'Unknown School';
     final String description = data['description'] ?? 'Master Plan';
     final String imageUrl = data['masterPlanUrl'] ?? '';
-    
+
+    // CRITICAL: This gets the NIC of the user who created the plan
+    final String planOwnerNic = data['addedByNic'] ?? '';
+
     String updated = 'Unknown Date';
     if (data['createdAt'] != null) {
-       Timestamp t = data['createdAt'];
-       updated = DateFormat('yyyy/MM/dd').format(t.toDate());
+      Timestamp t = data['createdAt'];
+      updated = DateFormat('yyyy/MM/dd').format(t.toDate());
     }
 
     return Container(
@@ -300,7 +360,12 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 3, spreadRadius: 1)],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 3,
+              spreadRadius: 1)
+        ],
       ),
       child: Column(
         children: [
@@ -311,18 +376,27 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(schoolName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    Text(schoolName,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87)),
                     const SizedBox(height: 4),
-                    Text(description, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                    Text(description,
+                        style: const TextStyle(
+                            fontSize: 14, color: Colors.black54)),
                     const SizedBox(height: 8),
-                    Text('Uploaded: $updated', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text('Uploaded: $updated',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
               if (imageUrl.isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.image, color: _primaryBlue),
-                  onPressed: () => _showImageDialog(context, schoolName, imageUrl),
+                  onPressed: () =>
+                      _showImageDialog(context, schoolName, imageUrl),
                 )
             ],
           ),
@@ -333,7 +407,8 @@ class _SchoolMasterPlanPageState extends State<SchoolMasterPlanPage> {
             children: [
               // Add Review Button
               ElevatedButton.icon(
-                onPressed: () => _showAddReviewDialog(context, docId),
+                onPressed: () => _showAddReviewDialog(
+                    context, docId, planOwnerNic, schoolName),
                 icon: const Icon(Icons.rate_review, size: 18),
                 label: const Text('Add Review'),
                 style: ElevatedButton.styleFrom(

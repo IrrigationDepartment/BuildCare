@@ -1,10 +1,18 @@
+import 'dart:convert'; 
+import 'dart:io'; 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart'; 
+import 'package:http/http.dart' as http; 
+
+// --- IMPORT YOUR FORGOT PASSWORD SCREEN HERE ---
+import '/screens/forgot_password_flow.dart';
+import 'settings_page.dart'; // Import SettingsPage
+import 'dashboard.dart'; // Import Dashboard 
 
 class ProfilePage extends StatefulWidget {
-  // You MUST pass the user's data and their Firestore document ID to this page
   final Map<String, dynamic> userData;
-  final String userId; // This is the document ID
+  final String userId; 
 
   const ProfilePage({
     super.key,
@@ -17,7 +25,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // Controllers to manage the text fields
+  // Controllers
   late TextEditingController _principalNameController;
   late TextEditingController _schoolNameController;
   late TextEditingController _schoolTypeController;
@@ -25,41 +33,80 @@ class _ProfilePageState extends State<ProfilePage> {
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _mobileController;
+  late TextEditingController _officePhoneController; // Added Office Phone
   late TextEditingController _nicController;
 
   bool _isLoading = false;
+  bool _isUploadingImage = false; 
+  String? _profileImageUrl; 
 
-  // Define the primary color (matching #53BDFF from SettingsPage)
   static const Color _primaryColor = Color(0xFF53BDFF);
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with data.
-    // **IMPORTANT**: If 'principalName', 'phone', or 'mobile' are not the
-    // exact keys in your Firestore document, you must change them here.
-    // I've kept your existing keys and added a safe default ('') using `??`.
-    _principalNameController =
-        TextEditingController(text: widget.userData['principalName'] ?? '');
+    
+    // 1. Load initial image
+    _profileImageUrl = widget.userData['profile_image']; 
+
+    // 2. Fetch latest data from DB
+    _fetchLatestUserData(); 
+
+    // --- DATA MAPPING ---
+    
+    _principalNameController = TextEditingController(
+        text: widget.userData['name'] ?? widget.userData['principalName'] ?? '');
+        
     _schoolNameController =
         TextEditingController(text: widget.userData['schoolName'] ?? '');
+    
+    // Now editable
     _schoolTypeController =
         TextEditingController(text: widget.userData['schoolType'] ?? '');
-    // Assuming 'Title' field in the UI is 'userType' in Firestore
+    
     _titleController =
         TextEditingController(text: widget.userData['userType'] ?? '');
+    
     _emailController =
         TextEditingController(text: widget.userData['email'] ?? '');
+    
+    // Personal Phone
     _phoneController =
         TextEditingController(text: widget.userData['phone'] ?? '');
-    _mobileController =
-        TextEditingController(text: widget.userData['mobile'] ?? '');
+        
+    // Mobile
+    _mobileController = TextEditingController(
+        text: widget.userData['mobile'] ?? widget.userData['mobilePhone'] ?? '');
+
+    // --- NEW: Office Phone ---
+    _officePhoneController = 
+        TextEditingController(text: widget.userData['officePhone'] ?? '');
+        
     _nicController = TextEditingController(text: widget.userData['nic'] ?? '');
+  }
+
+  Future<void> _fetchLatestUserData() async {
+    try {
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+
+      if (doc.exists && mounted) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          if (data.containsKey('profile_image')) {
+             _profileImageUrl = data['profile_image'];
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching latest data: $e");
+    }
   }
 
   @override
   void dispose() {
-    // Dispose all updated controllers
     _principalNameController.dispose();
     _schoolNameController.dispose();
     _schoolTypeController.dispose();
@@ -67,6 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _emailController.dispose();
     _phoneController.dispose();
     _mobileController.dispose();
+    _officePhoneController.dispose(); // Dispose new controller
     _nicController.dispose();
     super.dispose();
   }
@@ -90,19 +138,99 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  /// Handles the profile update logic
+  Future<void> _pickAndUploadImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    setState(() {
+      _isUploadingImage = true;
+    });
+
+    try {
+      final bytes = await image.readAsBytes();
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://buildcare.atigalle.x10.mx/index.php'), 
+      );
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'profile_image', 
+          bytes,
+          filename: 'upload.jpg', 
+        ),
+      );
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> jsonResponse;
+        try {
+             jsonResponse = jsonDecode(response.body);
+        } catch (e) {
+             throw Exception("Invalid JSON from server: ${response.body}");
+        }
+
+        if (jsonResponse['status'] == 'success') {
+          String newImageUrl = jsonResponse['profileImageUrl'];
+
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .update({'profile_image': newImageUrl});
+
+          if (mounted) {
+            setState(() {
+              _profileImageUrl = newImageUrl; 
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Profile Photo Updated!")),
+            );
+          }
+        } else {
+          throw Exception(jsonResponse['message']);
+        }
+      } else {
+        throw Exception("Server error: ${response.statusCode}.");
+      }
+    } catch (e) {
+      debugPrint("Error uploading image: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Upload failed: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
+  }
+
   Future<void> _updateProfile() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Data fields that are editable and need to be updated in Firestore
+      // --- UPDATE LOGIC ---
+      // Added officePhone and schoolType to the update list
       final dataToUpdate = {
+        'name': _principalNameController.text.trim(), 
         'principalName': _principalNameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
         'mobile': _mobileController.text.trim(),
+        'mobilePhone': _mobileController.text.trim(),
+        
+        // NEW FIELDS ADDED TO UPDATE:
+        'officePhone': _officePhoneController.text.trim(),
+        'schoolType': _schoolTypeController.text.trim(),
       };
 
       await FirebaseFirestore.instance
@@ -112,7 +240,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       _showMessage('Success', 'Your profile has been updated.');
     } catch (e) {
-      // Show the actual Firebase error for debugging
       _showMessage('Update Failed', 'Error: ${e.toString()}');
     } finally {
       if (mounted) {
@@ -123,7 +250,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- Helper Widgets for Building the UI ---
+  // --- Helper Widgets ---
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -157,16 +284,20 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Column(
         children: [
-          // This field is made editable as it's part of the `dataToUpdate` map.
           _buildTextField(_principalNameController, "Principal Name", readOnly: false), 
           const SizedBox(height: 10),
-          _buildTextField(_schoolNameController, "School Name", readOnly: true),
+          
+          _buildTextField(_schoolNameController, "School Name", readOnly: true), // Locked
           const SizedBox(height: 10),
-          _buildTextField(_schoolTypeController, "School Type", readOnly: true),
+          
+          // CHANGED: School Type is now Editable (readOnly: false)
+          _buildTextField(_schoolTypeController, "School Type", readOnly: false),
           const SizedBox(height: 10),
-          _buildTextField(_titleController, "Title", readOnly: true),
+          
+          _buildTextField(_titleController, "Title", readOnly: true), // Locked
           const SizedBox(height: 10),
-          _buildTextField(_nicController, "NIC", readOnly: true),
+          
+          _buildTextField(_nicController, "NIC", readOnly: true), // Locked
         ],
       ),
     );
@@ -222,7 +353,15 @@ class _ProfilePageState extends State<ProfilePage> {
         title: Text(title),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: () {
-          _showMessage('Not Implemented', '$title page is not ready yet.');
+          if (title == 'Change password') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const ForgotPasswordFlow()), 
+            );
+          } else {
+            _showMessage('Not Implemented', '$title page is not ready yet.');
+          }
         },
       ),
     );
@@ -230,7 +369,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildTextField(TextEditingController controller, String label,
       {bool readOnly = false}) {
-    // Note: Using a standard blue for the text field focus color.
     final accentColor = readOnly ? Colors.grey[600] : _primaryColor;
     return TextField(
       controller: controller,
@@ -245,9 +383,9 @@ class _ProfilePageState extends State<ProfilePage> {
           borderSide: BorderSide(color: Colors.grey[300]!),
         ),
         focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: _primaryColor), // Use primary color here
+          borderSide: BorderSide(color: _primaryColor), 
         ),
-        fillColor: readOnly ? Colors.grey[100] : Colors.transparent,
+        fillColor: readOnly ? Colors.grey[200] : Colors.transparent,
         filled: readOnly,
       ),
     );
@@ -258,7 +396,6 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        // UPDATED: Title widget is wrapped in Center and uses bold font weight
         title: const Center(
           child: Text(
             'Edit Profile',
@@ -268,62 +405,100 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
-        // The default `centerTitle` property of AppBar is `false` unless 
-        // there is a leading widget (which there is not here), or the theme 
-        // sets it to true. Using Center widget explicitly ensures centering.
+        actions: [
+          // Settings Icon
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: IconButton(
+              icon: const Icon(Icons.settings, color: Colors.black, size: 28),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsPage(
+                      userData: widget.userData,
+                      userId: widget.userId,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
+            
+            // --- AVATAR SECTION ---
             Center(
               child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.grey[300],
-                    child: Icon(
-                      Icons.person,
-                      size: 70,
-                      color: Colors.grey[600],
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey[300],
+                      image: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
+                          ? DecorationImage(
+                              image: NetworkImage(_profileImageUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                      border: Border.all(color: _primaryColor, width: 2),
                     ),
+                    child: _isUploadingImage
+                        ? const Center(child: CircularProgressIndicator())
+                        : (_profileImageUrl == null || _profileImageUrl!.isEmpty)
+                            ? Icon(Icons.person, size: 70, color: Colors.grey[600])
+                            : null,
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
                     child: CircleAvatar(
                       radius: 20,
-                      backgroundColor: _primaryColor, // Use primary color here
+                      backgroundColor: _primaryColor, 
                       child: IconButton(
                         icon: const Icon(Icons.camera_alt,
                             color: Colors.white, size: 20),
-                        onPressed: () {
-                          _showMessage('Not Implemented',
-                              'Image upload is not ready yet.');
-                        },
+                        onPressed: _pickAndUploadImage, 
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+            
             _buildSectionTitle('Personal Information'),
             _buildPersonalInfoCard(),
+            
             _buildSectionTitle('Contact Information'),
-            // These fields are editable and will be updated
+            // --- EDITABLE FIELDS ---
             _buildEditableInfoCard(
                 _emailController, 'Work Email', Icons.email_outlined),
             _buildEditableInfoCard(
-                _phoneController, 'Phone', Icons.phone_outlined,
+                _phoneController, 'Personal Phone', Icons.phone_outlined,
                 keyboardType: TextInputType.phone),
             _buildEditableInfoCard(
                 _mobileController, 'Mobile', Icons.smartphone_outlined,
                 keyboardType: TextInputType.phone),
+            
+            // --- NEW FIELD: OFFICE PHONE ---
+            _buildEditableInfoCard(
+                _officePhoneController, 'Office Phone', Icons.business_outlined,
+                keyboardType: TextInputType.phone),
+                
             _buildSectionTitle('Account Setting'),
             _buildSettingItem('Change password'),
             _buildSettingItem('Manage Notifications'),
+            
             const SizedBox(height: 40),
+            
+            // --- UPDATE BUTTON ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: _isLoading
@@ -333,7 +508,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: ElevatedButton(
                         onPressed: _updateProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor, // Use primary color here
+                          backgroundColor: _primaryColor, 
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
@@ -350,14 +525,13 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
-      // --- Bottom Navigation Bar with consistent color and size ---
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, // Highlight the Profile icon (index 1)
-        selectedItemColor: _primaryColor, // Use the consistent primary color
-        unselectedItemColor: Colors.grey[600], // Standard unselected color
+        currentIndex: 1, 
+        selectedItemColor: _primaryColor, 
+        unselectedItemColor: Colors.grey[600], 
         showSelectedLabels: false,
         showUnselectedLabels: false,
-        type: BottomNavigationBarType.fixed, // Ensure icons and labels don't shift
+        type: BottomNavigationBarType.fixed, 
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined, size: 30),
@@ -377,11 +551,26 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
         onTap: (index) {
           if (index == 0) {
-            // Navigate back to the Dashboard/Home page
-            Navigator.pop(context); 
-          } 
-          // index 1 (Profile) does nothing, as we are already here.
-          // For index 2 (Settings), you would implement navigation to the SettingsPage.
+            // Navigate to Dashboard
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PrincipalDashboard(userData: widget.userData),
+              ),
+            );
+          } else if (index == 2) {
+            // Navigate to Settings
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SettingsPage(
+                  userData: widget.userData,
+                  userId: widget.userId,
+                ),
+              ),
+            );
+          }
+          // Index 1 is Profile (current page)
         },
       ),
     );

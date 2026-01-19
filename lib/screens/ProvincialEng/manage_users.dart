@@ -1,8 +1,10 @@
 // manage_users.dart
 import 'package:flutter/material.dart';
+// Import Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // -----------------------------------------------------------------------------
-// --- ManageUsersPage (New UI) ---
+// --- ManageUsersPage (Updated with Firestore StreamBuilder) ---
 // -----------------------------------------------------------------------------
 class ManageUsersPage extends StatefulWidget {
   final String roleTitle;
@@ -17,51 +19,9 @@ class ManageUsersPage extends StatefulWidget {
 }
 
 class _ManageUsersPageState extends State<ManageUsersPage> {
-  // --- Dummy Data for Pending Approvals Section (Top List) ---
-
-  final List<Map<String, String>> pendingUsers = [
-    {
-      "name": "Pasidu Rajapaksha",
-      "email": "pasi@email.com",
-      "phone": "+ 71 59 59 479",
-      "role": "Chief Engineer",
-      "district": "Matara",
-    },
-    {
-      "name": "Madushan Gunawardana",
-      "email": "madush.19@gmail.com",
-      "phone": "+ 76 58 25 479",
-      "role": "Chief Engineer",
-      "district": "Galle",
-    },
-    {
-      "name": "Pasidu Rajapaksha",
-      "email": "pasi@email.com",
-      "phone": "+ 71 59 59 479",
-      "role": "Chief Engineer",
-      "district": "Hambanthota",
-    },
-  ];
-
-  // --- Dummy Data for Lower Approvals Section (UserCard List) ---
-
-  final List<Map<String, dynamic>> lowerApprovalUsers = [
-    {
-      "name": "Nimal Bandara",
-      "role": "District Engineer - Colombo",
-      "isApproved": false,
-    },
-    {
-      "name": "Kamani Perera",
-      "role": "Technical Officer - Galle",
-      "isApproved": false,
-    },
-    {
-      "name": "Jayantha Sirisena",
-      "role": "Principal - Kandy",
-      "isApproved": true,
-    },
-  ];
+  // --- Dummy Data (Removed) ---
+  // The dummy 'pendingUsers' and 'lowerApprovalUsers' lists have been removed.
+  // We will now fetch live data from Firestore.
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +32,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
           children: [
             // --- 1. Top Title Bar (Role Title) ---
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -102,68 +61,22 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       /* ------------------------------------------------------------------
-                       * --- COMMENTED OUT: Role Specific Approvals (Chief Engineer, etc.)
-                       * ------------------------------------------------------------------ */
-                      // // --- 2.1. "Pending Approvals" Header with Back Button (Top List) ---
-                      // Padding(
-                      //   padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-                      //   child: Row(
-                      //     children: [
-                      //       // Back button
-                      //       IconButton(
-                      //         icon: const Icon(Icons.arrow_back, color: Colors.black),
-                      //         onPressed: () => Navigator.pop(context),
-                      //       ),
-                      //       const SizedBox(width: 10),
-                      //       Text(
-                      //         '${widget.roleTitle.split(' ').last} Approvals', // E.g., 'Engineer Approvals'
-                      //         style: const TextStyle(
-                      //           color: Colors.black,
-                      //           fontSize: 20,
-                      //           fontWeight: FontWeight.bold,
-                      //         ),
-                      //       ),
-                      //     ],
-                      //   ),
-                      // ),
-
-                      // // --- 2.2. User Cards List (Top List) ---
-                      // Padding(
-                      //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      //   child: ListView.builder(
-                      //     physics: const NeverScrollableScrollPhysics(),
-                      //     shrinkWrap: true,
-                      //     itemCount: pendingUsers.length,
-                      //     itemBuilder: (context, index) {
-                      //       final user = pendingUsers[index];
-                      //       return _buildUserCard(user);
-                      //     },
-                      //   ),
-                      // ),
-
-                      // const SizedBox(height: 20),
-                      // const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16),
-                      // const SizedBox(height: 20),
-
-                      /* ------------------------------------------------------------------
                        * --- START: General Pending User Approvals Section
                        * ------------------------------------------------------------------ */
-
+                      
                       // Back Button and Title for General Approvals
                       Padding(
-                        padding: const EdgeInsets.only(
-                            left: 4.0, right: 16.0, top: 20.0, bottom: 8.0),
+                        padding: const EdgeInsets.only(left: 4.0, right: 16.0, top: 20.0, bottom: 8.0),
                         child: Row(
                           children: [
                             // Back button
                             IconButton(
-                              icon: const Icon(Icons.arrow_back,
-                                  color: Colors.black),
+                              icon: const Icon(Icons.arrow_back, color: Colors.black),
                               onPressed: () => Navigator.pop(context),
                             ),
                             const SizedBox(width: 6),
                             const Text(
-                              'General Pending Approvals',
+                              'General Pending Approvals', 
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -172,14 +85,74 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
                           ],
                         ),
                       ),
-
-                      // UserCard Widgets (Bottom List)
-                      ...lowerApprovalUsers.map((user) => UserCard(
-                            userName: user['name'],
-                            userRole: user['role'],
-                            isApproved: user['isApproved'],
-                          )),
-
+                      
+                      // --- Firestore StreamBuilder for Pending Users ---
+                      StreamBuilder<QuerySnapshot>(
+                        // Query: Get users where 'status' is 'Pending'
+                        stream: FirebaseFirestore.instance
+                            .collection('users') // <-- !! COLLECTION NAME !!
+                            .where('status', isEqualTo: 'Pending')
+                            .snapshots(),
+                        
+                        builder: (context, snapshot) {
+                          // 1. Loading State
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+                      
+                          // 2. Error State
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text('Error loading users: ${snapshot.error}'),
+                              ),
+                            );
+                          }
+                      
+                          // 3. No Data State
+                          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32.0),
+                                child: Text(
+                                  'No pending user approvals.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 18, color: Colors.black54),
+                                ),
+                              ),
+                            );
+                          }
+                      
+                          final users = snapshot.data!.docs;
+                      
+                          // 4. Data Loaded State (Display List)
+                          return ListView.builder(
+                            itemCount: users.length,
+                            physics: const NeverScrollableScrollPhysics(),
+                            shrinkWrap: true,
+                            itemBuilder: (context, index) {
+                              final userDoc = users[index];
+                              final userData = userDoc.data() as Map<String, dynamic>;
+                              final userId = userDoc.id;
+                      
+                              return UserCard(
+                                userId: userId, // Pass the Document ID
+                                userName: userData['name'] ?? 'No Name',
+                                userRole: userData['role'] ?? 'No Role',
+                                // We know isApproved is false because we filtered for 'Pending'
+                                isApproved: false, 
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      
                       const SizedBox(height: 20),
                       /* ------------------------------------------------------------------
                        * --- END: General Pending User Approvals Section
@@ -198,159 +171,7 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
     );
   }
 
-  // --- Helper Widgets (Kept as is) ---
-
-  // This helper is now only technically necessary if you uncomment the top list later.
-  // ignore: unused_element
-  Widget _buildUserCard(Map<String, String> user) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[300]!),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.blue[50],
-                  child: const Icon(Icons.person, color: Colors.blue),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user['name']!,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      user['email']!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoRow('Phone', user['phone']!),
-                      const SizedBox(height: 12),
-                      _buildInfoRow('District', user['district']!),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoRow('Role', user['role']!),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: _buildStyledButton(
-                          text: 'Edit',
-                          color: Colors.orange,
-                          icon: Icons.edit,
-                          onPressed: () {},
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStyledButton(
-                    text: 'View',
-                    color: Colors.blue,
-                    icon: Icons.remove_red_eye,
-                    onPressed: () {},
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStyledButton(
-                    text: 'Approve',
-                    color: Colors.green,
-                    icon: Icons.check_circle,
-                    onPressed: () {},
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Info Row Helper
-  Widget _buildInfoRow(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Styled Button Helper
-  Widget _buildStyledButton({
-    required String text,
-    required Color color,
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(text),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-      ),
-    );
-  }
+  // --- Helper Widgets ---
 
   // Bottom Nav Bar Helper
   Widget _buildBottomNavBar() {
@@ -375,15 +196,15 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
         children: [
           IconButton(
             icon: const Icon(Icons.home, color: Colors.grey, size: 30),
-            onPressed: () {/* Home action */},
+            onPressed: () { /* Home action */ },
           ),
           IconButton(
             icon: Icon(Icons.person, color: Colors.blue[700], size: 30),
-            onPressed: () {/* Person action */},
+            onPressed: () { /* Person action */ },
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.grey, size: 30),
-            onPressed: () {/* Settings action */},
+            onPressed: () { /* Settings action */ },
           ),
         ],
       ),
@@ -392,27 +213,55 @@ class _ManageUsersPageState extends State<ManageUsersPage> {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserCard (General Approval List Item) ---
+// --- UserCard (Updated with Firestore Actions) ---
 // -----------------------------------------------------------------------------
 class UserCard extends StatelessWidget {
+  final String userId; // <-- Added to know which document to update
   final String userName;
   final String userRole;
   final bool isApproved;
 
   const UserCard({
     super.key,
+    required this.userId, // <-- Added
     required this.userName,
     required this.userRole,
     required this.isApproved,
   });
 
-  // Common navigation function for buttons
-  void _navigateToBlankPage(BuildContext context, String action) {
+  // --- Action Helper Functions ---
+
+  // 1. Update User Status (Approve or Reject)
+  Future<void> _updateUserStatus(BuildContext context, String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users') // <-- !! COLLECTION NAME !!
+          .doc(userId)
+          .update({'status': newStatus});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('User $userName ${newStatus.toLowerCase()}.'),
+          backgroundColor: newStatus == 'Approved' ? Colors.green : Colors.red,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update user: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // 2. View User Details (Keeps old logic)
+  void _viewUserDetails(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => BlankActionPage(
-          action: action,
+          action: 'View Details',
           target: userName,
         ),
       ),
@@ -433,8 +282,7 @@ class UserCard extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  const Icon(Icons.account_circle,
-                      size: 40, color: Colors.blueGrey),
+                  const Icon(Icons.account_circle, size: 40, color: Colors.blueGrey),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -442,14 +290,12 @@ class UserCard extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           userName,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           userRole,
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.black54),
+                          style: const TextStyle(fontSize: 14, color: Colors.black54),
                         ),
                       ],
                     ),
@@ -462,26 +308,27 @@ class UserCard extends StatelessWidget {
                 ],
               ),
               const Divider(height: 20),
+              // --- Updated Action Buttons ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _ActionButton(
                     text: 'View',
                     color: Colors.blue,
-                    onPressed: () =>
-                        _navigateToBlankPage(context, 'View Details'),
+                    onPressed: () => _viewUserDetails(context),
                   ),
+                  // 'Reject' button (Replaced 'Edit')
                   _ActionButton(
-                    text: 'Edit',
-                    color: Colors.deepOrange,
-                    onPressed: () => _navigateToBlankPage(context, 'Edit User'),
+                    text: 'Reject',
+                    color: Colors.red.shade700,
+                    onPressed: () => _updateUserStatus(context, 'Rejected'),
                   ),
+                  // 'Approve' button (Now functional)
                   if (!isApproved)
                     _ActionButton(
                       text: 'Approve',
                       color: Colors.green,
-                      onPressed: () =>
-                          _navigateToBlankPage(context, 'Approve User'),
+                      onPressed: () => _updateUserStatus(context, 'Approved'),
                     ),
                 ],
               ),
@@ -516,10 +363,8 @@ class _ActionButton extends StatelessWidget {
             backgroundColor: color,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 8),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            textStyle:
-                const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             elevation: 1,
           ),
           child: Text(text),
@@ -530,14 +375,13 @@ class _ActionButton extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- Blank Action Page (for button clicks on UserCard) ---
+// --- Blank Action Page (No changes needed) ---
 // -----------------------------------------------------------------------------
 class BlankActionPage extends StatelessWidget {
   final String action;
   final String target;
 
-  const BlankActionPage(
-      {super.key, required this.action, required this.target});
+  const BlankActionPage({super.key, required this.action, required this.target});
 
   @override
   Widget build(BuildContext context) {

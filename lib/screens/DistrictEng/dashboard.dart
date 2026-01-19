@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 
-// Import the two files we just created
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
+import 'profile.dart'; 
+import 'settings.dart'; 
+import 'notifications.dart'; 
 
-// Main dashboard screen for District Engineer
 class DistrictEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
 
@@ -17,54 +19,37 @@ class DistrictEngDashboard extends StatefulWidget {
 class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   int _selectedIndex = 0;
   
-  // State variables for fetched data
   int _totalSchools = 0;
-  int _activeTOs = 0;
-  int _pendingRequests = 0;
-  bool _isLoading = true; // Loading state
+  int _totalTOs = 0;
+  int _totalPrincipals = 0;
+  bool _isLoading = true; 
 
-  // --- 1. VARIABLE TO HOLD THE NIC ---
   late final String userNic;
-
-  // Create an instance of the service
   final DashboardService _service = DashboardService();
 
   @override
   void initState() {
     super.initState();
-    
-    // --- 2. GET THE NIC FROM THE 'userData' MAP ---
     userNic = widget.userData['nic'] ?? 'No NIC Found';
-
-    print('--- District Engineer Dashboard ---');
-    print('Logged in User NIC: $userNic');
-    print('Full User Data: ${widget.userData}');
-    
-    _fetchData(); // Start fetching data
+    _fetchData(); 
   }
 
-  // New method to call the service and handle state
   Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
     try {
       final counts = await _service.fetchOverviewCounts();
       
       if (mounted) {
         setState(() {
           _totalSchools = counts.totalSchools;
-          _activeTOs = counts.activeTOs;
-          _pendingRequests = counts.pendingRequests;
+          _totalTOs = counts.totalTOs; 
+          _totalPrincipals = counts.totalPrincipals; 
           _isLoading = false;
         });
       }
     } catch (e) {
-      // Handle errors
       if(mounted) {
-        setState(() {
-          _isLoading = false;
-          _totalSchools = 0;
-          _activeTOs = 0;
-          _pendingRequests = 0;
-        });
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load dashboard data: ${e.toString()}'),
@@ -76,72 +61,107 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    // TODO: Handle navigation for other tabs (Profile, Settings)
+    if (index == 0) {
+      setState(() => _selectedIndex = index);
+      _fetchData(); 
+    } else if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+      );
+    } else {
+      setState(() => _selectedIndex = index);
+    }
   }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F2F5), // A light grey background
+      backgroundColor: const Color(0xFFF0F2F5), 
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                
-                // 1. The Header
-                DashboardHeader(userData: widget.userData),
-                const SizedBox(height: 24),
+        child: RefreshIndicator(
+          onRefresh: _fetchData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    children: [
+                      DashboardHeader(userData: widget.userData),
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('notifications')
+                              .where('isRead', isEqualTo: false)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            int unreadCount = 0;
+                            if (snapshot.hasData) {
+                              unreadCount = snapshot.data!.docs.length;
+                            }
 
-                // 2. The Overview
-                DashboardOverview(
-                  isLoading: _isLoading,
-                  totalSchools: _totalSchools,
-                  activeTOs: _activeTOs,
-                  pendingRequests: _pendingRequests,
-                  userNic: userNic, // Passing the required userNic
-                ),
-                const SizedBox(height: 24),
+                            return Badge(
+                              label: Text(unreadCount.toString()),
+                              isLabelVisible: unreadCount > 0, 
+                              backgroundColor: Colors.red,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.notifications_active_outlined, 
+                                  color: Colors.black87, 
+                                  size: 26,
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const NotificationPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
 
-                // 3. Recent Issues Section
-                const RecentIssuesSection(),
-                const SizedBox(height: 24), 
-
-                // 4. Recent Schools Section (FIXED: Uses 'addDate' for correct sorting)
-                const RecentSchoolsSection(),
-                const SizedBox(height: 24), 
-
-                // 5. Recent Users Section
-                const RecentUsersSection(),
-                const SizedBox(height: 24), 
-
-                // 6. Approval Request
-                const SectionTitle('Approval Request'),
-                const ApprovalRequestSection(),
-              ],
+                  const SizedBox(height: 24),
+                  DashboardOverview(
+                    isLoading: _isLoading,
+                    totalSchools: _totalSchools,
+                    totalTOs: _totalTOs,
+                    totalPrincipals: _totalPrincipals,
+                    userNic: userNic, 
+                  ),
+                  const SizedBox(height: 24),
+                  const RecentIssuesSection(),
+                  const SizedBox(height: 24), 
+                  const RecentSchoolsSection(),
+                  const SizedBox(height: 24), 
+                  const RecentUsersSection(),
+                  const SizedBox(height: 24), 
+                ],
+              ),
             ),
           ),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blueAccent,
@@ -151,4 +171,3 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     );
   }
 }
-

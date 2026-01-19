@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:intl/intl.dart'; // Added for Date Formatting
 
 class AddMasterPlanScreen extends StatefulWidget {
   final String schoolName;
@@ -148,17 +149,29 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       }
       // If we are editing AND no new file was picked, finalImageUrl remains _currentImageUrl
 
+      // --- GET CURRENT DATE AND TIME ---
+      DateTime now = DateTime.now();
+      // Format: YYYY-MM-DD
+      String dateString = "${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}";
+      // Format: HH:MM
+      String timeString = "${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}";
+
       // --- STEP B: Save/Update URL to Firestore ---
       Map<String, dynamic> firestoreData = {
-        'schoolName': widget.schoolName,
+        'schoolName': widget.schoolName,    // What School
         'description': _descriptionController.text,
         'masterPlanUrl': finalImageUrl,
-        'addedByNic': widget.userNic,
+        'addedByNic': widget.userNic,       // Who Uploaded (NIC)
       };
 
       if (widget.masterPlanId == null) {
         // CREATE NEW RECORD
         firestoreData['createdAt'] = Timestamp.now();
+        
+        // --- NEW: Save specific Date and Time strings ---
+        firestoreData['uploadDate'] = dateString; // Upload Date
+        firestoreData['uploadTime'] = timeString; // Upload Time
+        
         await FirebaseFirestore.instance
             .collection('schoolMasterPlans')
             .add(firestoreData);
@@ -166,6 +179,10 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       } else {
         // UPDATE EXISTING RECORD
         firestoreData['updatedAt'] = Timestamp.now();
+        // Optional: Update edit timestamps
+        firestoreData['lastEditDate'] = dateString;
+        firestoreData['lastEditTime'] = timeString;
+
         await FirebaseFirestore.instance
             .collection('schoolMasterPlans')
             .doc(widget.masterPlanId)
@@ -207,6 +224,11 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
           .delete();
 
       _showSuccessSnackBar("Master plan deleted successfully!");
+      
+      // Navigate back after deletion
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
 
     } catch (e) {
       _showErrorSnackBar("Error deleting plan: $e");
@@ -253,9 +275,80 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       },
     );
   }
-  // --- END DELETE FUNCTIONALITY ---
 
-  // --- Helper snackbar methods (assuming they are correct) ---
+  // --- SHOW REVIEWS DIALOG (NEW FEATURE) ---
+  void _showReviewsDialog(String masterPlanId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Review History"),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300, 
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('schoolMasterPlans')
+                  .doc(masterPlanId)
+                  .collection('reviews')
+                  .orderBy('reviewedAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text("No reviews added yet.", style: TextStyle(color: Colors.grey)),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    var doc = snapshot.data!.docs[index];
+                    var data = doc.data() as Map<String, dynamic>;
+                    
+                    String note = data['note'] ?? 'No Note';
+                    String reviewer = data['reviewerName'] ?? 'Unknown';
+                    Timestamp? ts = data['reviewedAt'];
+                    String dateStr = ts != null 
+                      ? DateFormat('yyyy-MM-dd hh:mm a').format(ts.toDate()) 
+                      : 'Unknown Date';
+
+                    return Card(
+                      color: Colors.grey[50],
+                      margin: const EdgeInsets.symmetric(vertical: 5),
+                      child: ListTile(
+                        leading: const Icon(Icons.comment, color: Colors.blueAccent),
+                        title: Text(note, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text("By: $reviewer"),
+                            Text(dateStr, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- Helper snackbar methods ---
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -357,37 +450,46 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                       ],
                     ),
                     const Divider(height: 20),
+                    
+                    // --- ACTION BUTTONS ---
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Changed for better spacing
                       children: [
-                        // EDIT Button
+                        // 1. VIEW REVIEWS BUTTON (NEW)
                         TextButton.icon(
-                          icon: const Icon(Icons.edit, size: 20),
-                          label: const Text("Edit"),
-                          onPressed: () async {
-                            // Navigate to the same screen for editing
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddMasterPlanScreen(
-                                  schoolName: schoolName,
-                                  userNic: widget.userNic,
-                                  masterPlanId: masterPlanId, // PASS THE ID HERE
-                                ),
-                              ),
-                            );
+                          icon: const Icon(Icons.visibility, size: 20, color: Colors.orange),
+                          label: const Text("Reviews", style: TextStyle(color: Colors.orange)),
+                          onPressed: () {
+                            _showReviewsDialog(masterPlanId);
                           },
                         ),
-                        const SizedBox(width: 8),
 
-                        // DELETE Button
-                        TextButton.icon(
-                          icon: const Icon(Icons.delete,
-                              size: 20, color: Colors.red),
-                          label: const Text("Delete",
-                              style: TextStyle(color: Colors.red)),
-                          onPressed: () => _showDeleteConfirmationDialog(masterPlanId),
-                        ),
+                        // Right side: Edit and Delete
+                        Row(
+                          children: [
+                            // EDIT Button
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AddMasterPlanScreen(
+                                      schoolName: schoolName,
+                                      userNic: widget.userNic,
+                                      masterPlanId: masterPlanId,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            // DELETE Button
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                              onPressed: () => _showDeleteConfirmationDialog(masterPlanId),
+                            ),
+                          ],
+                        )
                       ],
                     )
                   ],
@@ -399,7 +501,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
       },
     );
   }
-
 
   // 3. Build the UI
   @override
@@ -418,8 +519,8 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.blue),
-          onPressed: () => Navigator.pop(context, true), // Pop and signal refresh
+          icon: const Icon(Icons.arrow_back, color: Colors.blue),
+          onPressed: () => Navigator.pop(context, true),
         ),
         actions: [
           // Save/Update Button
@@ -431,14 +532,23 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2)),
                 )
-              : TextButton(
-                  onPressed: _uploadAndSave,
-                  child: Text(
-                    buttonText,
-                    style: const TextStyle(
-                      color: Colors.blue,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              : Padding(
+                  padding: const EdgeInsets.only(right: 12.0, top: 8.0, bottom: 8.0),
+                  child: OutlinedButton(
+                    onPressed: _uploadAndSave,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue, width: 2), // Blue outline
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -450,9 +560,9 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Record Submission Form ---
-            Text(
+            const Text(
               "Master Plan Details",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
             Form(

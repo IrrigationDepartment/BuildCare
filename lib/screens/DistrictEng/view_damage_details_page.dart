@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'damage_details_dialog.dart'; // Corrected import to match the actual class name
+import 'damage_details_dialog.dart';
+import 'add_issue_screen.dart'; 
 
 class ViewDamageDetailsPage extends StatefulWidget {
-  final String userNic; // User's NIC from login
+  final String userNic;
   const ViewDamageDetailsPage({super.key, required this.userNic});
 
   @override
@@ -11,7 +12,6 @@ class ViewDamageDetailsPage extends StatefulWidget {
 }
 
 class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
-  // --- Style Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
   static const Color kCardColor = Colors.white;
@@ -23,17 +23,16 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title:
-            const Text('Damage Reports', style: TextStyle(color: kTextColor)),
+        title: const Text('Damage Reports', style: TextStyle(color: kTextColor)),
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
       ),
-      // --- Floating Action Button removed based on request ---
-      
       body: StreamBuilder<QuerySnapshot>(
-        // Assumes your collection is named 'issues' (or 'damageReports')
-        stream: FirebaseFirestore.instance.collection('issues').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('issues')
+            .orderBy('timestamp', descending: true) 
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -58,35 +57,24 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
     );
   }
 
-  // --- Helper to get color for the status chip ---
   Color _getStatusColor(String? status) {
     switch (status) {
-      case 'In Progress':
-        return Colors.blue.shade100;
-      case 'Pending':
-        return Colors.amber.shade100;
-      case 'Resolved':
-        return Colors.green.shade100;
-      default:
-        return Colors.grey.shade200;
+      case 'In Progress': return Colors.blue.shade100;
+      case 'Pending': return Colors.amber.shade100;
+      case 'Resolved': return Colors.green.shade100;
+      default: return Colors.grey.shade200;
     }
   }
 
-  // --- Helper to get text color for the status chip ---
   Color _getStatusTextColor(String? status) {
     switch (status) {
-      case 'In Progress':
-        return Colors.blue.shade800;
-      case 'Pending':
-        return Colors.amber.shade800;
-      case 'Resolved':
-        return Colors.green.shade800;
-      default:
-        return Colors.grey.shade800;
+      case 'In Progress': return Colors.blue.shade800;
+      case 'Pending': return Colors.amber.shade800;
+      case 'Resolved': return Colors.green.shade800;
+      default: return Colors.grey.shade800;
     }
   }
 
-  // --- Builds the individual issue card ---
   Widget _buildIssueCard(DocumentSnapshot issueDoc) {
     final data = issueDoc.data() as Map<String, dynamic>;
     final String issueId = issueDoc.id;
@@ -110,36 +98,22 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: kTextColor,
-                    ),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: kTextColor),
                   ),
                 ),
-                // --- Status Chip ---
                 Chip(
                   label: Text(
                     status,
-                    style: TextStyle(
-                      color: _getStatusTextColor(status),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: _getStatusTextColor(status), fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                   backgroundColor: _getStatusColor(status),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              school,
-              style: const TextStyle(color: kSubTextColor, fontSize: 14),
-            ),
+            Text(school, style: const TextStyle(color: kSubTextColor, fontSize: 14)),
             const SizedBox(height: 16),
-            // --- View and Edit Buttons ---
             Row(
               children: [
                 ElevatedButton.icon(
@@ -147,8 +121,7 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            DamageDetailsDialog(issueId: issueId), // Correct class name
+                        builder: (context) => DamageDetailsDialog(issueId: issueId),
                       ),
                     );
                   },
@@ -157,20 +130,19 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryBlue,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Navigate to an "EditIssueScreen"
-                    // For now, it can also go to the details screen
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            DamageDetailsDialog(issueId: issueId), // Correct class name
+                        builder: (context) => AddIssueScreen(
+                          userNic: widget.userNic,
+                          issueId: issueId, 
+                        ),
                       ),
                     );
                   },
@@ -179,8 +151,7 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber.shade700,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ],

@@ -1,18 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase
+import '../forgot_password_flow.dart'; // Import your ForgotPasswordFlow
+import 'profile.dart'; // Import ProfilePage
+import 'dashboard.dart'; // Import Dashboard
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  final Map<String, dynamic>? userData;
+  final String userId;
 
-  // Primary color matching the app theme (used for icons, save button outline)
+  const SettingsPage({
+    super.key,
+    this.userData,
+    this.userId = '',
+  });
+
   static const Color _primaryColor = Color(0xFF53BDFF);
-  // Red color for the Log out button
-  static const Color _redColor = Color(0xFFF44336); 
-  // Background color for the list items
+  static const Color _redColor = Color(0xFFF44336);
   static const Color _cardColor = Colors.white;
-  // Background color for the page body (Light grey)
-  static const Color _backgroundColor = Color(0xFFF5F5F5); 
+  static const Color _backgroundColor = Color(0xFFF5F5F5);
 
-  // --- Helper function to show a confirmation dialog or action status ---
+  // --- Updated: Handle Logout with Firebase ---
+  Future<void> _handleLogout(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      if (context.mounted) {
+        // Navigate to login and clear the navigation stack
+        // Replace '/' with your actual login route name
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      }
+    } catch (e) {
+      _showMessage(context, 'Error', 'Failed to log out: $e');
+    }
+  }
+
+  // --- Updated: Navigate to Change Password ---
+  void _navigateToChangePassword(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordFlow()),
+    );
+  }
+
   void _showMessage(BuildContext context, String title, String message) {
     if (!context.mounted) return;
     showDialog(
@@ -22,30 +50,23 @@ class SettingsPage extends StatelessWidget {
         content: Text(message),
         actions: <Widget>[
           TextButton(
-            child: const Text('Okay'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            }
-          )
+              child: const Text('Okay'),
+              onPressed: () => Navigator.of(ctx).pop())
         ],
       ),
     );
   }
 
-  // --- Reusable Setting List Tile Widget (Card Style) ---
-  Widget _buildSettingItem(
-      BuildContext context, String title, VoidCallback onTap,
+  Widget _buildSettingItem(BuildContext context, String title, VoidCallback onTap,
       {Color textColor = Colors.black87,
       Color iconColor = Colors.grey,
       bool showChevron = true}) {
     return Container(
-      // Padding around items in the list to separate them visually
-      margin: const EdgeInsets.only(bottom: 10), 
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: _cardColor,
-        borderRadius: BorderRadius.circular(10), 
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
-          // Subtle shadow to lift the card
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
@@ -71,7 +92,6 @@ class SettingsPage extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                       color: textColor),
                 ),
-                // Chevron icon on the right
                 if (showChevron)
                   Icon(Icons.chevron_right, color: iconColor, size: 20),
               ],
@@ -82,7 +102,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  // --- Section Title Widget (Account, Support) ---
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 25, 0, 10),
@@ -97,7 +116,7 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  // --- Log out Button Widget ---
+  // --- Updated Logout Button UI ---
   Widget _buildLogoutButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
@@ -105,10 +124,7 @@ class SettingsPage extends StatelessWidget {
         width: double.infinity,
         height: 55,
         child: ElevatedButton(
-          onPressed: () {
-            // Implement your logout logic here (e.g., clear session, navigate to login)
-            _showMessage(context, 'Log Out', 'Logging out...');
-          },
+          onPressed: () => _handleLogout(context), // Trigger Firebase Sign Out
           style: ElevatedButton.styleFrom(
             backgroundColor: _redColor,
             shape: RoundedRectangleBorder(
@@ -131,7 +147,6 @@ class SettingsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        // Back Button (Standard arrow icon, black color)
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
@@ -143,32 +158,47 @@ class SettingsPage extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // --- Save Button (Outline Button with Blue Border) ---
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: OutlinedButton(
-              onPressed: () {
-                // Action for saving settings
-                _showMessage(context, 'Save', 'Settings saved successfully.');
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _primaryColor, // Text color
-                side: const BorderSide(color: _primaryColor, width: 2), // Outline color and width
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8), // Rounded corners
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                minimumSize: const Size(60, 35), // Define minimum size
+          // Profile Icon
+          if (userData != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: IconButton(
+                icon: const Icon(Icons.account_circle, color: Colors.black, size: 32),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfilePage(
+                        userData: userData!,
+                        userId: userId,
+                      ),
+                    ),
+                  );
+                },
               ),
-              child: const Text(
-                'Save',
-                style: TextStyle(
-                    fontSize: 15, 
-                    fontWeight: FontWeight.bold),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: OutlinedButton(
+                onPressed: () {
+                  _showMessage(context, 'Save', 'Settings saved successfully.');
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primaryColor,
+                  side: const BorderSide(color: _primaryColor, width: 2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  minimumSize: const Size(60, 35),
+                ),
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
-          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -176,81 +206,79 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Account Section ---
             _buildSectionTitle('Account'),
+            // --- Linked to ForgotPasswordFlow ---
             _buildSettingItem(
               context,
               'Change Password',
-              () {
-                _showMessage(context, 'Action', 'Change Password screen coming soon.');
-              },
+              () => _navigateToChangePassword(context),
             ),
 
-            // --- Support Section ---
             _buildSectionTitle('Support'),
             _buildSettingItem(
               context,
               'Developer Team',
-              () {
-                _showMessage(context, 'Action', 'Navigating to Developer Team info.');
-              },
+              () => _showMessage(context, 'Action', 'Navigating to Team info.'),
             ),
             _buildSettingItem(
               context,
               'Report a Problem',
-              () {
-                _showMessage(context, 'Action', 'Opening Report a Problem form.');
-              },
+              () => _showMessage(context, 'Action', 'Opening Report Form.'),
             ),
             _buildSettingItem(
               context,
               'Privacy Policy',
-              () {
-                _showMessage(context, 'Action', 'Viewing Privacy Policy.');
-              },
+              () => _showMessage(context, 'Action', 'Viewing Privacy Policy.'),
             ),
 
-            // --- Log out Button ---
             _buildLogoutButton(context),
-            
-            const SizedBox(height: 20), // Extra space above bottom bar
+            const SizedBox(height: 20),
           ],
         ),
       ),
-      // --- UPDATED Bottom Navigation Bar ---
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2, 
+        currentIndex: 2,
         selectedItemColor: _primaryColor,
         unselectedItemColor: Colors.grey,
         showSelectedLabels: false,
         showUnselectedLabels: false,
-        type: BottomNavigationBarType.fixed, 
-        // CHANGED: Set background color to White and added elevation for distinction
-        backgroundColor: Colors.white, 
-        elevation: 5, 
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        elevation: 5,
         items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined, size: 30),
-              activeIcon: Icon(Icons.home, size: 30),
-              label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline, size: 30),
-              activeIcon: Icon(Icons.person, size: 30),
-              label: 'Profile'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined, size: 30),
-              activeIcon: Icon(Icons.settings, size: 30),
-              label: 'Settings'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined, size: 30), activeIcon: Icon(Icons.home, size: 30), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline, size: 30), activeIcon: Icon(Icons.person, size: 30), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined, size: 30), activeIcon: Icon(Icons.settings, size: 30), label: 'Settings'),
         ],
         onTap: (index) {
           if (index == 0) {
-            // Navigate back to the Dashboard/Home page
-            Navigator.of(context).popUntil((route) => route.isFirst);
+            // Navigate to Dashboard
+            if (userData != null) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PrincipalDashboard(userData: userData),
+                ),
+                (route) => false,
+              );
+            }
           } else if (index == 1) {
-            // Placeholder for navigating to Profile page
-             _showMessage(context, 'Navigation', 'Navigating to Profile Page.');
+            // Navigate to Profile
+            if (userData != null && userId.isNotEmpty) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfilePage(
+                    userData: userData!,
+                    userId: userId,
+                  ),
+                ),
+              );
+            } else {
+              _showMessage(context, 'Error', 'User data not available.');
+            }
           }
-          // index 2 is Settings, do nothing since we are on this page
+          // Index 2 is Settings (current page)
         },
       ),
     );

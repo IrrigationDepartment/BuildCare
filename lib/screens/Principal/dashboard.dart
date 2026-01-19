@@ -1,81 +1,87 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Required for Sound
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
-// This import is correct, it imports the file containing 'AddMasterPlanScreen'
 import 'add_school_master_plan_page.dart';
 import 'profile.dart';
 import 'settings_page.dart';
-
-// 🚀 NEW IMPORTS
-// Add these two lines to import Firestore and date formatting tools
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'IssueDetailScreen.dart';
+import 'notification_page.dart';
 
-class PrincipalDashboard extends StatelessWidget {
+class PrincipalDashboard extends StatefulWidget {
   final Map<String, dynamic>? userData;
 
   const PrincipalDashboard({super.key, required this.userData});
 
-  static const Color _primaryColor = Color(0xFF53BDFF);
+  @override
+  State<PrincipalDashboard> createState() => _PrincipalDashboardState();
+}
 
-  // --- Helper function for navigation to keep the onTap clean ---
+class _PrincipalDashboardState extends State<PrincipalDashboard> {
+  static const Color _primaryColor = Color(0xFF53BDFF);
+  
+  // To track notification count for sound alert
+  int _previousUnreadCount = -1; 
+
   void _onItemTapped(BuildContext context, int index) {
     if (index == 0) {
-      // Home - Do nothing, already on Dashboard
+      // Home
     } else if (index == 1) {
-      // Profile - Navigate to ProfilePage
-      if (userData != null) {
-        final String principalId = userData!['uid'] ?? 'principal_doc_id_123';
+      // Profile
+      if (widget.userData != null) {
+        final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ProfilePage(
-              userData: userData!,
+              userData: widget.userData!,
               userId: principalId,
             ),
           ),
         );
       }
     } else if (index == 2) {
-      // Settings - Navigate to the Settings Page
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SettingsPage(),
-        ),
-      );
+      // Settings
+      if (widget.userData != null) {
+        final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SettingsPage(
+              userData: widget.userData!,
+              userId: principalId,
+            ),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SettingsPage(),
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // --- Handle null userData safely ---
-    if (userData == null ||
-        userData!['name'] == null ||
-        userData!['schoolName'] == null ||
-        userData!['nic'] == null) {
+    if (widget.userData == null ||
+        widget.userData!['name'] == null ||
+        widget.userData!['schoolName'] == null ||
+        widget.userData!['nic'] == null) {
       return Scaffold(
         appBar: AppBar(title: const Text("Error")),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, color: Colors.red, size: 60),
-              SizedBox(height: 16),
-              Text(
-                'Could not load user data. Please ensure "name", "nic", and "schoolName" are available.',
-                style: TextStyle(fontSize: 18),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+        body: const Center(child: Text("Error loading data")),
       );
     }
 
-    // ⭐ EXTRACTED NIC: This line correctly extracts the NIC.
-    final String userNic = userData!['nic'];
-    final String principalName = userData!['name'];
+    final String userNic = widget.userData!['nic'];
+    final String principalName = widget.userData!['name'];
+    final String schoolName = widget.userData!['schoolName'];
+    final String? profileImageUrl = widget.userData!['profile_image'];
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -86,10 +92,12 @@ class PrincipalDashboard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              _buildWelcomeHeader(principalName),
+              
+              // Pass context and userNic to the header
+              _buildWelcomeHeader(context, principalName, schoolName, profileImageUrl, userNic),
+              
               const SizedBox(height: 30),
 
-              // Button 1: Add School Details
               _buildActionButton(
                 icon: Icons.add,
                 text: 'Add Your School Details',
@@ -107,7 +115,6 @@ class PrincipalDashboard extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              // Button 2: Navigate to Add Building Issues Page
               _buildActionButton(
                 icon: Icons.build_outlined,
                 text: 'Add Building Issues',
@@ -116,7 +123,6 @@ class PrincipalDashboard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => AddBuildingIssuesPage(
-                        // ⭐ NIC IS ALREADY BEING PASSED HERE
                         userNic: userNic,
                       ),
                     ),
@@ -126,13 +132,11 @@ class PrincipalDashboard extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              // Button 3: Manage Master Plans with Navigation
               _buildActionButton(
                 icon: Icons.map_outlined,
                 text: 'Manage Master Plans',
                 onTap: () {
-                  final String schoolName = userData!['schoolName'];
-
+                  final String schoolName = widget.userData!['schoolName'];
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -146,14 +150,12 @@ class PrincipalDashboard extends StatelessWidget {
               ),
 
               const SizedBox(height: 30),
-              // 🚀 MODIFIED: Pass the userNic to the function
               _buildReportedIssuesSection(userNic),
             ],
           ),
         ),
       ),
 
-      // Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
         selectedItemColor: _primaryColor,
@@ -174,9 +176,15 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  // --- WIDGET HELPER FUNCTIONS (kept as provided) ---
+  Widget _buildWelcomeHeader(BuildContext context, String fullName, String schoolName, String? imageUrl, String userNic) {
+    String firstName = fullName;
+    if (fullName.contains(' ')) {
+      firstName = fullName.split(' ')[0];
+    }
+    if (firstName.isNotEmpty) {
+      firstName = firstName[0].toUpperCase() + firstName.substring(1);
+    }
 
-  Widget _buildWelcomeHeader(String name) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -192,35 +200,122 @@ class PrincipalDashboard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 35,
-            backgroundColor: _primaryColor,
-            child: Icon(Icons.person, size: 40, color: Colors.white),
+          // Profile Image
+          Container(
+            width: 60, 
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _primaryColor,
+              image: (imageUrl != null && imageUrl.isNotEmpty)
+                  ? DecorationImage(
+                      image: NetworkImage(imageUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: (imageUrl == null || imageUrl.isEmpty)
+                ? const Icon(Icons.person, size: 35, color: Colors.white)
+                : null,
           ),
           const SizedBox(width: 15),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Welcome Back!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+          
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome Back, $firstName!',
+                  style: const TextStyle(
+                    fontSize: 18, 
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                name,
-                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-              ),
-            ],
+                const SizedBox(height: 4),
+                const Text(
+                  'Principal',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: _primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // --- NOTIFICATION ICON WITH BADGE AND SOUND ---
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('notifications')
+                .where('receiverNic', isEqualTo: userNic)
+                .where('isRead', isEqualTo: false) 
+                .snapshots(),
+            builder: (context, snapshot) {
+              int unreadCount = 0;
+              
+              if (snapshot.hasData) {
+                unreadCount = snapshot.data!.docs.length;
+                
+                // SOUND LOGIC: If count increased, play sound
+                if (_previousUnreadCount != -1 && unreadCount > _previousUnreadCount) {
+                   // Play system sound (Click/Alert)
+                   SystemSound.play(SystemSoundType.click); 
+                }
+                // Update tracker
+                _previousUnreadCount = unreadCount;
+              }
+
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, size: 30, color: Colors.black54),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NotificationScreen()),
+                      );
+                    },
+                  ),
+                  // Red Badge
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
     );
   }
 
+  // ... (Keep your other helper widgets: _buildActionButton, _buildIssueCard, etc. exactly as they were) ...
+  
   Widget _buildActionButton({
     required IconData icon,
     required String text,
@@ -269,104 +364,15 @@ class PrincipalDashboard extends StatelessWidget {
     );
   }
 
-  //
-  // 🚀 MODIFIED: This entire function is replaced with a StreamBuilder
-  //
-  Widget _buildReportedIssuesSection(String userNic) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 8.0),
-          child: Text(
-            'My Reported Issues',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        const SizedBox(height: 15),
-        
-        // Use StreamBuilder to listen for data from Firestore
-        StreamBuilder<QuerySnapshot>(
-          // Create the query:
-          // 1. Go to the 'issues' collection
-          // 2. Filter where 'addedByNic' is equal to the logged-in user's NIC
-          stream: FirebaseFirestore.instance
-              .collection('issues')
-              .where('addedByNic', isEqualTo: userNic)
-              .snapshots(),
-              
-          builder: (context, snapshot) {
-            // Show a loading circle while waiting
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            // Show an error message if something went wrong
-            if (snapshot.hasError) {
-              return Center(
-                  child: Text("Error loading issues: ${snapshot.error}"));
-            }
-
-            // Show a message if the user has no reported issues
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: Text("You have not reported any issues yet."),
-                ),
-              );
-            }
-
-            // If we have data, get the list of documents
-            final issues = snapshot.data!.docs;
-
-            // Build a list of cards
-            return ListView.builder(
-              shrinkWrap: true, // Needed inside a SingleChildScrollView
-              physics: const NeverScrollableScrollPhysics(), // Stops scrolling conflicts
-              itemCount: issues.length,
-              itemBuilder: (context, index) {
-                // Get the data for the current issue
-                final issueDoc = issues[index];
-                final data = issueDoc.data() as Map<String, dynamic>;
-
-                // Extract fields from the document (based on your screenshot)
-                final String title = data['issueTitle'] ?? 'No Title';
-                final String building = data['buildingName'] ?? 'N/A';
-                final String status = data['status'] ?? 'N/A';
-                
-                // Safely get and format the date
-                String formattedDate = 'Date N/A';
-                if (data['dateOfOccurance'] != null) {
-                  final Timestamp timestamp = data['dateOfOccurance'];
-                  // Format date as YYYY-MM-DD
-                  formattedDate = DateFormat('yyyy-MM-dd').format(timestamp.toDate());
-                }
-
-                // Call the existing card widget with the live data
-                return _buildIssueCard(
-                  title: title,
-                  status: '$building • $status', // Combine building and status
-                  date: formattedDate,
-                );
-              },
-            );
-          },
-        ),
-      ],
-    );
-  }
-
   Widget _buildIssueCard({
+    required BuildContext context,
+    required String issueId,
+    required Map<String, dynamic> issueData,
+    required String userNic,
     required String title,
     required String status,
     required String date,
   }) {
-    // This widget is unchanged, as it's perfect for displaying the data
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 15),
@@ -400,13 +406,22 @@ class PrincipalDashboard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            OutlinedButton(
+            ElevatedButton(
               onPressed: () {
-                // TODO: Add navigation to a details page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => IssueDetailScreen(
+                      issueData: issueData,
+                      issueId: issueId,
+                      userNic: userNic,
+                    ),
+                  ),
+                );
               },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: _primaryColor),
-                foregroundColor: _primaryColor,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -417,6 +432,86 @@ class PrincipalDashboard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildReportedIssuesSection(String userNic) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 8.0),
+          child: Text(
+            'My Reported Issues',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('issues')
+              .where('addedByNic', isEqualTo: userNic)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                  child: Text("Error loading issues: ${snapshot.error}"));
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Text("You have not reported any issues yet."),
+                ),
+              );
+            }
+
+            final issues = snapshot.data!.docs;
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: issues.length,
+              itemBuilder: (context, index) {
+                final issueDoc = issues[index];
+                final data = issueDoc.data() as Map<String, dynamic>;
+                final String issueId = issueDoc.id;
+                final Map<String, dynamic> issueData = data;
+
+                final String title = data['issueTitle'] ?? 'No Title';
+                final String building = data['buildingName'] ?? 'N/A';
+                final String status = data['status'] ?? 'N/A';
+
+                String formattedDate = 'Date N/A';
+                if (data['dateOfOccurance'] != null) {
+                  final Timestamp timestamp = data['dateOfOccurance'];
+                  formattedDate =
+                      DateFormat('yyyy-MM-dd').format(timestamp.toDate());
+                }
+
+                return _buildIssueCard(
+                  title: title,
+                  status: '$building • $status',
+                  date: formattedDate,
+                  context: context,
+                  issueId: issueId,
+                  issueData: issueData,
+                  userNic: userNic,
+                );
+              },
+            );
+          },
+        ),
+      ],
     );
   }
 }
