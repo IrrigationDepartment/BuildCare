@@ -8,7 +8,7 @@ import 'view_issues.dart';
 import 'contractors_list.dart'; 
 import 'contract_list.dart';
 import 'school_analysis.dart';
-import 'school_details_page.dart'; // අලුතින් එක් කරන ලද import එක
+import 'school_details_page.dart';
 
 // --- REGISTRATION PAGE IMPORTS ---
 import 'add_ce.dart';
@@ -57,7 +57,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   late final Stream<List<ActivityItem>> _activityStream;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  // --- Notification Badge Stream ---
   late Stream<int> _unreadNotificationsStream;
 
   @override
@@ -144,13 +143,9 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   @override
   Widget build(BuildContext context) {
     const Color pageBackgroundColor = Color(0xFFF4F6F8);
-    
-    // Get screen dimensions
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
     final isVerySmallMobile = screenWidth < 340; 
     final isSmallMobile = screenWidth < 380; 
-    final isMediumMobile = screenWidth < 600;
 
     return Scaffold(
       backgroundColor: pageBackgroundColor,
@@ -218,163 +213,158 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     );
   }
 
-
   Widget _buildProjectManagementRow({
-  required bool isVerySmallMobile,
-  required bool isSmallMobile,
-}) {
-  return Padding(
-    padding: EdgeInsets.symmetric(
-      horizontal: isVerySmallMobile ? 6.0 : 
-                 isSmallMobile ? 8.0 : 12.0,
-    ),
-    child: Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: CompactProjectCard(
-                title: 'Contractors',
-                collectionName: 'contractor_details', 
-                icon: Icons.engineering,
-                color: Colors.teal.shade700,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ContractorsListPage(),
-                    ),
-                  );
-                },
-                onAdd: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddContractorScreen(),
-                    ),
-                  );
-                },
-                isVerySmallMobile: isVerySmallMobile,
-                isSmallMobile: isSmallMobile,
+    required bool isVerySmallMobile,
+    required bool isSmallMobile,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isVerySmallMobile ? 6.0 : (isSmallMobile ? 8.0 : 12.0),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: CompactProjectCard(
+                  title: 'Contractors',
+                  collectionName: 'contractor_details', 
+                  icon: Icons.engineering,
+                  color: Colors.teal.shade700,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ContractorsListPage(),
+                      ),
+                    );
+                  },
+                  onAdd: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddContractorScreen(),
+                      ),
+                    );
+                  },
+                  isVerySmallMobile: isVerySmallMobile,
+                  isSmallMobile: isSmallMobile,
+                ),
               ),
-            ),
-            SizedBox(width: isVerySmallMobile ? 6.0 : 
-                       isSmallMobile ? 8.0 : 10.0),
-            Expanded(
-              child: CompactProjectCard(
-                title: 'Contracts',
-                collectionName: 'contracts',
-                icon: Icons.description,
-                color: Colors.indigo.shade700,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ContractListPage(),
-                    ),
-                  );
-                },
-                onAdd: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddContractScreen(),
-                    ),
-                  );
-                },
-                isVerySmallMobile: isVerySmallMobile,
-                isSmallMobile: isSmallMobile,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: isVerySmallMobile ? 8.0 : 
-                   isSmallMobile ? 10.0 : 12.0),
-        // --- NEW SCHOOL ANALYSIS CARD ---
-        Container(
-          height: isVerySmallMobile ? 75 : 85,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.deepPurple.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+              SizedBox(width: isVerySmallMobile ? 6.0 : (isSmallMobile ? 8.0 : 10.0)),
+              Expanded(
+                child: CompactProjectCard(
+                  title: 'Contracts',
+                  collectionName: 'contracts',
+                  icon: Icons.description,
+                  color: Colors.indigo.shade700,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ContractListPage(),
+                      ),
+                    );
+                  },
+                  onAdd: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddContractScreen(),
+                      ),
+                    );
+                  },
+                  isVerySmallMobile: isVerySmallMobile,
+                  isSmallMobile: isSmallMobile,
+                ),
               ),
             ],
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
+          SizedBox(height: isVerySmallMobile ? 8.0 : (isSmallMobile ? 10.0 : 12.0)),
+          Container(
+            height: isVerySmallMobile ? 75 : 85,
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(10),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SchoolAnalysisPage(),
-                  ),
-                );
-              },
-              child: Padding(
-                padding: EdgeInsets.all(isVerySmallMobile ? 10.0 : 12.0),
-                child: Row(
-                  children: [
-                    Container(
-                      width: isVerySmallMobile ? 40 : 48,
-                      height: isVerySmallMobile ? 40 : 48,
-                      decoration: BoxDecoration(
-                        color: Colors.deepPurple.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.deepPurple.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SchoolAnalysisPage(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: EdgeInsets.all(isVerySmallMobile ? 10.0 : 12.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: isVerySmallMobile ? 40 : 48,
+                        height: isVerySmallMobile ? 40 : 48,
+                        decoration: BoxDecoration(
+                          color: Colors.deepPurple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.analytics,
+                          color: Colors.deepPurple,
+                          size: isVerySmallMobile ? 20 : 24,
+                        ),
                       ),
-                      child: Icon(
-                        Icons.analytics,
+                      SizedBox(width: isVerySmallMobile ? 12 : 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'School Analysis',
+                              style: TextStyle(
+                                fontSize: isVerySmallMobile ? 14 : 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.deepPurple.shade800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Analyze school information & statistics',
+                              style: TextStyle(
+                                fontSize: isVerySmallMobile ? 10 : 12,
+                                color: Colors.grey.shade600,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
                         color: Colors.deepPurple,
                         size: isVerySmallMobile ? 20 : 24,
                       ),
-                    ),
-                    SizedBox(width: isVerySmallMobile ? 12 : 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'School Analysis',
-                            style: TextStyle(
-                              fontSize: isVerySmallMobile ? 14 : 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.deepPurple.shade800,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Analyze school information & statistics',
-                            style: TextStyle(
-                              fontSize: isVerySmallMobile ? 10 : 12,
-                              color: Colors.grey.shade600,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.deepPurple,
-                      size: isVerySmallMobile ? 20 : 24,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _buildUserManagementGrid({
     required bool isVerySmallMobile,
@@ -409,7 +399,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         'icon': Icons.school,
         'color': Colors.purple,
       },
-      // --- SCHOOLS CARD (UPDATED) ---
       {
         'title': 'Schools',
         'userType': 'school',
@@ -421,59 +410,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => Scaffold(
-                appBar: AppBar(
-                  title: const Text('Registered Schools'),
-                  backgroundColor: Colors.brown,
-                  foregroundColor: Colors.white,
-                ),
-                body: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('schools').snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(child: Text("No schools found."));
-                    }
-                    final schools = snapshot.data!.docs;
-                    return ListView.builder(
-                      itemCount: schools.length,
-                      padding: const EdgeInsets.all(12),
-                      itemBuilder: (context, index) {
-                        final data = schools[index].data() as Map<String, dynamic>;
-                        final schoolId = schools[index].id; // School ID එක ලබා ගැනීම
-                        
-                        return Card(
-                          elevation: 2,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.brown.shade100,
-                              child: const Icon(Icons.school, color: Colors.brown),
-                            ),
-                            title: Text(
-                              data['schoolName'] ?? data['name'] ?? 'Unknown School',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(data['address'] ?? data['district'] ?? 'No Address'),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              // මෙතැනින් SchoolDetailsPage වෙත යොමු කරයි
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => SchoolDetailsPage(schoolId: schoolId),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
+              builder: (context) => const SearchableSchoolListPage(),
             ),
           );
         },
@@ -482,18 +419,15 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isVerySmallMobile ? 6.0 : 
-                   isSmallMobile ? 8.0 : 12.0,
+        horizontal: isVerySmallMobile ? 6.0 : (isSmallMobile ? 8.0 : 12.0),
       ),
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: isVerySmallMobile ? 1 : 2,
-          crossAxisSpacing: isVerySmallMobile ? 6.0 : 
-                          isSmallMobile ? 8.0 : 12.0,
-          mainAxisSpacing: isVerySmallMobile ? 6.0 : 
-                         isSmallMobile ? 8.0 : 12.0,
+          crossAxisSpacing: isVerySmallMobile ? 6.0 : (isSmallMobile ? 8.0 : 12.0),
+          mainAxisSpacing: isVerySmallMobile ? 6.0 : (isSmallMobile ? 8.0 : 12.0),
           childAspectRatio: isVerySmallMobile ? 2.5 : 1.8,
         ),
         itemCount: users.length,
@@ -515,18 +449,15 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // --- PROJECT MANAGEMENT ROW (Updated for Contractors Count) ---
-  // ---------------------------------------------------------------------------
-
   Widget _buildSystemAlertsCard({
     required bool isVerySmallMobile,
     required bool isSmallMobile,
   }) {
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isVerySmallMobile ? 6.0 : 
-                   isSmallMobile ? 8.0 : 12.0,
+        horizontal: isVerySmallMobile
+            ? 6.0
+            : (isSmallMobile ? 8.0 : 12.0),
       ),
       child: CompactSystemAlertsCard(
         title: 'Manage Issues',
@@ -542,18 +473,15 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   }) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        isVerySmallMobile ? 8.0 : 
-        isSmallMobile ? 10.0 : 12.0,
+        isVerySmallMobile ? 8.0 : (isSmallMobile ? 10.0 : 12.0),
         0,
-        isVerySmallMobile ? 8.0 : 
-        isSmallMobile ? 10.0 : 12.0,
+        isVerySmallMobile ? 8.0 : (isSmallMobile ? 10.0 : 12.0),
         6.0,
       ),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: isVerySmallMobile ? 14 : 
-                   isSmallMobile ? 16 : 18,
+          fontSize: isVerySmallMobile ? 14 : (isSmallMobile ? 16 : 18),
           fontWeight: FontWeight.w700,
           color: const Color(0xFF2D3436),
         ),
@@ -563,7 +491,122 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader (Compact Version) ---
+// --- NEW SEARCHABLE SCHOOL LIST PAGE ---
+// -----------------------------------------------------------------------------
+class SearchableSchoolListPage extends StatefulWidget {
+  const SearchableSchoolListPage({super.key});
+
+  @override
+  State<SearchableSchoolListPage> createState() => _SearchableSchoolListPageState();
+}
+
+class _SearchableSchoolListPageState extends State<SearchableSchoolListPage> {
+  String searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Registered Schools'),
+        backgroundColor: Colors.brown,
+        foregroundColor: Colors.white,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search school name...',
+                prefixIcon: const Icon(Icons.search, color: Colors.brown),
+                suffixIcon: searchQuery.isNotEmpty 
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() { searchQuery = ""; });
+                      },
+                    )
+                  : null,
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('schools').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No schools found."));
+          }
+
+          final filteredSchools = snapshot.data!.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final schoolName = (data['schoolName'] ?? data['name'] ?? '').toString().toLowerCase();
+            return schoolName.contains(searchQuery);
+          }).toList();
+
+          if (filteredSchools.isEmpty) {
+            return const Center(child: Text("No matching schools found."));
+          }
+
+          return ListView.builder(
+            itemCount: filteredSchools.length,
+            padding: const EdgeInsets.all(12),
+            itemBuilder: (context, index) {
+              final data = filteredSchools[index].data() as Map<String, dynamic>;
+              final schoolId = filteredSchools[index].id;
+
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.brown.shade100,
+                    child: const Icon(Icons.school, color: Colors.brown),
+                  ),
+                  title: Text(
+                    data['schoolName'] ?? data['name'] ?? 'Unknown School',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(data['address'] ?? data['district'] ?? 'No Address'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SchoolDetailsPage(schoolId: schoolId),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- OTHER WIDGETS (Header, Compact Cards, Nav Bar) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -640,7 +683,7 @@ class DashboardHeader extends StatelessWidget {
               );
             },
           ),
-          SizedBox(width: isVerySmallMobile ? 10 : 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -650,8 +693,7 @@ class DashboardHeader extends StatelessWidget {
                   'Welcome, $userName',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isVerySmallMobile ? 14 : 
-                             isSmallMobile ? 16 : 18,
+                    fontSize: isVerySmallMobile ? 14 : (isSmallMobile ? 16 : 18),
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -662,8 +704,7 @@ class DashboardHeader extends StatelessWidget {
                   userRole,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
-                    fontSize: isVerySmallMobile ? 10 : 
-                             isSmallMobile ? 12 : 14,
+                    fontSize: isVerySmallMobile ? 10 : (isSmallMobile ? 12 : 14),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -737,9 +778,6 @@ class DashboardHeader extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- COMPACT WIDGETS ---
-// -----------------------------------------------------------------------------
 class CompactUserCard extends StatelessWidget {
   final String userType;
   final String title;
@@ -849,7 +887,7 @@ class CompactUserCard extends StatelessWidget {
                         size: isVerySmallMobile ? 16 : 18,
                       ),
                     ),
-                    SizedBox(width: isVerySmallMobile ? 8 : 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -876,83 +914,32 @@ class CompactUserCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    SizedBox(width: isVerySmallMobile ? 4 : 6),
                     if (collectionName == null) ...[
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Row(
                             children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: Colors.green,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              SizedBox(width: isVerySmallMobile ? 2 : 3),
-                              Text(
-                                '$active',
-                                style: TextStyle(
-                                  fontSize: isVerySmallMobile ? 9 : 10,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
+                              Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                              const SizedBox(width: 3),
+                              Text('$active', style: TextStyle(fontSize: isVerySmallMobile ? 9 : 10, color: Colors.grey[600])),
                             ],
                           ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: Colors.orange,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              SizedBox(width: isVerySmallMobile ? 2 : 3),
-                              Text(
-                                '$pending',
-                                style: TextStyle(
-                                  fontSize: isVerySmallMobile ? 9 : 10,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
+                              Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle)),
+                              const SizedBox(width: 3),
+                              Text('$pending', style: TextStyle(fontSize: isVerySmallMobile ? 9 : 10, color: Colors.grey[600])),
                             ],
                           ),
                         ],
                       ),
                     ],
-                    SizedBox(width: isVerySmallMobile ? 6 : 8),
                     if (addPage != null)
-                      InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => addPage!),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(6),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isVerySmallMobile ? 8 : 10,
-                            vertical: isVerySmallMobile ? 4 : 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '+',
-                            style: TextStyle(
-                              fontSize: isVerySmallMobile ? 12 : 14,
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                      IconButton(
+                        icon: Icon(Icons.add_box, color: color, size: 20),
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => addPage!)),
                       ),
                   ],
                 ),
@@ -965,9 +952,6 @@ class CompactUserCard extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- COMPACT PROJECT CARD (With Counters) ---
-// -----------------------------------------------------------------------------
 class CompactProjectCard extends StatelessWidget {
   final String title;
   final String collectionName;
@@ -1028,64 +1012,18 @@ class CompactProjectCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: EdgeInsets.all(isVerySmallMobile ? 4 : 6),
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Icon(
-                            icon,
-                            color: color,
-                            size: isVerySmallMobile ? 16 : 18,
-                          ),
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                          child: Icon(icon, color: color, size: isVerySmallMobile ? 16 : 18),
                         ),
-                        Text(
-                          count,
-                          style: TextStyle(
-                            fontSize: isVerySmallMobile ? 16 : 20,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                          ),
-                        ),
+                        Text(count, style: TextStyle(fontSize: isVerySmallMobile ? 16 : 20, fontWeight: FontWeight.bold, color: color)),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: isVerySmallMobile ? 12 : 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        InkWell(
-                          onTap: onAdd,
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isVerySmallMobile ? 8 : 10,
-                              vertical: isVerySmallMobile ? 3 : 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: color.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '+ Add',
-                              style: TextStyle(
-                                fontSize: isVerySmallMobile ? 9 : 11,
-                                color: color,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
+                        Expanded(child: Text(title, style: TextStyle(fontSize: isVerySmallMobile ? 12 : 14, fontWeight: FontWeight.w600, color: Colors.grey[800]), maxLines: 1)),
+                        TextButton(onPressed: onAdd, child: Text('+ Add', style: TextStyle(fontSize: isVerySmallMobile ? 9 : 11, color: color, fontWeight: FontWeight.bold))),
                       ],
                     ),
                   ],
@@ -1123,89 +1061,36 @@ class CompactSystemAlertsCard extends StatelessWidget {
 
         return Container(
           height: isVerySmallMobile ? 65 : 75,
-          padding: EdgeInsets.all(isVerySmallMobile ? 8 : 10),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
             ],
           ),
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(isVerySmallMobile ? 6 : 8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.red,
-                  size: isVerySmallMobile ? 18 : 20,
-                ),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20),
               ),
-              SizedBox(width: isVerySmallMobile ? 10 : 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: isVerySmallMobile ? 12 : 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF2D3436),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$total reported issues',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: isVerySmallMobile ? 10 : 12,
-                      ),
-                    ),
+                    Text(title, style: TextStyle(fontSize: isVerySmallMobile ? 12 : 14, fontWeight: FontWeight.w600)),
+                    Text('$total reported issues', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                   ],
                 ),
               ),
-              SizedBox(width: isVerySmallMobile ? 6 : 8),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ViewIssuesPage(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade800,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  elevation: 0,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isVerySmallMobile ? 8 : 10,
-                    vertical: isVerySmallMobile ? 6 : 8,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'View All',
-                  style: TextStyle(
-                    fontSize: isVerySmallMobile ? 10 : 12,
-                  ),
-                ),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ViewIssuesPage())),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade800, foregroundColor: Colors.white),
+                child: const Text('View All'),
               ),
             ],
           ),
@@ -1215,9 +1100,6 @@ class CompactSystemAlertsCard extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- CustomBottomNavBar (Compact Version) ---
-// -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
   const CustomBottomNavBar({super.key, required this.currentIndex});
@@ -1226,125 +1108,49 @@ class CustomBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isVerySmallMobile = screenWidth < 340;
-    final isSmallMobile = screenWidth < 380;
     
     return Container(
       height: isVerySmallMobile ? 50 : 56,
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, -2))],
       ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildNavItem(
-              icon: Icons.dashboard_outlined,
-              activeIcon: Icons.dashboard,
-              label: 'Home',
-              isActive: currentIndex == 0,
-              isVerySmallMobile: isVerySmallMobile,
-              isSmallMobile: isSmallMobile,
-              onTap: () => _navigateTo(context, 0),
-            ),
-            _buildNavItem(
-              icon: Icons.person_outline,
-              activeIcon: Icons.person,
-              label: 'Profile',
-              isActive: currentIndex == 1,
-              isVerySmallMobile: isVerySmallMobile,
-              isSmallMobile: isSmallMobile,
-              onTap: () => _navigateTo(context, 1),
-            ),
-            _buildNavItem(
-              icon: Icons.settings_outlined,
-              activeIcon: Icons.settings,
-              label: 'Settings',
-              isActive: currentIndex == 2,
-              isVerySmallMobile: isVerySmallMobile,
-              isSmallMobile: isSmallMobile,
-              onTap: () => _navigateTo(context, 2),
-            ),
-          ],
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(context, 0, Icons.dashboard_outlined, Icons.dashboard, 'Home'),
+          _buildNavItem(context, 1, Icons.person_outline, Icons.person, 'Profile'),
+          _buildNavItem(context, 2, Icons.settings_outlined, Icons.settings, 'Settings'),
+        ],
       ),
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-    required bool isActive,
-    required bool isVerySmallMobile,
-    required bool isSmallMobile,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildNavItem(BuildContext context, int index, IconData icon, IconData activeIcon, String label) {
+    final isActive = currentIndex == index;
     return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: isVerySmallMobile ? 8 : 12,
-          vertical: isVerySmallMobile ? 6 : 8,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isActive ? activeIcon : icon,
-              color: isActive ? Colors.blue.shade800 : Colors.grey.shade400,
-              size: isVerySmallMobile ? 18 : 20,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isVerySmallMobile ? 8 : 9,
-                color: isActive ? Colors.blue.shade800 : Colors.grey.shade400,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
+      onTap: () => _navigateTo(context, index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(isActive ? activeIcon : icon, color: isActive ? Colors.blue.shade800 : Colors.grey.shade400),
+          Text(label, style: TextStyle(fontSize: 9, color: isActive ? Colors.blue.shade800 : Colors.grey.shade400)),
+        ],
       ),
     );
   }
 
   void _navigateTo(BuildContext context, int index) {
     if (currentIndex == index) return;
-
     switch (index) {
       case 0:
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ProvincialEngDashboard(),
-          ),
-          (route) => false,
-        );
+        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const ProvincialEngDashboard()), (route) => false);
         break;
       case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ProfileManagementPage(),
-          ),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ProfileManagementPage()));
         break;
       case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const SettingsPage(),
-          ),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
         break;
     }
   }
