@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class IssuesDashboardCardStream extends StatelessWidget {
   const IssuesDashboardCardStream({Key? key}) : super(key: key);
 
@@ -44,8 +43,6 @@ class IssuesDashboardCardStream extends StatelessWidget {
     );
   }
 }
-
-
 
 class DashboardCard extends StatelessWidget {
   final String title;
@@ -117,13 +114,7 @@ class DashboardCard extends StatelessWidget {
                   "$count  issues",
                   style: const TextStyle(
                     fontSize: 11,
-
-
-
                     fontWeight: FontWeight.w400,
-
-
-
                     color: Colors.black87,
                   ),
                 ),
@@ -135,7 +126,6 @@ class DashboardCard extends StatelessWidget {
     );
   }
 }
-
 
 class IssuesService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -252,15 +242,73 @@ class IssuesService {
 }
 
 
-class DamageDetailsListScreen extends StatelessWidget {
+class DamageDetailsListScreen extends StatefulWidget {
   const DamageDetailsListScreen({Key? key}) : super(key: key);
+
+  @override
+  State<DamageDetailsListScreen> createState() =>
+      _DamageDetailsListScreenState();
+}
+
+class _DamageDetailsListScreenState extends State<DamageDetailsListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedStatus = 'All'; 
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<QueryDocumentSnapshot> _filterIssues(
+      List<QueryDocumentSnapshot> issues) {
+    var filtered = issues;
+
+    
+    if (_selectedStatus != 'All') {
+      filtered = filtered.where((issue) {
+        final data = issue.data() as Map<String, dynamic>;
+        final status = (data['status'] ?? 'Pending').toString().toLowerCase();
+        return status == _selectedStatus.toLowerCase();
+      }).toList();
+    }
+
+    
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((issue) {
+        final data = issue.data() as Map<String, dynamic>;
+        final title = (data['issueTitle'] ?? '').toString().toLowerCase();
+        final schoolName = (data['schoolName'] ?? '').toString().toLowerCase();
+        final buildingName =
+            (data['buildingName'] ?? '').toString().toLowerCase();
+        final damageType = (data['damageType'] ?? '').toString().toLowerCase();
+        final description =
+            (data['description'] ?? '').toString().toLowerCase();
+        final status = (data['status'] ?? '').toString().toLowerCase();
+
+        final query = _searchQuery.toLowerCase();
+
+        return title.contains(query) ||
+            schoolName.contains(query) ||
+            buildingName.contains(query) ||
+            damageType.contains(query) ||
+            description.contains(query) ||
+            status.contains(query);
+      }).toList();
+    }
+
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF64B5F6),
+        foregroundColor: Colors.white,
+        // backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -291,87 +339,242 @@ class DamageDetailsListScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('issues').snapshots(),
-        builder: (context, snapshot) {
-          // Loading state
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Colors.blue,
-              ),
-            );
-          }
-
-          // Error state
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    color: Colors.red,
-                    size: 60,
+      body: Column(
+        children: [
+          
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+               
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Empty state
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.report_problem_outlined,
-                    color: Colors.grey[400],
-                    size: 80,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No issue reports found',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText:
+                          'Search issues by title, school, damage type...',
+                      hintStyle:
+                          TextStyle(color: Colors.grey[400], fontSize: 14),
+                      prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                   ),
-                ],
-              ),
-            );
-          }
+                ),
+                const SizedBox(height: 12),
+                
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('All'),
+                      _buildFilterChip('Pending'),
+                      _buildFilterChip('In Progress'),
+                      _buildFilterChip('Resolved'),
+                      _buildFilterChip('Rejected'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream:
+                  FirebaseFirestore.instance.collection('issues').snapshots(),
+              builder: (context, snapshot) {
+                
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.blue,
+                    ),
+                  );
+                }
 
-          // List of damage reports
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
+                
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 60,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-              return IssueCard(
-                title: data['issueTitle'] ?? 'N/A',
-                location: data['schoolName'] ?? 'N/A',
-                status: data['status'] ?? 'Pending',
-                issueId: doc.id,
-              );
-            },
-          );
+                
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.report_problem_outlined,
+                          color: Colors.grey[400],
+                          size: 80,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No issue reports found',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                
+                final allIssues = snapshot.data!.docs;
+                final filteredIssues = _filterIssues(allIssues);
+
+                
+                if (filteredIssues.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No results found for "$_searchQuery"'
+                              : 'No $_selectedStatus issues found',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Try adjusting your search or filter',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredIssues.length,
+                  itemBuilder: (context, index) {
+                    final doc = filteredIssues[index];
+                    final data = doc.data() as Map<String, dynamic>;
+
+                    return IssueCard(
+                      title: data['issueTitle'] ?? 'N/A',
+                      location: data['schoolName'] ?? 'N/A',
+                      status: data['status'] ?? 'Pending',
+                      issueId: doc.id,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String status) {
+    final isSelected = _selectedStatus == status;
+    Color chipColor;
+
+    switch (status.toLowerCase()) {
+      case 'pending':
+        chipColor = Colors.orange;
+        break;
+      case 'in progress':
+        chipColor = Colors.blue;
+        break;
+      case 'resolved':
+        chipColor = Colors.green;
+        break;
+      case 'rejected':
+        chipColor = Colors.red;
+        break;
+      default:
+        chipColor = Colors.grey;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: FilterChip(
+        label: Text(status),
+        selected: isSelected,
+        onSelected: (selected) {
+          setState(() {
+            _selectedStatus = status;
+          });
         },
+        backgroundColor: Colors.white,
+        selectedColor: chipColor.withOpacity(0.2),
+        checkmarkColor: chipColor,
+        labelStyle: TextStyle(
+          color: isSelected ? chipColor : Colors.grey[700],
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          fontSize: 13,
+        ),
+        side: BorderSide(
+          color: isSelected ? chipColor : Colors.grey[300]!,
+          width: isSelected ? 2 : 1,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       ),
     );
   }
 }
-
-
 
 class IssueCard extends StatelessWidget {
   final String title;
@@ -541,8 +744,6 @@ class IssueCard extends StatelessWidget {
   }
 }
 
-
-
 class DamageDetailsPage extends StatefulWidget {
   final String? issueId;
 
@@ -581,8 +782,6 @@ class _DamageDetailsPageState extends State<DamageDetailsPage> {
     );
   }
 }
-
-
 
 class DamageDetailCard extends StatelessWidget {
   final String? issueId;

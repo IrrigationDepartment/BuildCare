@@ -3,7 +3,6 @@ import 'package:buildcare/screens/ChiefEng/view_distric_eng_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-//distric Enginner
 class DistrictEngineerDashboardCardStream extends StatelessWidget {
   const DistrictEngineerDashboardCardStream({Key? key}) : super(key: key);
 
@@ -592,7 +591,6 @@ class DashboardCard extends StatelessWidget {
 }
 
 //schhool card
-
 class SchoolService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -695,8 +693,50 @@ class _SchoolsDashboardCardState extends State<SchoolsDashboardCard> {
   }
 }
 
-class SchoolsListPage extends StatelessWidget {
+// Schools List Page with Search
+class SchoolsListPage extends StatefulWidget {
   const SchoolsListPage({Key? key}) : super(key: key);
+
+  @override
+  State<SchoolsListPage> createState() => _SchoolsListPageState();
+}
+
+class _SchoolsListPageState extends State<SchoolsListPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<QueryDocumentSnapshot> _filterSchools(List<QueryDocumentSnapshot> schools) {
+    if (_searchQuery.isEmpty) {
+      return schools;
+    }
+
+    return schools.where((school) {
+      final data = school.data() as Map<String, dynamic>;
+      final schoolName = (data['schoolName'] ?? '').toString().toLowerCase();
+      final address = (data['address'] ?? '').toString().toLowerCase();
+      final province = (data['province'] ?? '').toString().toLowerCase();
+      final district = (data['district'] ?? '').toString().toLowerCase();
+      final schoolType = (data['schoolType'] ?? '').toString().toLowerCase();
+      final principal = (data['principal'] ?? '').toString().toLowerCase();
+      final phone = (data['phone'] ?? '').toString().toLowerCase();
+      
+      final query = _searchQuery.toLowerCase();
+      
+      return schoolName.contains(query) ||
+          address.contains(query) ||
+          province.contains(query) ||
+          district.contains(query) ||
+          schoolType.contains(query) ||
+          principal.contains(query) ||
+          phone.contains(query);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -708,82 +748,170 @@ class SchoolsListPage extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: SchoolService().getSchoolsStream(),
-        builder: (context, snapshot) {
-          // Error state
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading schools',
-                    style: TextStyle(color: Colors.red[400], fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    snapshot.error.toString(),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    textAlign: TextAlign.center,
+      body: Column(
+        children: [
+          // Search Bar
+          Container(
+            color: const Color(0xFF64B5F6),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            );
-          }
-
-          // Loading state
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF64B5F6),
-              ),
-            );
-          }
-
-          // Empty state
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.school_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search schools by name, address, district...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No schools found',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          // Schools List
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: SchoolService().getSchoolsStream(),
+              builder: (context, snapshot) {
+                // Error state
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading schools',
+                          style: TextStyle(color: Colors.red[400], fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.error.toString(),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            );
-          }
+                  );
+                }
 
-          // Display schools list
-          final schools = snapshot.data!.docs;
+                // Loading state
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF64B5F6),
+                    ),
+                  );
+                }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: schools.length,
-            itemBuilder: (context, index) {
-              final schoolData = schools[index].data() as Map<String, dynamic>;
-              final schoolId = schools[index].id;
+                // Empty state
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.school_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No schools found',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-              return SchoolCard(
-                schoolData: schoolData,
-                schoolId: schoolId,
-              );
-            },
-          );
-        },
+                // Filter schools
+                final allSchools = snapshot.data!.docs;
+                final filteredSchools = _filterSchools(allSchools);
+
+                // No search results
+                if (filteredSchools.isEmpty && _searchQuery.isNotEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No results found for "$_searchQuery"',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Try searching with different keywords',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Display schools list
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredSchools.length,
+                  itemBuilder: (context, index) {
+                    final schoolData = filteredSchools[index].data() as Map<String, dynamic>;
+                    final schoolId = filteredSchools[index].id;
+
+                    return SchoolCard(
+                      schoolData: schoolData,
+                      schoolId: schoolId,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1501,7 +1629,15 @@ class SchoolDetailsPage extends StatelessWidget {
   }
 }
 
-//Technical officer
+
+
+
+
+//school end
+
+
+//Technical officer main code
+//Technical officer main code with Search functionality
 
 class TechnicalOfficerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -1578,9 +1714,47 @@ class TechnicalOfficerDashboardCardStream extends StatelessWidget {
   }
 }
 
-// Technical Officers List Page
-class TechnicalOfficersListPage extends StatelessWidget {
+// Technical Officers List Page with Search
+class TechnicalOfficersListPage extends StatefulWidget {
   const TechnicalOfficersListPage({Key? key}) : super(key: key);
+
+  @override
+  State<TechnicalOfficersListPage> createState() =>
+      _TechnicalOfficersListPageState();
+}
+
+class _TechnicalOfficersListPageState extends State<TechnicalOfficersListPage> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<QueryDocumentSnapshot> _filterOfficers(List<QueryDocumentSnapshot> officers) {
+    if (_searchQuery.isEmpty) {
+      return officers;
+    }
+
+    return officers.where((officer) {
+      final data = officer.data() as Map<String, dynamic>;
+      final name = (data['name'] ?? '').toString().toLowerCase();
+      final email = (data['email'] ?? '').toString().toLowerCase();
+      final phone = (data['mobilePhone'] ?? '').toString().toLowerCase();
+      final nic = (data['nic'] ?? '').toString().toLowerCase();
+      final regNum = (data['registrationNumber'] ?? '').toString().toLowerCase();
+      
+      final query = _searchQuery.toLowerCase();
+      
+      return name.contains(query) ||
+          email.contains(query) ||
+          phone.contains(query) ||
+          nic.contains(query) ||
+          regNum.contains(query);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1592,73 +1766,158 @@ class TechnicalOfficersListPage extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: TechnicalOfficerService().getTechnicalOfficersStream(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading technical officers',
-                    style: TextStyle(color: Colors.red[400], fontSize: 16),
+      body: Column(
+        children: [
+          // Search Bar
+          Container(
+            color: const Color(0xFF64B5F6),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
-            );
-          }
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search by Technical Officer Name.....',
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF64B5F6),
-              ),
-            );
-          }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.engineering_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.grey),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+
+                    vertical: 12,
+
+
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No technical officers found',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          // Officers List
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: TechnicalOfficerService().getTechnicalOfficersStream(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 64, color: Colors.red[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading technical officers',
+                          style:
+                              TextStyle(color: Colors.red[400], fontSize: 16),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            );
-          }
+                  );
+                }
 
-          final officers = snapshot.data!.docs;
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF64B5F6),
+                    ),
+                  );
+                }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: officers.length,
-            itemBuilder: (context, index) {
-              final officerData =
-                  officers[index].data() as Map<String, dynamic>;
-              final officerId = officers[index].id;
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.engineering_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No technical officers found',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-              return TechnicalOfficerCard(
-                officerData: officerData,
-                officerId: officerId,
-              );
-            },
-          );
-        },
+                final allOfficers = snapshot.data!.docs;
+                final filteredOfficers = _filterOfficers(allOfficers);
+
+                if (filteredOfficers.isEmpty && _searchQuery.isNotEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No results found for "$_searchQuery"',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredOfficers.length,
+                  itemBuilder: (context, index) {
+                    final officerData =
+                        filteredOfficers[index].data() as Map<String, dynamic>;
+                    final officerId = filteredOfficers[index].id;
+
+                    return TechnicalOfficerCard(
+                      officerData: officerData,
+                      officerId: officerId,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

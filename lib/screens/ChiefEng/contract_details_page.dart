@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class ContractDetailsDashboardCardStream extends StatelessWidget {
   const ContractDetailsDashboardCardStream({Key? key}) : super(key: key);
 
@@ -44,8 +43,6 @@ class ContractDetailsDashboardCardStream extends StatelessWidget {
     );
   }
 }
-
-
 
 class DashboardCard extends StatelessWidget {
   final String title;
@@ -104,21 +101,18 @@ class DashboardCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-
-                    //color: Colors.grey.shade800,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "${count} contracts",
+                  "$count contracts",
                   style: const TextStyle(
                     fontSize: 10,
-
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
@@ -132,12 +126,16 @@ class DashboardCard extends StatelessWidget {
   }
 }
 
-
-
 class ContractDetailsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get total contracts count (Future)
+  Stream<int> getContractsCountStream() {
+    return _firestore
+        .collection('contract_details')
+        .snapshots()
+        .map((snapshot) => snapshot.size);
+  }
+
   Future<int> getTotalContractsCount() async {
     try {
       QuerySnapshot snapshot =
@@ -148,184 +146,47 @@ class ContractDetailsService {
       return 0;
     }
   }
-
-  // Get contracts count as Stream (real-time updates)
-  Stream<int> getContractsCountStream() {
-    return _firestore
-        .collection('contract_details')
-        .snapshots()
-        .map((snapshot) => snapshot.size);
-  }
-
-  // Get contracts count by status
-  Future<int> getContractsCountByStatus(String status) async {
-    try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('contract_details')
-          .where('status', isEqualTo: status)
-          .get();
-      return snapshot.size;
-    } catch (e) {
-      print('Error getting contracts count by status: $e');
-      return 0;
-    }
-  }
-
-  // Get contracts count by type
-  Future<int> getContractsCountByType(String type) async {
-    try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('contract_details')
-          .where('typeOfContract', isEqualTo: type)
-          .get();
-      return snapshot.size;
-    } catch (e) {
-      print('Error getting contracts count by type: $e');
-      return 0;
-    }
-  }
-
-  // Get contracts count by type as Stream
-  Stream<int> getContractsCountByTypeStream(String type) {
-    return _firestore
-        .collection('contract_details')
-        .where('typeOfContract', isEqualTo: type)
-        .snapshots()
-        .map((snapshot) => snapshot.size);
-  }
-
-  // Get all contracts as Stream
-  Stream<QuerySnapshot> getContractsStream() {
-    return _firestore
-        .collection('contract_details')
-        .orderBy('timestamp', descending: true)
-        .snapshots();
-  }
-
-  // Get single contract by ID
-  Future<DocumentSnapshot> getContract(String contractId) async {
-    try {
-      return await _firestore
-          .collection('contract_details')
-          .doc(contractId)
-          .get();
-    } catch (e) {
-      print('Error getting contract: $e');
-      rethrow;
-    }
-  }
-
-  // Get contracts statistics
-  Future<Map<String, dynamic>> getContractsStatistics() async {
-    try {
-      final snapshot = await _firestore.collection('contract_details').get();
-
-      int active = 0;
-      int completed = 0;
-      int upcoming = 0;
-      double totalValue = 0;
-
-      final now = DateTime.now();
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Calculate contract value
-        if (data['contractValue'] != null) {
-          try {
-            final value = data['contractValue'] is String
-                ? double.parse(data['contractValue'])
-                : (data['contractValue'] as num).toDouble();
-            totalValue += value;
-          } catch (e) {
-            print('Error parsing contract value: $e');
-          }
-        }
-
-        // Calculate status based on dates
-        if (data['startDate'] != null && data['endDate'] != null) {
-          try {
-            final startDate = (data['startDate'] as Timestamp).toDate();
-            final endDate = (data['endDate'] as Timestamp).toDate();
-
-            if (now.isBefore(startDate)) {
-              upcoming++;
-            } else if (now.isAfter(endDate)) {
-              completed++;
-            } else {
-              active++;
-            }
-          } catch (e) {
-            print('Error parsing dates: $e');
-          }
-        }
-      }
-
-      return {
-        'total': snapshot.size,
-        'active': active,
-        'completed': completed,
-        'upcoming': upcoming,
-        'totalValue': totalValue,
-      };
-    } catch (e) {
-      print('Error getting contracts statistics: $e');
-      return {
-        'total': 0,
-        'active': 0,
-        'completed': 0,
-        'upcoming': 0,
-        'totalValue': 0.0,
-      };
-    }
-  }
-
-  // Get active contracts count
-  Stream<int> getActiveContractsCountStream() {
-    return _firestore.collection('contract_details').snapshots().map((snapshot) {
-      final now = DateTime.now();
-      int count = 0;
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        if (data['startDate'] != null && data['endDate'] != null) {
-          try {
-            final startDate = (data['startDate'] as Timestamp).toDate();
-            final endDate = (data['endDate'] as Timestamp).toDate();
-
-            if (now.isAfter(startDate) && now.isBefore(endDate)) {
-              count++;
-            }
-          } catch (e) {
-            // Skip invalid dates
-          }
-        }
-      }
-      return count;
-    });
-  }
-
-  // Get contracts by contractor name
-  Future<List<DocumentSnapshot>> getContractsByContractor(
-      String contractorName) async {
-    try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('contract_details')
-          .where('contractorName', isEqualTo: contractorName)
-          .get();
-
-      return snapshot.docs;
-    } catch (e) {
-      print('Error getting contracts by contractor: $e');
-      return [];
-    }
-  }
 }
 
-
-
-class ContractDetailsListScreen extends StatelessWidget {
+class ContractDetailsListScreen extends StatefulWidget {
   const ContractDetailsListScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ContractDetailsListScreen> createState() =>
+      _ContractDetailsListScreenState();
+}
+
+class _ContractDetailsListScreenState
+    extends State<ContractDetailsListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<DocumentSnapshot> _filterContracts(List<DocumentSnapshot> contracts) {
+    if (_searchQuery.isEmpty) {
+      return contracts;
+    }
+
+    return contracts.where((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final contractorName =
+          (data['contractorName'] ?? '').toString().toLowerCase();
+      final typeOfContract =
+          (data['typeOfContract'] ?? '').toString().toLowerCase();
+      final cidaNumber =
+          (data['cidaRegistrationNumber'] ?? '').toString().toLowerCase();
+      final searchLower = _searchQuery.toLowerCase();
+
+      return contractorName.contains(searchLower) ||
+          typeOfContract.contains(searchLower) ||
+          cidaNumber.contains(searchLower);
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -348,147 +209,235 @@ class ContractDetailsListScreen extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('contract_details')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: Colors.blue,
-              ),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    color: Colors.red,
-                    size: 60,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.description_outlined,
-                    color: Colors.grey[400],
-                    size: 80,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No contracts found',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+      body: Column(
+        children: [
+          // Search Bar
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.grey[300]!,
+                  width: 1,
                 ),
-                elevation: 2,
-                child: ListTile(
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search by name, type, or CIDA number...',
+                  hintStyle: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Colors.grey[600],
+                    size: 22,
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.clear,
+                            color: Colors.grey[600],
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 12,
                   ),
-                  leading: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.description,
+                ),
+              ),
+            ),
+          ),
+
+          // Contract List
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('contract_details')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
                       color: Colors.blue,
-                      size: 28,
                     ),
-                  ),
-                  title: Text(
-                    data['contractorName'] ?? 'N/A',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 60,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(
-                        'Type: ${data['typeOfContract'] ?? 'N/A'}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 13,
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          color: Colors.grey[400],
+                          size: 80,
                         ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No contracts found',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final filteredContracts =
+                    _filterContracts(snapshot.data!.docs);
+
+                if (filteredContracts.isEmpty && _searchQuery.isNotEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          color: Colors.grey[400],
+                          size: 80,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No results found for "$_searchQuery"',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredContracts.length,
+                  itemBuilder: (context, index) {
+                    final doc = filteredContracts[index];
+                    final data = doc.data() as Map<String, dynamic>;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      Text(
-                        'Value: Rs. ${data['contractValue']?.toString() ?? 'N/A'}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 13,
+                      elevation: 2,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                      ),
-                    ],
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ContractDetailsViewScreen(
-                          contractId: doc.id,
+                        leading: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.description,
+                            color: Colors.blue,
+                            size: 28,
+                          ),
                         ),
+                        title: Text(
+                          data['contractorName'] ?? 'N/A',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              'Type: ${data['typeOfContract'] ?? 'N/A'}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              'Value: Rs. ${data['contractValue']?.toString() ?? 'N/A'}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ContractDetailsViewScreen(
+                                contractId: doc.id,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-
-
 
 class ContractDetailsViewScreen extends StatelessWidget {
   final String contractId;
@@ -523,8 +472,6 @@ class ContractDetailsViewScreen extends StatelessWidget {
     );
   }
 }
-
-
 
 class ContractDetailCard extends StatelessWidget {
   final String contractId;

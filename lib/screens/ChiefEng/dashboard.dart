@@ -1,12 +1,12 @@
 import 'package:buildcare/screens/ChiefEng/chief_notification.dart';
 import 'package:buildcare/screens/ChiefEng/contract_details_page.dart';
+import 'package:buildcare/screens/ChiefEng/sample/change_password_chied.dart';
 import 'package:buildcare/screens/ChiefEng/sample/edit_profile_page.dart';
 import 'package:buildcare/screens/ChiefEng/sample/sequrty_question_page.dart';
 import 'package:buildcare/screens/ChiefEng/services_page_chief.dart';
 import 'package:buildcare/screens/ChiefEng/view_contractor_detail.dart';
 import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
 import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
-import 'package:buildcare/screens/ProvincialEng/app_settings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -738,7 +738,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ChangePasswordPage(),
+                    builder: (context) => ChangePasswordPageChief(),
                   ),
                 );
 
