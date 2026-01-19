@@ -4,11 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 
 // --- PAGE IMPORTS ---
-// Make sure these files exist in your project
 import 'view_issues.dart';
 import 'contractors_list.dart'; 
 import 'contract_list.dart';
 import 'school_analysis.dart';
+import 'school_details_page.dart'; // අලුතින් එක් කරන ලද import එක
+
 // --- REGISTRATION PAGE IMPORTS ---
 import 'add_ce.dart';
 import 'add_de.dart';
@@ -408,7 +409,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         'icon': Icons.school,
         'color': Colors.purple,
       },
-      // --- SCHOOLS CARD ---
+      // --- SCHOOLS CARD (UPDATED) ---
       {
         'title': 'Schools',
         'userType': 'school',
@@ -441,6 +442,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                       padding: const EdgeInsets.all(12),
                       itemBuilder: (context, index) {
                         final data = schools[index].data() as Map<String, dynamic>;
+                        final schoolId = schools[index].id; // School ID එක ලබා ගැනීම
+                        
                         return Card(
                           elevation: 2,
                           margin: const EdgeInsets.only(bottom: 10),
@@ -454,6 +457,16 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             subtitle: Text(data['address'] ?? data['district'] ?? 'No Address'),
+                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                            onTap: () {
+                              // මෙතැනින් SchoolDetailsPage වෙත යොමු කරයි
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => SchoolDetailsPage(schoolId: schoolId),
+                                ),
+                              );
+                            },
                           ),
                         );
                       },

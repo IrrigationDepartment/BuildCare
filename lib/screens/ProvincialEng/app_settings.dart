@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 // --- ADDED IMPORTS TO FIX NAVIGATION ---
 import 'dashboard.dart'; 
-import 'profile_management.dart';
 
 // Main Settings Page with options
 class SettingsPage extends StatelessWidget {

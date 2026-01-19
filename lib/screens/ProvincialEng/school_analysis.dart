@@ -311,8 +311,9 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
   }
 
   String _getRatioGrade(double ratio) {
-    if (ratio <= 16) return 'A';      // 16:1 or better (matches Sri Lanka standard)
-    else if (ratio <= 30) return 'B'; // 17-30:1
+    if (ratio <= 16) {
+      return 'A';      // 16:1 or better (matches Sri Lanka standard)
+    } else if (ratio <= 30) return 'B'; // 17-30:1
     else if (ratio <= 50) return 'C'; // 31-50:1
     else if (ratio <= 60) return 'D'; // 51-60:1
     else return 'E';                  // Above 60:1
@@ -328,8 +329,9 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
     };
     
     scores.forEach((schoolId, score) {
-      if (score >= 80) grades['A']!.add(schoolId);
-      else if (score >= 60) grades['B']!.add(schoolId);
+      if (score >= 80) {
+        grades['A']!.add(schoolId);
+      } else if (score >= 60) grades['B']!.add(schoolId);
       else if (score >= 40) grades['C']!.add(schoolId);
       else if (score >= 20) grades['D']!.add(schoolId);
       else grades['F']!.add(schoolId);
@@ -488,7 +490,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                 );
               }).toList(),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -602,7 +604,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                 return ListTile(
                   leading: const Icon(Icons.people, size: 20),
                   title: Text(schoolName),
-                  subtitle: Text('${students}:${teachers} (${ratio.toStringAsFixed(1)}:1 ratio)'),
+                  subtitle: Text('$students:$teachers (${ratio.toStringAsFixed(1)}:1 ratio)'),
                   trailing: Chip(
                     label: Text('Grade $grade'),
                     backgroundColor: color.withOpacity(0.2),
@@ -615,7 +617,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                 );
               }).toList(),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -694,7 +696,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                       },
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),
@@ -771,7 +773,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                       },
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),
@@ -1363,7 +1365,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                     },
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -1717,8 +1719,9 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
   Color _getRatioColor(int students, int teachers) {
     if (teachers == 0) return Colors.red.shade100;
     double ratio = students / teachers;
-    if (ratio <= 16) return Colors.green.shade100;
-    else if (ratio <= 30) return Colors.lightGreen.shade100;
+    if (ratio <= 16) {
+      return Colors.green.shade100;
+    } else if (ratio <= 30) return Colors.lightGreen.shade100;
     else if (ratio <= 50) return Colors.yellow.shade100;
     else if (ratio <= 60) return Colors.orange.shade100;
     else return Colors.red.shade100;
@@ -2196,7 +2199,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                         title: Text(issue['title'] as String? ?? 'Untitled'),
                         subtitle: Text('${issue['damageType']} • ${issue['building']}'),
                       );
-                    }).toList(),
+                    }),
                     if (issuesForSchool.length > 3)
                       TextButton(
                         onPressed: () {
