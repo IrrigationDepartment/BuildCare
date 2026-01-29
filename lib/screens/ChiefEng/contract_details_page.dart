@@ -722,7 +722,7 @@ class ContractDetailCard extends StatelessWidget {
 
                   _buildDetailRow(
                     'Start Date',
-                    _formatDate(data['startDate']),
+                    _formatDate(data['startDate']), 
                   ),
 
                   _buildDetailRow(
