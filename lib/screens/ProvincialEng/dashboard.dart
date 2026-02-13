@@ -281,8 +281,9 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
             ],
           ),
           SizedBox(height: isVerySmallMobile ? 8.0 : (isSmallMobile ? 10.0 : 12.0)),
+          // FIXED: Increased height here as well for consistency (from 75/85 to 95/110)
           Container(
-            height: isVerySmallMobile ? 75 : 85,
+            height: isVerySmallMobile ? 95 : 110,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
@@ -984,8 +985,9 @@ class CompactProjectCard extends StatelessWidget {
           count = snapshot.data!.docs.length.toString();
         }
 
+        // FIXED: Increased height to prevent bottom overflow
         return Container(
-          height: isVerySmallMobile ? 75 : 85,
+          height: isVerySmallMobile ? 95 : 110, // Increased from 75/85
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
