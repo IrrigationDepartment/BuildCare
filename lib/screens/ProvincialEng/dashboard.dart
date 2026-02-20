@@ -284,6 +284,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           // FIXED: Increased height here as well for consistency (from 75/85 to 95/110)
           Container(
             height: isVerySmallMobile ? 95 : 110,
+          Container(
+            height: isVerySmallMobile ? 75 : 85,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
@@ -988,6 +990,8 @@ class CompactProjectCard extends StatelessWidget {
         // FIXED: Increased height to prevent bottom overflow
         return Container(
           height: isVerySmallMobile ? 95 : 110, // Increased from 75/85
+        return Container(
+          height: isVerySmallMobile ? 75 : 85,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
