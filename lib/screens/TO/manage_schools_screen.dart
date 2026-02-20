@@ -71,8 +71,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
         title: const Text('Manage Schools', style: TextStyle(color: kTextColor)),
-        title:
-            const Text('Manage Schools', style: TextStyle(color: kTextColor)),
         backgroundColor: Colors.white,
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
@@ -98,10 +96,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream:
                   FirebaseFirestore.instance.collection('schools').snapshots(),
-              stream: FirebaseFirestore.instance
-                  .collection('schools')
-                  .orderBy('addedAt', descending: true) 
-                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -117,16 +111,12 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
                 final filteredDocs = snapshot.data!.docs.where((doc) {
                   final schoolName = doc['schoolName']?.toLowerCase() ?? '';
                   final schoolAddress = doc['schoolAddress']?.toLowerCase() ?? '';
-                  final schoolAddress =
-                      doc['schoolAddress']?.toLowerCase() ?? '';
                   return schoolName.contains(_searchText) ||
                       schoolAddress.contains(_searchText);
                 }).toList();
 
                 if (filteredDocs.isEmpty) {
                   return const Center(child: Text('No matching schools found.'));
-                  return const Center(
-                      child: Text('No matching schools found.'));
                 }
 
                 return ListView.builder(
@@ -225,9 +215,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
         
         // --- IMPORTANT: Set onTap to null so the full card does not navigate ---
         onTap: null, 
-          onPressed: navigateToDetails,
-        ),
-        onTap: null,
       ),
     );
   }

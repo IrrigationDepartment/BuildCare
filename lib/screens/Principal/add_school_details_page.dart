@@ -26,7 +26,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
   // --- State Variables ---
   String? _schoolType;
   String? _selectedDistrict; 
-  String? _selectedDistrict; 
   bool _electricity = false;
   bool _waterSupply = false;
   bool _sanitation = false;
@@ -67,7 +66,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         'schoolType': _schoolType,
         'educationalZone': _educationalZoneController.text.trim(),
         'district': _selectedDistrict, 
-        'district': _selectedDistrict, // Firestore වෙත District එක එකතු කිරීම
         'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
         'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
         'numNonAcademic': int.tryParse(_nonAcademicController.text.trim()) ?? 0,
@@ -230,7 +228,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
 
   Widget _buildDropdown() {
     final List<String> schoolTypes = ['Government', 'Semi-Government',];
-    final List<String> schoolTypes = ['Government', 'Semi-Government', 'Private', 'International'];
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(

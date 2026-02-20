@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BuildCare by HNDIT',
+      title: 'Splash Screen with Animation',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),

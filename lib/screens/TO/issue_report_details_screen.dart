@@ -5,16 +5,6 @@ import 'package:intl/intl.dart';
 class IssueReportDetailsScreen extends StatefulWidget {
   final String issueId;
   const IssueReportDetailsScreen({super.key, required this.issueId});
-import 'add_issue_screen.dart'; // <-- IMPORT AddIssueScreen
-
-class IssueReportDetailsScreen extends StatefulWidget {
-  final String issueId;
-  final String userNic; // <-- ADDED
-  const IssueReportDetailsScreen({
-    super.key,
-    required this.issueId,
-    required this.userNic, // <-- ADDED
-  });
 
   @override
   State<IssueReportDetailsScreen> createState() =>
@@ -118,17 +108,6 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
               //     builder: (context) => IssueReportDetailsScreen(issueId: widget.issueId),
               //   ),
               // );
-              // --- MODIFIED: Navigate to AddIssueScreen in Edit Mode ---
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddIssueScreen(
-                    userNic: widget.userNic, // Pass the NIC
-                    issueId: widget.issueId,  // Pass the ID to enable Edit Mode
-                  ),
-                ),
-              );
-              // --- END OF MODIFICATION ---
             },
           )
         ],
@@ -231,7 +210,11 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
-
+  // ---
+  // ---
+  // --- 🎨 NEW: HELPER WIDGETS FOR VIEW SCREEN 🎨 ---
+  // ---
+  // ---
 
   // --- NEW: Helper to build section cards ---
   Widget _buildSectionCard({
@@ -326,7 +309,6 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   // ---
   // ---
   // --- 📸 IMAGE GALLERY WIDGETS (Unchanged from previous) 📸 ---
-  // --- 萄 IMAGE GALLERY WIDGETS (Unchanged from previous) 萄 ---
   // ---
   // ---
   Widget _buildImageGallery(List<dynamic> images) {
@@ -440,5 +422,4 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
       ),
     );
   }
-}
 }

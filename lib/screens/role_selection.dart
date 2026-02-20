@@ -20,8 +20,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     'Principal',
     'TO',
     'District Engineer',
-    'Chief Engineer',
-    'Provincial Director'
+    'Provincial Engineer'
   ];
 
   @override
