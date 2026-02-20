@@ -60,3 +60,10 @@ flutter:
     - assets/icons/
     - lib/src/my.gif # Explicitly pointing to your logo
     - lib/assets/images/login.png # Explicitly pointing to your login image
+    - lib/src/logo.png # Added your new app logo
+
+# --- App Icon Configuration ---
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "lib/src/logo.png"
