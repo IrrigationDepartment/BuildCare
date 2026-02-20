@@ -5,14 +5,14 @@ import 'login.dart'; // Import the login screen
 import 'package:firebase_core/firebase_core.dart'; // Import Firebase Core
 import 'firebase_options.dart'; // Import the generated Firebase options
 
-// --- Main function updated to run the app immediately ---
-void main() {
-  // Ensure that Flutter bindings are initialized before running the app.
-  // This is fast and doesn't block the UI.
+// --- Main function updated to initialize Firebase ---
+void main() async {
+  // Ensure that Flutter bindings are initialized before calling Firebase.initializeApp
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Run the app. The splash screen will now show up right away.
-  // Firebase will be initialized *during* the splash screen.
+  // Initialize Firebase using the generated options file
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BuildCare by HNDIT',
+      title: 'Splash Screen with Animation',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -73,44 +73,18 @@ class _SplashScreenState extends State<SplashScreen>
     // Start the animations
     _controller.forward();
 
-    // --- MODIFIED: Load Firebase and navigate ---
-    // This new function will run Firebase init AND wait for the splash
-    // delay at the same time.
-    _loadAndNavigate();
+    // After a delay, navigate to the login screen.
+    Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const LoginPage(),
+          ),
+        );
+      }
+    });
   }
-
-  /// --- NEW FUNCTION ---
-  /// Initializes Firebase and waits for a minimum splash screen duration
-  /// before navigating to the login page.
-  Future<void> _loadAndNavigate() async {
-    // 1. Create a future for Firebase initialization.
-    final firebaseInitFuture = Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-
-    // 2. Create a future that waits for your desired 3-second splash duration.
-    final splashDelayFuture = Future.delayed(const Duration(seconds: 3));
-
-    // 3. Wait for BOTH futures to complete.
-    // This ensures the splash screen is shown for at least 3 seconds,
-    // AND Firebase is ready before we move on.
-    await Future.wait([
-      firebaseInitFuture,
-      splashDelayFuture,
-    ]);
-
-    // 4. Navigate to the login page
-    // We check 'mounted' to ensure the widget is still in the tree.
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LoginPage(),
-        ),
-      );
-    }
-  }
-
 
   @override
   void dispose() {

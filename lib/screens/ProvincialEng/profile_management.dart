@@ -9,11 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Import the dashboard to use the CustomBottomNavBar
 import 'dashboard.dart' as dashboard;
-<<<<<<< HEAD
 import 'app_settings.dart'; // Ensure Settings is imported
-=======
-// Ensure Settings is imported
->>>>>>> main
 
 class ProfileManagementPage extends StatefulWidget {
   final Map<String, dynamic>? userData;

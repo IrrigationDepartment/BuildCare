@@ -15,11 +15,7 @@ class ViewSchoolDetailsScreen extends StatefulWidget {
 }
 
 class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
-<<<<<<< HEAD
   // --- Constants ---
-=======
-  // --- Style Constants ---
->>>>>>> main
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
   static const Color kTextColor = Color(0xFF333333);
@@ -32,7 +28,6 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
-<<<<<<< HEAD
       // --- 1. Modern AppBar (No change) ---
       appBar: AppBar(
         backgroundColor: kBackgroundColor,
@@ -52,27 +47,10 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
             .collection('schools')
             .doc(widget.schoolId)
             .get(),
-=======
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: kTextColor),
-        title: const Text(
-          'School Information',
-          style: TextStyle(color: kTextColor, fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('schools')
-            .doc(widget.schoolId)
-            .snapshots(),
->>>>>>> main
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-<<<<<<< HEAD
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
@@ -105,48 +83,10 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
                   ],
                 ),
               ),
-=======
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('No details found for this school.'));
-          }
-
-          final schoolData = snapshot.data!.data() as Map<String, dynamic>;
-          
-          // Get schoolName to pass to Master Plan screen
-          final String schoolName = schoolData['schoolName'] ?? 'Unnamed School';
-          final infrastructure = schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Basic Info Card
-                _buildInfoCard(schoolData),
-                const SizedBox(height: 20),
-
-                // 2. Statistics Card (Students/Teachers)
-                _buildStatsCard(schoolData),
-                const SizedBox(height: 20),
-
-                // 3. Infrastructure Checklist
-                _buildInfrastructureCard(infrastructure),
-                const SizedBox(height: 30),
-
-                // 4. View Master Plan Button
-                _buildMasterPlanButton(context, schoolName),
-              ],
->>>>>>> main
             ),
           );
         },
       ),
-<<<<<<< HEAD
       // --- END OF MODIFICATION ---
     );
   }
@@ -192,68 +132,29 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
               subtitle: 'Educational Zone',
               isLast: true,
             ),
-=======
-    );
-  }
-
-  /// 1. Basic Information Card
-  Widget _buildInfoCard(Map<String, dynamic> data) {
-    return Card(
-      elevation: kCardElevation,
-      shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              data['schoolName'] ?? 'N/A',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: kPrimaryBlue,
-              ),
-            ),
-            const Divider(height: 30),
-            _buildInfoRow(Icons.location_on, 'Address', data['schoolAddress']),
-            _buildInfoRow(Icons.email, 'Email', data['schoolEmail']),
-            _buildInfoRow(Icons.phone, 'Phone', data['schoolPhone']),
->>>>>>> main
           ],
         ),
       ),
     );
   }
 
-<<<<<<< HEAD
   /// Card for key statistics
-=======
-  /// 2. Statistics Card
->>>>>>> main
   Widget _buildStatsCard(Map<String, dynamic> data) {
     return Card(
       elevation: kCardElevation,
       shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
-<<<<<<< HEAD
       color: kCardColor,
-=======
->>>>>>> main
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildStatItem(
-<<<<<<< HEAD
               icon: Icons.people_outline,
-=======
-              icon: Icons.people,
->>>>>>> main
               label: 'Students',
               value: data['numStudents']?.toString() ?? '0',
             ),
             _buildStatItem(
-<<<<<<< HEAD
               icon: Icons.person_search_outlined,
               label: 'Teachers',
               value: data['numTeachers']?.toString() ?? '0',
@@ -263,19 +164,12 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
               label: 'Staff',
               value: data['numNonAcademic']?.toString() ?? '0',
             ),
-=======
-              icon: Icons.person_pin_circle,
-              label: 'Teachers',
-              value: data['numTeachers']?.toString() ?? '0',
-            ),
->>>>>>> main
           ],
         ),
       ),
     );
   }
 
-<<<<<<< HEAD
   /// Card for infrastructure details
   Widget _buildInfrastructureCard(Map<String, dynamic> data) {
     final infrastructure =
@@ -285,20 +179,12 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
       elevation: kCardElevation,
       shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
       color: kCardColor,
-=======
-  /// 3. Infrastructure Card
-  Widget _buildInfrastructureCard(Map<String, dynamic> infra) {
-    return Card(
-      elevation: kCardElevation,
-      shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
->>>>>>> main
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-<<<<<<< HEAD
               'Infrastructure Components',
               style: TextStyle(
                 fontSize: 17,
@@ -315,32 +201,18 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
                 'Sanitation', infrastructure['sanitation'] ?? false),
             _buildInfrastructureItem('Communication Facilities',
                 infrastructure['communication'] ?? false),
-=======
-              'Infrastructure Details',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-            _buildInfrastructureItem('Electricity', infra['electricity'] ?? false),
-            _buildInfrastructureItem('Water Supply', infra['waterSupply'] ?? false),
->>>>>>> main
           ],
         ),
       ),
     );
   }
 
-<<<<<<< HEAD
   /// Full-width button for the Master Plan
   Widget _buildMasterPlanButton(BuildContext context) {
-=======
-  /// 4. Master Plan Navigation Button
-  Widget _buildMasterPlanButton(BuildContext context, String schoolName) {
->>>>>>> main
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: () {
-<<<<<<< HEAD
           // Navigate to Master Plan View
           Navigator.push(
             context,
@@ -358,32 +230,11 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
           backgroundColor: kPrimaryBlue,
           shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
           padding: const EdgeInsets.symmetric(vertical: 14),
-=======
-          // Navigate to Master Plan screen and pass the school name
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ViewMasterPlanScreen(schoolName: schoolName),
-            ),
-          );
-        },
-        icon: const Icon(Icons.map_rounded, color: Colors.white),
-        label: const Text(
-          'View Master Plan',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: kPrimaryBlue,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 3,
->>>>>>> main
         ),
       ),
     );
   }
 
-<<<<<<< HEAD
   // --- Helper Widgets (No change) ---
 
   /// A modern ListTile for displaying info
@@ -473,59 +324,10 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
                 fontSize: 15,
                 color: kTextColor,
               ),
-=======
-  // --- Helper Widgets ---
-
-  Widget _buildInfoRow(IconData icon, String label, String? value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: kSubTextColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: kSubTextColor)),
-                Text(value ?? 'N/A', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              ],
->>>>>>> main
             ),
           ),
         ],
       ),
     );
   }
-<<<<<<< HEAD
-=======
-
-  Widget _buildStatItem({required IconData icon, required String label, required String value}) {
-    return Column(
-      children: [
-        Icon(icon, color: kPrimaryBlue, size: 28),
-        const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 13, color: kSubTextColor)),
-      ],
-    );
-  }
-
-  Widget _buildInfrastructureItem(String label, bool isAvailable) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Icon(
-            isAvailable ? Icons.check_circle : Icons.cancel,
-            color: isAvailable ? Colors.green : Colors.red,
-          ),
-          const SizedBox(width: 10),
-          Text(label, style: const TextStyle(fontSize: 16)),
-        ],
-      ),
-    );
-  }
->>>>>>> main
 }

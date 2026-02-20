@@ -258,11 +258,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: DropdownButtonFormField<String>(
-<<<<<<< HEAD
         value: value,
-=======
-        initialValue: value,
->>>>>>> main
         items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: onChanged,
         decoration: InputDecoration(

@@ -66,11 +66,7 @@ class NotificationScreen extends StatelessWidget {
               String? issueId = data['issueId'];
               String? contractId = data['contractId'];
               String? contractorId = data['contractorId'];
-<<<<<<< HEAD
               String userNic = data['addedByNic'] ?? '';
-=======
-              String userNic = data['addedByNic'] ?? ''; // Dashboard එක සමඟ link වන ප්‍රධාන field එක
->>>>>>> main
 
               return Container(
                 decoration: BoxDecoration(

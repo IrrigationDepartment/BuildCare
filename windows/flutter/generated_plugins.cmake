@@ -8,11 +8,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_auth
   firebase_core
   firebase_storage
-<<<<<<< HEAD
-=======
-  printing
-  share_plus
->>>>>>> main
   url_launcher_windows
 )
 

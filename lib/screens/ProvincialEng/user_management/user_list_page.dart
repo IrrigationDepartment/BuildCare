@@ -37,11 +37,7 @@ class _UserListPageState extends State<UserListPage> {
     if (_searchQuery.isNotEmpty) {
       query = query
           .where('name', isGreaterThanOrEqualTo: _searchQuery)
-<<<<<<< HEAD
           .where('name', isLessThan: _searchQuery + 'z');
-=======
-          .where('name', isLessThan: '${_searchQuery}z');
->>>>>>> main
     }
 
     return query.orderBy('name').snapshots();

@@ -2,14 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-<<<<<<< HEAD
 // --- ADDED IMPORTS TO FIX BLANK PAGES ---
 import 'dashboard.dart'; 
 import 'profile_management.dart';
-=======
-// --- ADDED IMPORTS TO FIX NAVIGATION ---
-import 'dashboard.dart'; 
->>>>>>> main
 
 // Main Settings Page with options
 class SettingsPage extends StatelessWidget {
@@ -155,7 +150,6 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ),
-<<<<<<< HEAD
           const SafeArea(
             child: Padding(
               padding: EdgeInsets.only(bottom: 8),
@@ -164,12 +158,6 @@ class SettingsPage extends StatelessWidget {
           ),
         ],
       ),
-=======
-        ],
-      ),
-      // මෙතැනදී Dashboard එකේ ඇති CustomBottomNavBar එක භාවිතා කර ඇත
-      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 2),
->>>>>>> main
     );
   }
 
@@ -180,7 +168,6 @@ class SettingsPage extends StatelessWidget {
     required String subtitle,
     required VoidCallback onTap,
   }) {
-<<<<<<< HEAD
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
@@ -219,34 +206,12 @@ class SettingsPage extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-=======
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: Colors.blue.shade800, size: 22),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-      ),
-      trailing: const Icon(Icons.chevron_right, size: 20),
-      onTap: onTap,
->>>>>>> main
     );
   }
 
   Future<void> _sendVerificationEmail(BuildContext context) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-<<<<<<< HEAD
       if (user != null) {
         await user.sendEmailVerification();
         
@@ -1415,42 +1380,10 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           ),
         ),
       ),
-=======
-      if (user != null && !user.emailVerified) {
-        await user.sendEmailVerification();
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Verification email sent!")),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}")),
-        );
-      }
-    }
-  }
-}
-
-// ---------------------------------------------------------
-// Placeholder screens for Settings
-// ---------------------------------------------------------
-
-class ChangePasswordPage extends StatelessWidget {
-  const ChangePasswordPage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Change Password")),
-      body: const Center(child: Text("Change Password Functionality")),
->>>>>>> main
     );
   }
 }
 
-<<<<<<< HEAD
 // -----------------------------------------------------------------------------
 // --- CustomBottomNavBar (FIXED LOGIC FOR SETTINGS PAGE) ---
 // -----------------------------------------------------------------------------
@@ -1531,15 +1464,6 @@ class CustomBottomNavBar extends StatelessWidget {
           ),
         ],
       ),
-=======
-class SecurityQuestionsPage extends StatelessWidget {
-  const SecurityQuestionsPage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Security Questions")),
-      body: const Center(child: Text("Security Questions Functionality")),
->>>>>>> main
     );
   }
 }

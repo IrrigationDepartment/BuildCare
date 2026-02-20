@@ -392,11 +392,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
   Widget _buildSchoolTypeDropdown() {
     return DropdownButtonFormField<String>(
-<<<<<<< HEAD
       value: _selectedSchoolType,
-=======
-      initialValue: _selectedSchoolType,
->>>>>>> main
       hint: const Text('Select a school type'),
       decoration: InputDecoration(
         prefixIcon: Icon(Icons.category_outlined, color: Colors.grey[700]),
