@@ -15,7 +15,7 @@ class ViewSchoolDetailsScreen extends StatefulWidget {
 }
 
 class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
-  // --- Style Constants ---
+  // --- Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
   static const Color kTextColor = Color(0xFF333333);
@@ -28,113 +28,141 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
+      // --- 1. Modern AppBar (No change) ---
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 1,
+        backgroundColor: kBackgroundColor,
+        elevation: 0,
         iconTheme: const IconThemeData(color: kTextColor),
         title: const Text(
-          'School Information',
-          style: TextStyle(color: kTextColor, fontWeight: FontWeight.bold),
+          'School Details',
+          style: TextStyle(
+            color: kTextColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
+      // --- MODIFICATION IS HERE ---
+      body: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
             .collection('schools')
             .doc(widget.schoolId)
-            .snapshots(),
+            .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('No details found for this school.'));
+            return const Center(
+                child: Text('School details not found.'));
           }
 
-          final schoolData = snapshot.data!.data() as Map<String, dynamic>;
-          
-          // Get schoolName to pass to Master Plan screen
-          final String schoolName = schoolData['schoolName'] ?? 'Unnamed School';
-          final infrastructure = schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
+          final schoolData =
+              snapshot.data!.data() as Map<String, dynamic>;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Basic Info Card
-                _buildInfoCard(schoolData),
-                const SizedBox(height: 20),
-
-                // 2. Statistics Card (Students/Teachers)
-                _buildStatsCard(schoolData),
-                const SizedBox(height: 20),
-
-                // 3. Infrastructure Checklist
-                _buildInfrastructureCard(infrastructure),
-                const SizedBox(height: 30),
-
-                // 4. View Master Plan Button
-                _buildMasterPlanButton(context, schoolName),
-              ],
+          // This is the new part: Center + ConstrainedBox
+          // This ensures your content is centered and has a max width
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                  maxWidth: 700), // Max width for content
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildMainInfoCard(schoolData),
+                    const SizedBox(height: 16),
+                    _buildStatsCard(schoolData),
+                    const SizedBox(height: 16),
+                    _buildInfrastructureCard(schoolData),
+                    const SizedBox(height: 24),
+                    _buildMasterPlanButton(context),
+                  ],
+                ),
+              ),
             ),
           );
         },
       ),
+      // --- END OF MODIFICATION ---
     );
   }
 
-  /// 1. Basic Information Card
-  Widget _buildInfoCard(Map<String, dynamic> data) {
+  /// Card for primary school contact info
+  Widget _buildMainInfoCard(Map<String, dynamic> data) {
     return Card(
       elevation: kCardElevation,
       shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
+      color: kCardColor,
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              data['schoolName'] ?? 'N/A',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: kPrimaryBlue,
-              ),
+            _buildInfoTile(
+              icon: Icons.school,
+              title: data['schoolName'] ?? 'N/A',
+              subtitle: 'School Name',
             ),
-            const Divider(height: 30),
-            _buildInfoRow(Icons.location_on, 'Address', data['schoolAddress']),
-            _buildInfoRow(Icons.email, 'Email', data['schoolEmail']),
-            _buildInfoRow(Icons.phone, 'Phone', data['schoolPhone']),
+            _buildInfoTile(
+              icon: Icons.location_on_outlined,
+              title: data['schoolAddress'] ?? 'N/A',
+              subtitle: 'Address',
+            ),
+            _buildInfoTile(
+              icon: Icons.email_outlined,
+              title: data['schoolEmail'] ?? 'N/A',
+              subtitle: 'Email',
+            ),
+            _buildInfoTile(
+              icon: Icons.phone_outlined,
+              title: data['schoolPhone'] ?? 'N/A',
+              subtitle: 'Phone',
+            ),
+            _buildInfoTile(
+              icon: Icons.business_outlined,
+              title: data['schoolType'] ?? 'N/A',
+              subtitle: 'School Type',
+            ),
+            _buildInfoTile(
+              icon: Icons.map_outlined,
+              title: data['educationalZone'] ?? 'N/A',
+              subtitle: 'Educational Zone',
+              isLast: true,
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// 2. Statistics Card
+  /// Card for key statistics
   Widget _buildStatsCard(Map<String, dynamic> data) {
     return Card(
       elevation: kCardElevation,
       shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
+      color: kCardColor,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildStatItem(
-              icon: Icons.people,
+              icon: Icons.people_outline,
               label: 'Students',
               value: data['numStudents']?.toString() ?? '0',
             ),
             _buildStatItem(
-              icon: Icons.person_pin_circle,
+              icon: Icons.person_search_outlined,
               label: 'Teachers',
               value: data['numTeachers']?.toString() ?? '0',
+            ),
+            _buildStatItem(
+              icon: Icons.work_outline,
+              label: 'Staff',
+              value: data['numNonAcademic']?.toString() ?? '0',
             ),
           ],
         ),
@@ -142,104 +170,162 @@ class _ViewSchoolDetailsScreenState extends State<ViewSchoolDetailsScreen> {
     );
   }
 
-  /// 3. Infrastructure Card
-  Widget _buildInfrastructureCard(Map<String, dynamic> infra) {
+  /// Card for infrastructure details
+  Widget _buildInfrastructureCard(Map<String, dynamic> data) {
+    final infrastructure =
+        data['infrastructure'] as Map<String, dynamic>? ?? {};
+
     return Card(
       elevation: kCardElevation,
       shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
+      color: kCardColor,
       child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Infrastructure Details',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              'Infrastructure Components',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: kTextColor,
+              ),
             ),
-            const SizedBox(height: 15),
-            _buildInfrastructureItem('Electricity', infra['electricity'] ?? false),
-            _buildInfrastructureItem('Water Supply', infra['waterSupply'] ?? false),
+            const SizedBox(height: 16),
+            _buildInfrastructureItem(
+                'Electricity', infrastructure['electricity'] ?? false),
+            _buildInfrastructureItem(
+                'Water Supply', infrastructure['waterSupply'] ?? false),
+            _buildInfrastructureItem(
+                'Sanitation', infrastructure['sanitation'] ?? false),
+            _buildInfrastructureItem('Communication Facilities',
+                infrastructure['communication'] ?? false),
           ],
         ),
       ),
     );
   }
 
-  /// 4. Master Plan Navigation Button
-  Widget _buildMasterPlanButton(BuildContext context, String schoolName) {
+  /// Full-width button for the Master Plan
+  Widget _buildMasterPlanButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: () {
-          // Navigate to Master Plan screen and pass the school name
+          // Navigate to Master Plan View
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ViewMasterPlanScreen(schoolName: schoolName),
+              builder: (context) => const ViewMasterPlanScreen(),
             ),
           );
         },
-        icon: const Icon(Icons.map_rounded, color: Colors.white),
+        icon: const Icon(Icons.map, color: Colors.white),
         label: const Text(
           'View Master Plan',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontSize: 16),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: kPrimaryBlue,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: kBorderRadius),
+          padding: const EdgeInsets.symmetric(vertical: 14),
         ),
       ),
     );
   }
 
-  // --- Helper Widgets ---
+  // --- Helper Widgets (No change) ---
 
-  Widget _buildInfoRow(IconData icon, String label, String? value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: kSubTextColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: kSubTextColor)),
-                Text(value ?? 'N/A', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              ],
-            ),
+  /// A modern ListTile for displaying info
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    bool isLast = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: isLast
+              ? BorderSide.none
+              : BorderSide(color: kBackgroundColor, width: 1.5),
+        ),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, color: kPrimaryBlue),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            color: kTextColor,
+            fontWeight: FontWeight.w500,
           ),
-        ],
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(
+            fontSize: 13,
+            color: kSubTextColor,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildStatItem({required IconData icon, required String label, required String value}) {
+  /// A single item for the stats card
+  Widget _buildStatItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Column(
       children: [
         Icon(icon, color: kPrimaryBlue, size: 28),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 13, color: kSubTextColor)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: kTextColor,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: kSubTextColor,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildInfrastructureItem(String label, bool isAvailable) {
+  /// A single check/cross item for the infrastructure list
+  Widget _buildInfrastructureItem(String label, bool hasComponent) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
+      padding: const EdgeInsets.only(bottom: 10.0),
       child: Row(
         children: [
           Icon(
-            isAvailable ? Icons.check_circle : Icons.cancel,
-            color: isAvailable ? Colors.green : Colors.red,
+            hasComponent ? Icons.check_circle : Icons.cancel_outlined,
+            color: hasComponent ? Colors.green : Colors.red,
+            size: 22,
           ),
-          const SizedBox(width: 10),
-          Text(label, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 15,
+                color: kTextColor,
+              ),
+            ),
+          ),
         ],
       ),
     );

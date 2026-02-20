@@ -633,7 +633,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     [
                       _buildInfoItem(
                         'User ID',
-                        '${widget.userId.substring(0, 8)}...',
+                        widget.userId.substring(0, 8) + '...',
                         Icons.fingerprint_outlined,
                       ),
                       const Divider(height: 1),

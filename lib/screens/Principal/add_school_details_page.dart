@@ -25,8 +25,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
 
   // --- State Variables ---
   String? _schoolType;
-  String? _selectedDistrict; 
-  String? _selectedDistrict; 
   bool _electricity = false;
   bool _waterSupply = false;
   bool _sanitation = false;
@@ -41,6 +39,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
 
   @override
   void dispose() {
+    // Disposing controllers to free up memory
     _schoolNameController.dispose();
     _schoolAddressController.dispose();
     _schoolEmailController.dispose();
@@ -52,13 +51,14 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     super.dispose();
   }
 
-  // --- Firestore Save Function ---
+  // --- Firestore Save Function with Notifications ---
   Future<void> _saveSchoolDetails() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      // 1. Prepare school data map
       final schoolData = {
         'schoolName': _schoolNameController.text.trim(),
         'schoolAddress': _schoolAddressController.text.trim(),
@@ -66,8 +66,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         'schoolEmail': _schoolEmailController.text.trim(),
         'schoolType': _schoolType,
         'educationalZone': _educationalZoneController.text.trim(),
-        'district': _selectedDistrict, 
-        'district': _selectedDistrict, // Firestore වෙත District එක එකතු කිරීම
         'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
         'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
         'numNonAcademic': int.tryParse(_nonAcademicController.text.trim()) ?? 0,
@@ -79,13 +77,15 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         },
         'addedByNic': widget.userNic,
         'addedAt': Timestamp.now(),
-        'isActive': false,
+        'isActive': false, // Initially set to 'Pending' (not approved)
       };
 
+      // 2. Add to 'schools' collection and retrieve the Document ID
       DocumentReference schoolRef = await FirebaseFirestore.instance
           .collection('schools')
           .add(schoolData);
 
+      // 3. Trigger a Notification for the Admin
       await FirebaseFirestore.instance.collection('notifications').add({
         'title': 'New School Added',
         'subtitle': '${_schoolNameController.text.trim()} was added by Principal.',
@@ -176,10 +176,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                 ),
                 _buildDropdown(),
                 _buildTextField("School Educational Zone", "Enter Your School Educational Zone", _educationalZoneController),
-                
-                
-                _buildDistrictDropdown(),
-
                 _buildTextField("Number of Students in School", "Enter Total students in school", _studentsController, isNumber: true),
                 _buildTextField("Number of Teachers in School", "Enter Total Teachers in School", _teachersController, isNumber: true),
                 _buildTextField("Number of NonAcademic Staff", "Enter Total Number of NonAcademic", _nonAcademicController, isNumber: true),
@@ -195,6 +191,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
 
   // --- UI Helpers ---
 
+  // Helper widget to build standard text input fields
   Widget _buildTextField(String label, String hint, TextEditingController controller,
       {TextInputType keyboardType = TextInputType.text, bool isNumber = false, bool isEmail = false, bool isPhone = false}) {
     return Padding(
@@ -228,8 +225,8 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     );
   }
 
+  // Helper widget to build the School Type dropdown
   Widget _buildDropdown() {
-    final List<String> schoolTypes = ['Government', 'Semi-Government',];
     final List<String> schoolTypes = ['Government', 'Semi-Government', 'Private', 'International'];
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -256,34 +253,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     );
   }
 
-  // --- District Dropdown Helper ---
-  Widget _buildDistrictDropdown() {
-    final List<String> districts = ['Galle', 'Matara', 'Hambantota'];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(" School District", style: TextStyle(fontWeight: FontWeight.bold, color: kTextColor, fontSize: 14)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _selectedDistrict,
-            decoration: InputDecoration(
-              hintText: "Select Your District",
-              filled: true,
-              fillColor: kFieldColor,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            ),
-            items: districts.map((dist) => DropdownMenuItem(value: dist, child: Text(dist))).toList(),
-            onChanged: (val) => setState(() => _selectedDistrict = val),
-            validator: (val) => val == null ? 'Please select a district' : null,
-          ),
-        ],
-      ),
-    );
-  }
-
+  // Helper widget to build the infrastructure checklist section
   Widget _buildInfrastructureSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,6 +276,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     );
   }
 
+  // Helper widget for CheckboxListTile
   Widget _buildCheckboxTile(String title, bool value, ValueChanged<bool?> onChanged) {
     return CheckboxListTile(
       title: Text(title, style: const TextStyle(fontSize: 14, color: kTextColor)),

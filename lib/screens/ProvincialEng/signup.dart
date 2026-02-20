@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Required for Auth
 
@@ -561,7 +562,7 @@ class _ProvincialEngRegistrationPageState
                   color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-              initialValue: value,
+              value: value,
               items: items
                   .map((String office) => DropdownMenuItem<String>(
                       value: office, child: Text(office)))

@@ -337,7 +337,7 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            initialValue: _selectedSchoolType,
+            value: _selectedSchoolType,
             items: _schoolTypes.map((String type) {
               return DropdownMenuItem<String>(
                 value: type,

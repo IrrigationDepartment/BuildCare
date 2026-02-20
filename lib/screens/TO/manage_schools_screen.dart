@@ -39,6 +39,7 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
   }
 
   // --- This function is no longer used but can be kept for other pages ---
+  // ignore: unused_element
   Future<void> _updateSchoolStatus(String schoolId, bool isActive) async {
     try {
       await FirebaseFirestore.instance
@@ -70,7 +71,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text('Manage Schools', style: TextStyle(color: kTextColor)),
         title:
             const Text('Manage Schools', style: TextStyle(color: kTextColor)),
         backgroundColor: Colors.white,
@@ -98,10 +98,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream:
                   FirebaseFirestore.instance.collection('schools').snapshots(),
-              stream: FirebaseFirestore.instance
-                  .collection('schools')
-                  .orderBy('addedAt', descending: true) 
-                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -116,7 +112,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
                 // Filter schools based on search text
                 final filteredDocs = snapshot.data!.docs.where((doc) {
                   final schoolName = doc['schoolName']?.toLowerCase() ?? '';
-                  final schoolAddress = doc['schoolAddress']?.toLowerCase() ?? '';
                   final schoolAddress =
                       doc['schoolAddress']?.toLowerCase() ?? '';
                   return schoolName.contains(_searchText) ||
@@ -124,7 +119,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
                 }).toList();
 
                 if (filteredDocs.isEmpty) {
-                  return const Center(child: Text('No matching schools found.'));
                   return const Center(
                       child: Text('No matching schools found.'));
                 }
@@ -222,11 +216,8 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           onPressed: navigateToDetails, // This button navigates
         ),
         // ---------------------------------
-        
+
         // --- IMPORTANT: Set onTap to null so the full card does not navigate ---
-        onTap: null, 
-          onPressed: navigateToDetails,
-        ),
         onTap: null,
       ),
     );
