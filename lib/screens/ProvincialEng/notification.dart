@@ -8,7 +8,6 @@ import 'issue_report_details_screen.dart';
 import 'view_details.dart'; // Contains ViewContractDetailsScreen
 import 'view_contractor_screen.dart'; // Contains ViewContractorScreen
 
-
 class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
 
