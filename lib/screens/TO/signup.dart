@@ -14,12 +14,28 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
 
   // Controllers for all the fields
   final _userTypeController =
+      TextEditingController(text: 'Technical Officer'); // MODIFIED
       TextEditingController(text: 'Technical Officer');
   final _nameController = TextEditingController();
   final _nicController = TextEditingController();
   final _emailController = TextEditingController();
   final _officePhoneController = TextEditingController();
   final _mobileController = TextEditingController();
+  final _petNameController = TextEditingController();
+  final _nicknameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  // NEW: State for the 'isActive' flag
+  final bool _initialIsActiveStatus = false; // User starts as deactivated
+
+  // --- ADDED: Default Profile Image URL ---
+  final String _defaultProfileImageUrl =
+      'https://t4.ftcdn.net/jpg/00/64/67/63/360_F_64676383_Ldbm8TwlbnL43PId23vLdI3MgqhaNYf5.jpg';
+
+  // NEW: FocusNodes
+  final _passwordFocusNode = FocusNode();
+  final _nicFocusNode = FocusNode(); // <-- For NIC check
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -40,6 +56,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
+  // NEW: State variables for password validation UI
   bool _isPasswordFocused = false;
   bool _has8Chars = false;
   bool _hasLowercase = false;
@@ -47,29 +64,44 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
 
+  // --- NEW: State variables for NIC check ---
   bool _isCheckingNic = false;
   bool _isNicDuplicate = false;
 
   @override
   void initState() {
     super.initState();
+    // Password listener
     _passwordController.addListener(_validatePassword);
     _passwordFocusNode.addListener(() {
       setState(() {
         _isPasswordFocused = _passwordFocusNode.hasFocus;
       });
     });
+
+    // --- ADDED: NIC Focus listener ---
     _nicFocusNode.addListener(_onNicFocusChange);
   }
 
   @override
   void dispose() {
+    // Dispose all controllers
     _userTypeController.dispose();
     _nameController.dispose();
     _nicController.dispose();
     _emailController.dispose();
     _officePhoneController.dispose();
     _mobileController.dispose();
+    _petNameController.dispose();
+    _nicknameController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+
+    // Dispose listeners and FocusNodes
+    _passwordController.removeListener(_validatePassword);
+    _passwordFocusNode.dispose();
+
+    // --- ADDED: Dispose NIC listener and node ---
     _passwordController.dispose();
     _confirmPasswordController.dispose();
 
@@ -81,12 +113,20 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     super.dispose();
   }
 
+  // --- ADDED: Function to check NIC when focus is lost ---
+  void _onNicFocusChange() {
+    // If the user is no longer focused on the NIC field, check the value
   void _onNicFocusChange() {
     if (!_nicFocusNode.hasFocus) {
       _checkNicDuplication();
     }
   }
 
+  // --- ADDED: The database check logic ---
+  Future<void> _checkNicDuplication() async {
+    final nic = _nicController.text.trim().toUpperCase();
+
+    // Don't check if empty or invalid format
   Future<void> _checkNicDuplication() async {
     final nic = _nicController.text.trim().toUpperCase();
     if (nic.isEmpty) return;
@@ -95,6 +135,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
 
     setState(() {
       _isCheckingNic = true;
+      _isNicDuplicate = false; // Reset status
       _isNicDuplicate = false;
     });
 
@@ -126,6 +167,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     }
   }
 
+  // NEW: Function to validate password in real-time
   void _validatePassword() {
     final password = _passwordController.text;
     setState(() {
@@ -137,6 +179,42 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     });
   }
 
+  // --- Firebase Registration Logic ---
+  Future<void> _registerUser() async {
+    FocusScope.of(context).unfocus();
+    if (_formKey.currentState!.validate()) {
+      // Perform password validation check
+      if (!_has8Chars ||
+          !_hasLowercase ||
+          !_hasUppercase ||
+          !_hasNumber ||
+          !_hasSpecialChar) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              backgroundColor: Colors.orange,
+              content: Text(
+                  'Please ensure the password meets all security requirements.')));
+        }
+        return;
+      }
+
+      // --- ADDED: Final NIC check before submit ---
+      // Run the check one last time in case the user didn't lose focus
+      await _checkNicDuplication();
+      if (_isNicDuplicate) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('This NIC is already registered.'),
+          ));
+        }
+        return; // Stop submission
+      }
+      // --- END ---
+
+      setState(() => _isLoading = true);
+      try {
+        await FirebaseFirestore.instance.collection('users').add({
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
@@ -187,6 +265,19 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
           'office': _selectedOffice,
           'officePhone': _officePhoneController.text.trim(),
           'mobilePhone': _mobileController.text.trim(),
+          'securityQuestionPet': _petNameController.text.trim(),
+          'securityQuestionNickname': _nicknameController.text.trim(),
+          'password': _passwordController.text.trim(), // Consider hashing this!
+          'userType': 'Technical Officer',
+          'createdAt': Timestamp.now(),
+
+          // *** MODIFICATION 1: User is automatically deactivated ***
+          'isActive': _initialIsActiveStatus, // Automatically set to false
+
+          // *** MODIFICATION 2: Add the default profile image URL ***
+          'profile_image': _defaultProfileImageUrl,
+        });
+
           'userType': 'Technical Officer',
           'createdAt': Timestamp.now(),
           'isActive': _initialIsActiveStatus,
@@ -211,6 +302,14 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
             }
           });
         }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              backgroundColor: Colors.red,
+              content: Text('Registration failed: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     } on FirebaseAuthException catch (e) {
       String message = 'Registration failed. Please try again.';
@@ -236,6 +335,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     }
   }
 
+  // --- Main Build Method ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -264,6 +364,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // --- Form Fields ---
                         _buildLabeledTextField(
                             label: 'User Type',
                             isReadOnly: true,
@@ -274,11 +375,16 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                             hint: 'Enter Your Name',
                             controller: _nameController,
                             icon: Icons.person_outline),
+
+                        // --- MODIFIED: NIC Field ---
                         _buildLabeledTextField(
                             label: 'NIC Number',
                             hint: 'e.g., 123456789V or 199012345678',
                             controller: _nicController,
                             icon: Icons.credit_card,
+                            focusNode: _nicFocusNode, // <-- Added FocusNode
+                            isChecking: _isCheckingNic, // <-- Added check state
+                            errorText: _isNicDuplicate // <-- Added error
                             focusNode: _nicFocusNode,
                             isChecking: _isCheckingNic,
                             errorText: _isNicDuplicate
@@ -295,6 +401,8 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                               }
                               return null;
                             }),
+                        // --- END MODIFICATION ---
+
                         _buildLabeledDropdown(
                             label: 'Select Your Office',
                             hint: 'Select an Office',
@@ -350,6 +458,14 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                               }
                               return null;
                             }),
+                        _buildLabeledTextField(
+                            label: 'First Pet Name',
+                            hint: 'Enter Your First Pet Name',
+                            controller: _petNameController),
+                        _buildLabeledTextField(
+                            label: 'Childhood nickname',
+                            hint: 'Enter Your Childhood nickname',
+                            controller: _nicknameController),
 
                         // Password Field
                         _buildLabeledTextField(
@@ -429,6 +545,144 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // --- Helper method to show info dialog ---
+  void _showInfoDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          actions: <Widget>[
+            TextButton(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(context).pop())
+          ],
+        );
+      },
+    );
+  }
+
+  // NEW: Widget to display the entire password validation checklist
+  Widget _buildPasswordValidationUI() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildValidationRow('At least 8 characters', _has8Chars),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a lowercase letter', _hasLowercase),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains an uppercase letter', _hasUppercase),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a number', _hasNumber),
+        const SizedBox(height: 4),
+        _buildValidationRow('Contains a special character', _hasSpecialChar),
+      ],
+    );
+  }
+
+  // NEW: Widget for a single row in the validation checklist
+  Widget _buildValidationRow(String text, bool isValid) {
+    return Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.remove_circle_outline,
+          color: isValid ? Colors.green : Colors.grey.shade600,
+          size: 18,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            color: isValid ? Colors.green : Colors.grey.shade600,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- Helper Widgets for Form Fields ---
+  // --- MODIFIED: Added FocusNode, errorText, and isChecking ---
+  Widget _buildLabeledTextField({
+    required String label,
+    required TextEditingController controller,
+    String hint = '',
+    IconData? icon,
+    bool isPassword = false,
+    bool isPasswordVisible = false,
+    bool isReadOnly = false,
+    VoidCallback? onVisibilityToggle,
+    TextInputType? keyboardType,
+    String? infoMessage,
+    String? Function(String?)? validator,
+    FocusNode? focusNode,
+    String? errorText, // <-- For NIC error
+    bool isChecking = false, // <-- For NIC spinner
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+              if (infoMessage != null)
+                IconButton(
+                  icon: Icon(Icons.info_outline,
+                      color: Colors.grey.shade500, size: 20),
+                  onPressed: () =>
+                      _showInfoDialog(context, 'Password Guide', infoMessage),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                )
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+              controller: controller,
+              focusNode: focusNode, // <-- Use the FocusNode
+              readOnly: isReadOnly,
+              obscureText: isPassword && !isPasswordVisible,
+              keyboardType: keyboardType,
+              style: const TextStyle(color: Color.fromARGB(221, 58, 58, 58)),
+              decoration: _inputDecoration(
+                hint,
+                isChecking ? null : icon, // <-- Hide icon if checking
+                isChecking
+                    ? const Padding(
+                        // <-- Show spinner if checking
+                        padding: EdgeInsets.all(12.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.0),
+                        ),
+                      )
+                    : (isPassword // <-- Show password toggle
+                        ? IconButton(
+                            icon: Icon(
+                                isPasswordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: const Color(0xFF53BDFF)),
+                            onPressed: onVisibilityToggle)
+                        : null),
+                errorText, // <-- Pass error text
+              ),
+              validator: validator ??
+                  (value) => value!.isEmpty ? '$label cannot be empty' : null)
+        ],
       ),
     );
   }
@@ -558,6 +812,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
         ]));
   }
 
+  // --- MODIFIED: Added errorText parameter ---
   InputDecoration _inputDecoration(
       String hintText, IconData? icon, Widget? suffixIcon, String? errorText) {
     return InputDecoration(
@@ -582,6 +837,11 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
         focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(30.0),
             borderSide: const BorderSide(color: Colors.red, width: 2.0)),
+
+        // --- MODIFIED: Pass the errorText ---
+        errorText: errorText,
+        suffixIcon: suffixIcon ?? // <-- Use the custom suffix first
+            (icon != null // <-- Otherwise, use the default icon
         errorText: errorText,
         suffixIcon: suffixIcon ??
             (icon != null
@@ -590,4 +850,5 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                     child: Icon(icon, color: const Color(0xFF53BDFF)))
                 : null));
   }
+}
 }
