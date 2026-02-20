@@ -292,10 +292,6 @@ class _DashboardScreenState extends State<TODashboard> {
     Widget? page;
     switch (type) {
       case 'issue':
-        page = IssueReportDetailsScreen(
-          issueId: id,
-          userNic: widget.userData['nic'] ?? 'UNKNOWN_NIC',
-        );
         page = IssueReportDetailsScreen(issueId: id);
         break;
       case 'contract':
@@ -387,22 +383,6 @@ class _DashboardScreenState extends State<TODashboard> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-// ====================================================================
-// HELPER WIDGETS
-// ====================================================================
-
-  /// 1. Builds the personalized welcome header.
-  Widget _buildWelcomeHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-      decoration: BoxDecoration(
-        color: kHeaderGrey,
-        borderRadius: BorderRadius.circular(20),
-      ),
       ),
     );
   }
