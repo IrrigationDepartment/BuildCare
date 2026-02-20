@@ -29,6 +29,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
   String? _selectedDistrict;
   final List<String> _districts = ['Galle', 'Matara', 'Hambantota'];
+  final List<String> _districts = ['Galle', 'Matara', 'Hambantota', 'Colombo'];
 
   // State for UI
   bool _isLoading = false;
