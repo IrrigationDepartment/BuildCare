@@ -34,7 +34,7 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
   Future<void> _fetchIssueDetails() async {
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('issues')
+          .collection('issues') // Assuming the collection name remains 'issues'
           .doc(widget.issueId)
           .get();
 
@@ -88,9 +88,9 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text('Damage Details',
+        title: const Text('Damage Details', // Updated title
             style: TextStyle(color: kTextColor)),
-        surfaceTintColor: kCardColor,
+        backgroundColor: kCardColor,
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
         // OPTIONAL: Add an "Edit" button to navigate to your editing screen
@@ -135,9 +135,8 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
                       const SizedBox(height: 24),
 
                       // --- SECTION 2: ISSUE DETAILS CARD ---
-                      // --- SECTION 2: ISSUE DETAILS CARD ---
                       _buildSectionCard(
-                        title: 'Damage Details',
+                        title: 'Damage Details', // Updated title
                         children: [
                           _buildDetailRow(
                             icon: Icons.category_outlined,
@@ -238,14 +237,16 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
               ),
             ),
             const SizedBox(height: 4),
+            Divider(color: kBackgroundColor.withOpacity(0.8)),
             const SizedBox(height: 12),
-            ...children,
+            ...children, // Add all the child widgets
           ],
         ),
       ),
     );
   }
 
+  //  Helper for Icon | Label | Value rows  
   Widget _buildDetailRow({
     required IconData icon,
     required String label,

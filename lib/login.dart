@@ -86,7 +86,6 @@ class _LoginPageState extends State<LoginPage> {
       final userDoc = querySnapshot.docs.first;
       final userData = userDoc.data();
       final String? email = userData['email'] as String?;
-      final String uid = userDoc.id; // This is the user's Auth UID
       final String? uid = userDoc.id; // This is the user's Auth UID
 
       if (email == null || email.isEmpty) {
@@ -97,14 +96,6 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       // --- 3. SIGN IN WITH FIREBASE AUTH ---
-      UserCredential userCredential;
-      try {
-        userCredential =
-            await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: email,
-          password: _passwordController.text.trim(),
-        );
-      } on FirebaseAuthException catch (e) {
       try {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
@@ -119,10 +110,6 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       // --- 4. AUTH SUCCEEDED, NOW CHECK FIRESTORE FOR 'isActive' ---
-      
-      // We can re-use the userData we fetched earlier
-      final bool isActive = userData['isActive'] as bool? ?? false;
-      final userType = userData['userType'] as String?;
 
       // We can re-use the userData we fetched earlier
       final bool isActive = userData['isActive'] as bool? ?? false;
@@ -137,18 +124,8 @@ class _LoginPageState extends State<LoginPage> {
           'uid': uid, // Pass the user's ID
         };
 
-      if (isActive) {
-        // --- User is active, proceed with login ---
-        final String loggedInNic = _nicController.text.trim();
-        final Map<String, dynamic> combinedUserData = {
-          ...userData,
-          'nic': loggedInNic, // Ensure NIC is passed
-          'uid': uid, // Pass the user's ID
-        };
-        
         Widget destination;
         switch (userType) {
-          case 'Provincial Director':
           case 'Provincial Engineer':
             destination = ProvincialEngDashboard(userData: combinedUserData);
             break;
@@ -182,14 +159,11 @@ class _LoginPageState extends State<LoginPage> {
         }
       } else {
         // --- User is not active, show error ---
-        _showMessage(
-            'Login Failed',
         _showMessage('Login Failed',
             'Your account is not active. Please contact an administrator.');
         // Sign the user out again, as they are not allowed in
         await FirebaseAuth.instance.signOut();
       }
-
     } catch (e) {
       _showMessage('Error', 'An unexpected error occurred: $e');
     } finally {
@@ -365,7 +339,4 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-}
-}
-}
 }

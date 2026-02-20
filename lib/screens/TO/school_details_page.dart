@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'edit_school_screen.dart'; 
-import 'view_master_plan_screen.dart'; 
-
-class SchoolDetailsPage extends StatefulWidget {
-  final String schoolId; 
 import 'edit_school_screen.dart';
 import 'view_master_plan_screen.dart';
 
@@ -22,7 +17,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
   static const Color kTextColor = Color(0xFF333333);
-  static const Color kSubTextColor = Color(0xFF757575);
   static const Color kActiveColor = Color(0xFF4CAF50); // Green
   static const Color kInactiveColor = Color(0xFFBDBDBD); // Grey
   static const Color kAccentColor = Color(0xFFFFA726); // Orange for Stats/Edit
@@ -32,7 +26,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text('School Details', style: TextStyle(color: kTextColor)),
         title:
             const Text('School Details', style: TextStyle(color: kTextColor)),
         backgroundColor: Colors.white,
@@ -60,7 +53,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
               schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // Increased padding for better look
             padding: const EdgeInsets.symmetric(
                 horizontal: 16.0,
                 vertical: 20.0), // Increased padding for better look
@@ -92,7 +84,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
   // --- 1. General Information Card ---
   Widget _buildInfoCard(Map<String, dynamic> data) {
     return Container(
-      width: double.infinity, 
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
@@ -103,7 +94,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
             color: Colors.grey.withOpacity(0.15),
             spreadRadius: 1,
             blurRadius: 5,
-            offset: const Offset(0, 3), 
             offset: const Offset(0, 3),
           ),
         ],
@@ -112,9 +102,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header (School Name)
-          _buildDetailRow('School Name', data['schoolName'], isHeader: true), 
-          const Divider(height: 20, thickness: 1.5, color: kBackgroundColor),
-          
           _buildDetailRow('School Name', data['schoolName'], isHeader: true),
           const Divider(height: 20, thickness: 1.5, color: kBackgroundColor),
 
@@ -132,7 +119,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
   // --- 2. Stats Card (New) ---
   Widget _buildStatsCard(Map<String, dynamic> data) {
     return Container(
-      width: double.infinity, 
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
       decoration: BoxDecoration(
@@ -143,7 +129,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
             color: Colors.grey.withOpacity(0.15),
             spreadRadius: 1,
             blurRadius: 5,
-            offset: const Offset(0, 3), 
             offset: const Offset(0, 3),
           ),
         ],
@@ -153,12 +138,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
         children: [
           const Text(
             'Personnel and Student Count',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor),
-          ),
-          const Divider(height: 20, thickness: 1, color: kBackgroundColor),
-          _buildStatItem('Students', data['numStudents']?.toString(), Icons.group),
-          _buildStatItem('Teachers', data['numTeachers']?.toString(), Icons.person_pin_circle),
-          _buildStatItem('Staff', data['numNonAcademic']?.toString(), Icons.business_center),
             style: TextStyle(
                 fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor),
           ),
@@ -187,20 +166,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 16, color: kTextColor, fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  value ?? 'N/A',
-                  style: const TextStyle(fontSize: 18, color: kPrimaryBlue, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
                   style: const TextStyle(
                       fontSize: 16,
                       color: kTextColor,
@@ -230,7 +195,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 5, offset: const Offset(0, 3)),
           BoxShadow(
               color: Colors.grey.withOpacity(0.15),
               blurRadius: 5,
@@ -242,13 +206,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
         children: [
           const Text(
             'Infrastructure Components',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor),
-          ),
-          const SizedBox(height: 12),
-          _buildInfrastructureItem('Electricity', infrastructure['electricity'] ?? false),
-          _buildInfrastructureItem('Water Supply', infrastructure['waterSupply'] ?? false),
-          _buildInfrastructureItem('Sanitation', infrastructure['sanitation'] ?? false),
-          _buildInfrastructureItem('Communication', infrastructure['communication'] ?? false),
             style: TextStyle(
                 fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor),
           ),
@@ -272,7 +229,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
       child: Row(
         children: [
           Icon(
-            hasComponent ? Icons.check_circle_outline : Icons.cancel_outlined, // Cleaner outline icons
             hasComponent
                 ? Icons.check_circle_outline
                 : Icons.cancel_outlined, // Cleaner outline icons
@@ -300,18 +256,12 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => EditSchoolScreen(schoolId: widget.schoolId, schoolData: data),
                   builder: (context) => EditSchoolScreen(
                       schoolId: widget.schoolId, schoolData: data),
                 ),
               );
             },
             icon: const Icon(Icons.edit, color: Colors.white),
-            label: const Text('Edit School Details', style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kAccentColor, // Changed to a different accent color
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             label: const Text('Edit School Details',
                 style: TextStyle(color: Colors.white)),
             style: ElevatedButton.styleFrom(
@@ -330,15 +280,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ViewMasterPlanScreen()),
-              );
-            },
-            icon: const Icon(Icons.map_outlined, color: Colors.white),
-            label: const Text('View Master Plan', style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryBlue,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 MaterialPageRoute(
                     builder: (context) => const ViewMasterPlanScreen()),
               );
@@ -363,12 +304,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
     final displayValue = value ?? 'N/A';
     // Use larger font for the school name header
     final double fontSize = isHeader ? 22 : 16;
-    
-    // School name value should also be bold, others should be normal weight
-    final fontWeightValue = isHeader ? FontWeight.bold : FontWeight.w500; 
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: isHeader ? 0 : 8.0), // Less padding for header
 
     // School name value should also be bold, others should be normal weight
     final fontWeightValue = isHeader ? FontWeight.bold : FontWeight.w500;
@@ -380,10 +315,6 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
         text: TextSpan(
           // Default style for the RichText
           style: DefaultTextStyle.of(context).style.copyWith(
-            fontSize: fontSize, 
-            color: kTextColor,
-            decoration: TextDecoration.none, // Removes the underline
-          ),
                 fontSize: fontSize,
                 color: kTextColor,
                 decoration: TextDecoration.none, // Removes the underline
@@ -404,7 +335,4 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
       ),
     );
   }
-}
-}
-}
 }

@@ -38,39 +38,11 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     super.dispose();
   }
 
-  // --- This function is no longer used but can be kept for other pages ---
-  Future<void> _updateSchoolStatus(String schoolId, bool isActive) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(schoolId)
-          .update({
-        'isActive': isActive,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('School status updated!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update status: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text('Manage Schools', style: TextStyle(color: kTextColor)),
         title:
             const Text('Manage Schools', style: TextStyle(color: kTextColor)),
         backgroundColor: Colors.white,
@@ -96,8 +68,7 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           _buildSearchBar(),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance.collection('schools').snapshots(),
+              // මෙහිදී addedAt field එක descending order එකට සකස් කර ඇත
               stream: FirebaseFirestore.instance
                   .collection('schools')
                   .orderBy('addedAt', descending: true) 
@@ -116,7 +87,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
                 // Filter schools based on search text
                 final filteredDocs = snapshot.data!.docs.where((doc) {
                   final schoolName = doc['schoolName']?.toLowerCase() ?? '';
-                  final schoolAddress = doc['schoolAddress']?.toLowerCase() ?? '';
                   final schoolAddress =
                       doc['schoolAddress']?.toLowerCase() ?? '';
                   return schoolName.contains(_searchText) ||
@@ -124,7 +94,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
                 }).toList();
 
                 if (filteredDocs.isEmpty) {
-                  return const Center(child: Text('No matching schools found.'));
                   return const Center(
                       child: Text('No matching schools found.'));
                 }
@@ -170,14 +139,12 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     );
   }
 
-  // --- MODIFIED school card: Only the trailing button navigates ---
   Widget _buildSchoolCard(DocumentSnapshot schoolDoc) {
     final schoolData = schoolDoc.data() as Map<String, dynamic>;
     final String schoolId = schoolDoc.id;
     final String schoolName = schoolData['schoolName'] ?? 'Unnamed School';
     final String schoolAddress = schoolData['schoolAddress'] ?? 'No Address';
 
-    // Helper function for navigation
     void navigateToDetails() {
       Navigator.push(
         context,
@@ -207,8 +174,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           schoolAddress,
           style: const TextStyle(color: kSubTextColor),
         ),
-
-        // --- TRAILING BUTTON: Only this navigates ---
         trailing: TextButton.icon(
           icon: const Icon(Icons.info_outline, size: 18),
           label: const Text('View Details'),
@@ -219,12 +184,6 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          onPressed: navigateToDetails, // This button navigates
-        ),
-        // ---------------------------------
-        
-        // --- IMPORTANT: Set onTap to null so the full card does not navigate ---
-        onTap: null, 
           onPressed: navigateToDetails,
         ),
         onTap: null,

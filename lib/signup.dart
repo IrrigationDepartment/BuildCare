@@ -77,7 +77,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   // Dropdown list items
   final List<String> _userTypes = [
-    'Provincial Director',
+    'Provincial Engineer',
     'Site Manager',
     'Contractor'
   ];

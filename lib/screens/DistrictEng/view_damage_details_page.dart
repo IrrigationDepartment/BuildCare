@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'damage_details_dialog.dart';
-import 'add_issue_screen.dart';
 import 'add_issue_screen.dart'; 
 
 class ViewDamageDetailsPage extends StatefulWidget {
@@ -19,50 +18,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
   static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
 
-  String _searchQuery = "";
-  final TextEditingController _searchController = TextEditingController();
-
-  Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'Processing':
-        return Colors.grey.shade300;
-      case 'Pending':
-        return Colors.amber.shade100;
-      case 'Finished':
-        return Colors.green.shade100;
-      default:
-        return Colors.grey.shade200;
-    }
-  }
-
-  Color _getStatusTextColor(String? status) {
-    switch (status) {
-      case 'Processing':
-        return Colors.grey.shade800;
-      case 'Pending':
-        return Colors.amber.shade900;
-      case 'Finished':
-        return Colors.green.shade900;
-      default:
-        return Colors.grey.shade800;
-    }
-  }
-
-  Future<void> _updateStatus(String issueId, String newStatus) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('issues')
-          .doc(issueId)
-          .update({'status': newStatus});
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating status: $e')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,84 +28,51 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
       ),
-      body: Column(
-        children: [
-          
-          Padding(
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('issues')
+            .orderBy('timestamp', descending: true) 
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No damage reports found.'));
+          }
+
+          return ListView.builder(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Search by title or school...',
-                prefixIcon: const Icon(Icons.search, color: kPrimaryBlue),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30), // Rounded corners
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: const BorderSide(color: kPrimaryBlue, width: 1.5),
-                ),
-              ),
-            ),
-          ),
-
-          // --- Damage Reports List ---
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('issues')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No damage reports found.'));
-                }
-
-               
-                final filteredDocs = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final title = (data['issueTitle'] ?? "").toString().toLowerCase();
-                  final school = (data['schoolName'] ?? "").toString().toLowerCase();
-                  return title.contains(_searchQuery) || school.contains(_searchQuery);
-                }).toList();
-
-                if (filteredDocs.isEmpty) {
-                  return const Center(child: Text('No results found.'));
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: filteredDocs.length,
-                  itemBuilder: (context, index) {
-                    final issueDoc = filteredDocs[index];
-                    return _buildIssueCard(issueDoc);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final issueDoc = snapshot.data!.docs[index];
+              return _buildIssueCard(issueDoc);
+            },
+          );
+        },
       ),
     );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'In Progress': return Colors.blue.shade100;
+      case 'Pending': return Colors.amber.shade100;
+      case 'Resolved': return Colors.green.shade100;
+      default: return Colors.grey.shade200;
+    }
+  }
+
+  Color _getStatusTextColor(String? status) {
+    switch (status) {
+      case 'In Progress': return Colors.blue.shade800;
+      case 'Pending': return Colors.amber.shade800;
+      case 'Resolved': return Colors.green.shade800;
+      default: return Colors.grey.shade800;
+    }
   }
 
   Widget _buildIssueCard(DocumentSnapshot issueDoc) {
@@ -158,7 +80,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
     final String issueId = issueDoc.id;
     final String title = data['issueTitle'] ?? 'No Title';
     final String school = data['schoolName'] ?? 'Unknown School';
-    final String currentStatus = data['status'] ?? 'Pending';
     final String status = data['status'] ?? 'Unknown';
 
     return Card(
@@ -177,46 +98,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: kTextColor),
-                  ),
-                ),
-                // Status Dropdown Button
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(currentStatus),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: ['Pending', 'Processing', 'Finished']
-                              .contains(currentStatus)
-                          ? currentStatus
-                          : 'Pending',
-                      icon: Icon(Icons.arrow_drop_down,
-                          color: _getStatusTextColor(currentStatus)),
-                      style: TextStyle(
-                        color: _getStatusTextColor(currentStatus),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          _updateStatus(issueId, newValue);
-                        }
-                      },
-                      items: <String>['Pending', 'Processing', 'Finished']
-                          .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                    ),
-                  ),
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: kTextColor),
                   ),
                 ),
@@ -231,8 +112,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
               ],
             ),
             const SizedBox(height: 4),
-            Text(school,
-                style: const TextStyle(color: kSubTextColor, fontSize: 14)),
             Text(school, style: const TextStyle(color: kSubTextColor, fontSize: 14)),
             const SizedBox(height: 16),
             Row(
@@ -242,8 +121,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            DamageDetailsDialog(issueId: issueId),
                         builder: (context) => DamageDetailsDialog(issueId: issueId),
                       ),
                     );
@@ -253,8 +130,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryBlue,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
@@ -266,7 +141,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                       MaterialPageRoute(
                         builder: (context) => AddIssueScreen(
                           userNic: widget.userNic,
-                          issueId: issueId,
                           issueId: issueId, 
                         ),
                       ),
@@ -277,8 +151,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber.shade700,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
