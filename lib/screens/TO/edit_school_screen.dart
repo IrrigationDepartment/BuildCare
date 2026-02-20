@@ -404,7 +404,6 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            initialValue: _selectedSchoolType,
             value: _selectedSchoolType,
           const Text('School Type', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kTextColor)),
           const SizedBox(height: 8),
