@@ -231,6 +231,11 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
+  // ---
+  // ---
+  // --- 耳 NEW: HELPER WIDGETS FOR VIEW SCREEN 耳 ---
+  // ---
+  // ---
 
 
   // --- NEW: Helper to build section cards ---
@@ -440,5 +445,6 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
       ),
     );
   }
+}
 }
 }
