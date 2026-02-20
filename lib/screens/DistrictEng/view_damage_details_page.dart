@@ -153,53 +153,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
     );
   }
 
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('issues')
-            .orderBy('timestamp', descending: true) 
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No damage reports found.'));
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final issueDoc = snapshot.data!.docs[index];
-              return _buildIssueCard(issueDoc);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'In Progress': return Colors.blue.shade100;
-      case 'Pending': return Colors.amber.shade100;
-      case 'Resolved': return Colors.green.shade100;
-      default: return Colors.grey.shade200;
-    }
-  }
-
-  Color _getStatusTextColor(String? status) {
-    switch (status) {
-      case 'In Progress': return Colors.blue.shade800;
-      case 'Pending': return Colors.amber.shade800;
-      case 'Resolved': return Colors.green.shade800;
-      default: return Colors.grey.shade800;
-    }
-  }
-
   Widget _buildIssueCard(DocumentSnapshot issueDoc) {
     final data = issueDoc.data() as Map<String, dynamic>;
     final String issueId = issueDoc.id;
