@@ -18,6 +18,9 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
   static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
 
+  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
+
   Color _getStatusColor(String? status) {
     switch (status) {
       case 'Processing':
@@ -31,7 +34,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
     }
   }
 
-  
   Color _getStatusTextColor(String? status) {
     switch (status) {
       case 'Processing':
@@ -45,7 +47,6 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
     }
   }
 
-  
   Future<void> _updateStatus(String issueId, String newStatus) async {
     try {
       await FirebaseFirestore.instance
@@ -71,31 +72,82 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('issues')
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No damage reports found.'));
-          }
-
-          return ListView.builder(
+      body: Column(
+        children: [
+          
+          Padding(
             padding: const EdgeInsets.all(16.0),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final issueDoc = snapshot.data!.docs[index];
-              return _buildIssueCard(issueDoc);
-            },
-          );
-        },
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search by title or school...',
+                prefixIcon: const Icon(Icons.search, color: kPrimaryBlue),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30), // Rounded corners
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: const BorderSide(color: kPrimaryBlue, width: 1.5),
+                ),
+              ),
+            ),
+          ),
+
+          // --- Damage Reports List ---
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('issues')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No damage reports found.'));
+                }
+
+               
+                final filteredDocs = snapshot.data!.docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final title = (data['issueTitle'] ?? "").toString().toLowerCase();
+                  final school = (data['schoolName'] ?? "").toString().toLowerCase();
+                  return title.contains(_searchQuery) || school.contains(_searchQuery);
+                }).toList();
+
+                if (filteredDocs.isEmpty) {
+                  return const Center(child: Text('No results found.'));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: filteredDocs.length,
+                  itemBuilder: (context, index) {
+                    final issueDoc = filteredDocs[index];
+                    return _buildIssueCard(issueDoc);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -129,7 +181,7 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                         color: kTextColor),
                   ),
                 ),
-                // --- Status Dropdown Button ---
+                // Status Dropdown Button
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
