@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+<<<<<<< HEAD
+=======
+
+class IssueReportDetailsScreen extends StatefulWidget {
+  final String issueId;
+  const IssueReportDetailsScreen({super.key, required this.issueId});
+>>>>>>> main
 import 'add_issue_screen.dart'; // <-- IMPORT AddIssueScreen
 
 class IssueReportDetailsScreen extends StatefulWidget {
@@ -106,6 +113,17 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit Report',
             onPressed: () {
+<<<<<<< HEAD
+=======
+              // TODO: Navigate to your IssueReportDetailsScreen (the editable one)
+              // Example:
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => IssueReportDetailsScreen(issueId: widget.issueId),
+              //   ),
+              // );
+>>>>>>> main
               // --- MODIFIED: Navigate to AddIssueScreen in Edit Mode ---
               Navigator.push(
                 context,
@@ -225,6 +243,10 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   // ---
   // ---
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> main
   // --- NEW: Helper to build section cards ---
   Widget _buildSectionCard({
     required String title,
@@ -317,6 +339,10 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
   // ---
   // ---
+<<<<<<< HEAD
+=======
+  // --- 📸 IMAGE GALLERY WIDGETS (Unchanged from previous) 📸 ---
+>>>>>>> main
   // --- 萄 IMAGE GALLERY WIDGETS (Unchanged from previous) 萄 ---
   // ---
   // ---
@@ -431,4 +457,10 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+}
+}
+>>>>>>> main

@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+<<<<<<< HEAD
 
 class PendingPrincipalApprovalsPage extends StatelessWidget {
   const PendingPrincipalApprovalsPage({super.key});
+=======
+import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
+
+class PendingPrincipalApprovalsPage extends StatelessWidget {
+  final String? officeFilter;
+  
+  const PendingPrincipalApprovalsPage({super.key, this.officeFilter});
+>>>>>>> main
 
   // --- Modern Professional Color Palette ---
   static const Color _bgLight = Color(0xFFF3F4F6); // Cool Gray Background
@@ -11,6 +20,31 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
   static const Color _primaryBlue = Color(0xFF2563EB); // Royal Blue
   static const Color _successGreen = Color(0xFF10B981); // Emerald
 
+<<<<<<< HEAD
+=======
+  // Get current user's office from Firestore
+  Future<String?> _getCurrentUserOffice() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return officeFilter;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        return data['office'] as String? ?? officeFilter;
+      }
+      return officeFilter;
+    } catch (e) {
+      debugPrint('Error fetching current user office: $e');
+      return officeFilter;
+    }
+  }
+
+>>>>>>> main
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,6 +64,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
         ),
         centerTitle: true,
       ),
+<<<<<<< HEAD
       body: StreamBuilder<QuerySnapshot>(
         // --- QUERY: Filter by 'Principal' AND 'isActive: false' ---
         stream: FirebaseFirestore.instance
@@ -39,10 +74,17 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
+=======
+      body: FutureBuilder<String?>(
+        future: _getCurrentUserOffice(),
+        builder: (context, officeSnapshot) {
+          if (officeSnapshot.connectionState == ConnectionState.waiting) {
+>>>>>>> main
             return const Center(
                 child: CircularProgressIndicator(color: _primaryBlue));
           }
 
+<<<<<<< HEAD
           if (snapshot.hasError) {
             return Center(child: Text("Error: ${snapshot.error}"));
           }
@@ -71,6 +113,58 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                 ),
               ),
             ],
+=======
+          if (officeSnapshot.hasError) {
+            return Center(child: Text('Error fetching office: ${officeSnapshot.error}'));
+          }
+
+          final currentUserOffice = officeSnapshot.data;
+
+          return StreamBuilder<QuerySnapshot>(
+            // --- QUERY: Filter by 'Principal', 'isActive: false', AND same office ---
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .where('userType', isEqualTo: 'Principal') // Changed to Principal
+                .where('isActive', isEqualTo: false)
+                .where('office', isEqualTo: currentUserOffice) // Added office filter
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                    child: CircularProgressIndicator(color: _primaryBlue));
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text("Error: ${snapshot.error}"));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return _buildEmptyState(currentUserOffice);
+              }
+
+              final allDocs = snapshot.data!.docs;
+
+              return Column(
+                children: [
+                  // 1. Summary Header with District Info
+                  _buildSummaryHeader(allDocs.length, currentUserOffice),
+
+                  // 2. The List of Principals
+                  Expanded(
+                    child: ListView.builder(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: allDocs.length,
+                      itemBuilder: (context, index) {
+                        final doc = allDocs[index];
+                        return _buildUserCard(context, doc);
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+>>>>>>> main
           );
         },
       ),
@@ -79,7 +173,11 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
 
   // --- WIDGETS ---
 
+<<<<<<< HEAD
   Widget _buildSummaryHeader(int count) {
+=======
+  Widget _buildSummaryHeader(int count, String? district) {
+>>>>>>> main
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Container(
@@ -96,6 +194,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
           ],
           border: Border.all(color: Colors.blue.shade50),
         ),
+<<<<<<< HEAD
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -129,6 +228,62 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                     fontWeight: FontWeight.bold),
               ),
             ),
+=======
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Pending Requests",
+                        style: TextStyle(
+                            color: _textLight,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    const Text("Principals", // Changed Label
+                        style: TextStyle(
+                            color: _textDark,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    count.toString(),
+                    style: const TextStyle(
+                        color: _primaryBlue,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (district != null && district.isNotEmpty)
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Text(
+                    'District: $district',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+>>>>>>> main
           ],
         ),
       ),
@@ -140,6 +295,10 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
     final String name = data['name'] ?? 'Unknown';
     final String email = data['email'] ?? 'No Email';
     final String? imageUrl = data['profile_image'];
+<<<<<<< HEAD
+=======
+    final String office = data['office'] ?? 'N/A';
+>>>>>>> main
 
     // Display 'School Name' for Principals
     final String schoolName = data['schoolName'] ?? 'Unassigned School';
@@ -196,6 +355,7 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                             color: _textDark),
                       ),
                       const SizedBox(height: 4),
+<<<<<<< HEAD
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
@@ -210,6 +370,43 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                               color: Colors.blue.shade800),
                         ),
+=======
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              schoolName, // Showing School Name
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue.shade800),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              office,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green.shade800),
+                            ),
+                          ),
+                        ],
+>>>>>>> main
                       ),
                       const SizedBox(height: 6),
                       Text(email,
@@ -286,7 +483,11 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildEmptyState() {
+=======
+  Widget _buildEmptyState(String? district) {
+>>>>>>> main
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -302,6 +503,20 @@ class PendingPrincipalApprovalsPage extends StatelessWidget {
           const SizedBox(height: 8),
           Text("No pending Principals.",
               style: TextStyle(color: Colors.grey.shade500)),
+<<<<<<< HEAD
+=======
+          if (district != null && district.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'District: $district',
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+>>>>>>> main
         ],
       ),
     );
@@ -355,9 +570,14 @@ class PrincipalDetailsPage extends StatelessWidget {
 
     // --- Principal Specific Data ---
     final String schoolName = data['schoolName'] ?? 'Unassigned School';
+<<<<<<< HEAD
     // Often Principals might not have a separate office phone, 
     // but if they do, you can map it here. 
     final String region = data['region'] ?? 'N/A';
+=======
+    final String region = data['region'] ?? 'N/A';
+    final String office = data['office'] ?? 'N/A';
+>>>>>>> main
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -401,6 +621,17 @@ class PrincipalDetailsPage extends StatelessWidget {
                     fontSize: 14,
                     color: Colors.blue.shade700,
                     fontWeight: FontWeight.w600)),
+<<<<<<< HEAD
+=======
+            if (office.isNotEmpty)
+              Text(
+                'District: $office',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+>>>>>>> main
 
             const SizedBox(height: 32),
 
@@ -415,6 +646,10 @@ class PrincipalDetailsPage extends StatelessWidget {
             _buildDetailRow(
                 Icons.school_outlined, "School Name", schoolName), // Changed Icon/Label
             _buildDetailRow(Icons.map_outlined, "Region/Zone", region),
+<<<<<<< HEAD
+=======
+            _buildDetailRow(Icons.location_city_outlined, "District", office),
+>>>>>>> main
 
             const SizedBox(height: 40),
 

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:cloud_firestore/cloud_firestore.dart';
+=======
+import 'package:firebase_auth/firebase_auth.dart'; // <-- Import Firebase Auth
+>>>>>>> main
 
 class ForgotPasswordFlow extends StatefulWidget {
   const ForgotPasswordFlow({super.key});
@@ -12,6 +16,7 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
   final PageController _pageController = PageController();
   bool _isLoading = false;
 
+<<<<<<< HEAD
   // Step 1: Controllers
   final TextEditingController _nicController = TextEditingController();
 
@@ -28,20 +33,35 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
   String _userId = '';
   String _correctPetAnswer = '';
   String _correctNicknameAnswer = '';
+=======
+  // --- Controllers for the new flow ---
+  // Step 1: Email
+  final TextEditingController _emailController = TextEditingController();
+
+  // --- We no longer need OTP or Password controllers ---
+>>>>>>> main
 
   @override
   void dispose() {
     _pageController.dispose();
+<<<<<<< HEAD
     _nicController.dispose();
     _petController.dispose();
     _nicknameController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
+=======
+    _emailController.dispose();
+>>>>>>> main
     super.dispose();
   }
 
   /// Shows a dialog message
   void _showMessage(String title, String message) {
+<<<<<<< HEAD
+=======
+    if (!mounted) return;
+>>>>>>> main
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -59,10 +79,17 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     );
   }
 
+<<<<<<< HEAD
   // --- Page 1 Logic: Verify NIC ---
   Future<void> _verifyNic() async {
     if (_nicController.text.isEmpty) {
       _showMessage('Error', 'Please enter your NIC.');
+=======
+  // --- Page 1 Logic: Send Password Reset Email ---
+  Future<void> _sendResetEmail() async {
+    if (_emailController.text.isEmpty || !_emailController.text.contains('@')) {
+      _showMessage('Error', 'Please enter a valid email address.');
+>>>>>>> main
       return;
     }
     setState(() {
@@ -70,6 +97,7 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     });
 
     try {
+<<<<<<< HEAD
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('nic', isEqualTo: _nicController.text.trim())
@@ -98,6 +126,31 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
               curve: Curves.easeIn);
         }
       }
+=======
+      // --- This is the new, correct Firebase Auth call ---
+      // It sends the email template you saw in your Firebase console
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text.trim(),
+      );
+      // --- End of new call ---
+
+      // Go to the success page
+      _pageController.animateToPage(1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeIn);
+
+    } on FirebaseAuthException catch (e) {
+      // Handle errors
+      String message = 'An error occurred. Please try again.';
+      if (e.code == 'user-not-found') {
+        // We show a generic message for security
+        // But you can be specific if you prefer
+        message = 'No user found for that email.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
+      }
+      _showMessage('Error', message);
+>>>>>>> main
     } catch (e) {
       _showMessage('Error', 'An error occurred: $e');
     }
@@ -107,6 +160,7 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     });
   }
 
+<<<<<<< HEAD
   // --- Page 2 Logic: Verify Security Answers ---
   void _verifySecurityAnswers() {
     final petAnswer = _petController.text.trim();
@@ -174,13 +228,20 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
   }
 
   // --- Page 4 Logic: Back to Login ---
+=======
+  // --- Page 2 Logic: Back to Login ---
+>>>>>>> main
   void _backToLogin() {
     Navigator.of(context).pop(); // Close this flow and return to Login
   }
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     // Define styles from your design
+=======
+    // Define styles
+>>>>>>> main
     const textStyleTitle =
         TextStyle(fontSize: 28, fontWeight: FontWeight.bold);
     const textStyleSubtitle = TextStyle(fontSize: 16, color: Colors.grey);
@@ -191,8 +252,13 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
         borderRadius: BorderRadius.circular(30),
       ),
     );
+<<<<<<< HEAD
     final textStyleButton =
         const TextStyle(fontSize: 18, color: Colors.white);
+=======
+    const textStyleButton =
+        TextStyle(fontSize: 18, color: Colors.white);
+>>>>>>> main
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -211,12 +277,19 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
         // Disable swiping between pages
         physics: const NeverScrollableScrollPhysics(),
         children: [
+<<<<<<< HEAD
           _buildNicEntryPage(
               textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
           _buildSecurityQuestionsPage(
               textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
           _buildNewPasswordPage(
               textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
+=======
+          // --- Page 1 ---
+          _buildEmailEntryPage(
+              textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
+          // --- Page 2 (The new success page) ---
+>>>>>>> main
           _buildSuccessPage(
               textStyleTitle, textStyleSubtitle, buttonStyle, textStyleButton),
         ],
@@ -224,8 +297,13 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     );
   }
 
+<<<<<<< HEAD
   // --- Page 1: Enter NIC ---
   Widget _buildNicEntryPage(TextStyle title, TextStyle subtitle,
+=======
+  // --- Page 1: Enter Email ---
+  Widget _buildEmailEntryPage(TextStyle title, TextStyle subtitle,
+>>>>>>> main
       ButtonStyle btnStyle, TextStyle btnText) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -237,6 +315,7 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
           const SizedBox(height: 30),
           Text('Forgot Password?', style: title, textAlign: TextAlign.center),
           const SizedBox(height: 10),
+<<<<<<< HEAD
           Text("No worries, we'll help you out.",
               style: subtitle, textAlign: TextAlign.center),
           const SizedBox(height: 30),
@@ -244,20 +323,37 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
             controller: _nicController,
             labelText: 'Enter Your NIC', // Changed from Email to NIC
             icon: Icons.person,
+=======
+          Text("Enter your email and we'll send you a reset link.",
+              style: subtitle, textAlign: TextAlign.center),
+          const SizedBox(height: 30),
+          _buildStyledTextField(
+            controller: _emailController,
+            labelText: 'Enter Your Email',
+            icon: Icons.email,
+            keyboardType: TextInputType.emailAddress,
+>>>>>>> main
           ),
           const SizedBox(height: 30),
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : ElevatedButton(
+<<<<<<< HEAD
                   onPressed: _verifyNic,
                   style: btnStyle,
                   child: Text('Find Account', style: btnText),
+=======
+                  onPressed: _sendResetEmail, // <-- Updated function
+                  style: btnStyle,
+                  child: Text('Send Reset Link', style: btnText), // <-- Updated text
+>>>>>>> main
                 ),
         ],
       ),
     );
   }
 
+<<<<<<< HEAD
   // --- Page 2: Security Questions ---
   Widget _buildSecurityQuestionsPage(TextStyle title, TextStyle subtitle,
       ButtonStyle btnStyle, TextStyle btnText) {
@@ -346,6 +442,9 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
   }
 
   // --- Page 4: Success ---
+=======
+  // --- Page 2: Success ---
+>>>>>>> main
   Widget _buildSuccessPage(TextStyle title, TextStyle subtitle,
       ButtonStyle btnStyle, TextStyle btnText) {
     return Padding(
@@ -357,10 +456,20 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
           const Icon(Icons.check_circle_outline,
               color: Colors.green, size: 150),
           const SizedBox(height: 30),
+<<<<<<< HEAD
           Text('Success!', style: title, textAlign: TextAlign.center),
           const SizedBox(height: 10),
           Text('Your password has been reset successfully.',
               style: subtitle, textAlign: TextAlign.center),
+=======
+          Text('Check Your Email!', style: title, textAlign: TextAlign.center),
+          const SizedBox(height: 10),
+          Text(
+              // Show the email they entered
+              'We have sent a password reset link to ${_emailController.text.trim()}.',
+              style: subtitle,
+              textAlign: TextAlign.center),
+>>>>>>> main
           const SizedBox(height: 30),
           ElevatedButton(
             onPressed: _backToLogin,
@@ -378,10 +487,18 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
     required String labelText,
     required IconData icon,
     bool isPassword = false,
+<<<<<<< HEAD
+=======
+    TextInputType keyboardType = TextInputType.text,
+>>>>>>> main
   }) {
     return TextField(
       controller: controller,
       obscureText: isPassword,
+<<<<<<< HEAD
+=======
+      keyboardType: keyboardType,
+>>>>>>> main
       decoration: InputDecoration(
         labelText: labelText,
         prefixIcon: Icon(icon),
@@ -394,4 +511,8 @@ class _ForgotPasswordFlowState extends State<ForgotPasswordFlow> {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> main

@@ -39,7 +39,10 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
   }
 
   // --- This function is no longer used but can be kept for other pages ---
+<<<<<<< HEAD
   // ignore: unused_element
+=======
+>>>>>>> main
   Future<void> _updateSchoolStatus(String schoolId, bool isActive) async {
     try {
       await FirebaseFirestore.instance
@@ -71,6 +74,10 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
+<<<<<<< HEAD
+=======
+        title: const Text('Manage Schools', style: TextStyle(color: kTextColor)),
+>>>>>>> main
         title:
             const Text('Manage Schools', style: TextStyle(color: kTextColor)),
         backgroundColor: Colors.white,
@@ -98,6 +105,13 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream:
                   FirebaseFirestore.instance.collection('schools').snapshots(),
+<<<<<<< HEAD
+=======
+              stream: FirebaseFirestore.instance
+                  .collection('schools')
+                  .orderBy('addedAt', descending: true) 
+                  .snapshots(),
+>>>>>>> main
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -112,6 +126,10 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
                 // Filter schools based on search text
                 final filteredDocs = snapshot.data!.docs.where((doc) {
                   final schoolName = doc['schoolName']?.toLowerCase() ?? '';
+<<<<<<< HEAD
+=======
+                  final schoolAddress = doc['schoolAddress']?.toLowerCase() ?? '';
+>>>>>>> main
                   final schoolAddress =
                       doc['schoolAddress']?.toLowerCase() ?? '';
                   return schoolName.contains(_searchText) ||
@@ -119,6 +137,10 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
                 }).toList();
 
                 if (filteredDocs.isEmpty) {
+<<<<<<< HEAD
+=======
+                  return const Center(child: Text('No matching schools found.'));
+>>>>>>> main
                   return const Center(
                       child: Text('No matching schools found.'));
                 }
@@ -216,10 +238,22 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
           onPressed: navigateToDetails, // This button navigates
         ),
         // ---------------------------------
+<<<<<<< HEAD
 
         // --- IMPORTANT: Set onTap to null so the full card does not navigate ---
+=======
+        
+        // --- IMPORTANT: Set onTap to null so the full card does not navigate ---
+        onTap: null, 
+          onPressed: navigateToDetails,
+        ),
+>>>>>>> main
         onTap: null,
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> main

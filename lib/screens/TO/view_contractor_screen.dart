@@ -64,6 +64,12 @@ class ViewContractorScreen extends StatelessWidget {
             onPressed: () => Navigator.of(ctx).pop(false),
           ),
           TextButton(
+<<<<<<< HEAD
+=======
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Yes, Delete'),
+>>>>>>> main
             child: const Text('Yes, Delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () => Navigator.of(ctx).pop(true),

@@ -86,4 +86,9 @@ class School {
     if (lastEditedAt == null) return 'N/A';
     return DateFormat('MMM d, yyyy \@ h:mm a').format(lastEditedAt!.toDate());
   }
+<<<<<<< HEAD
+=======
+
+  toJson() {}
+>>>>>>> main
 }

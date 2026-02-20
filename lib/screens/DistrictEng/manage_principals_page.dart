@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:cloud_firestore/cloud_firestore.dart'; 
+=======
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+>>>>>>> main
 
 // --- IMPORTS FOR PRINCIPAL PAGES ---
 import 'pending_Principal_approvals.dart'; 
@@ -11,6 +16,12 @@ import 'view_damage_details_page.dart';
 import 'view_contract_details_page.dart';
 import 'view_contractor_details_page.dart';
 
+<<<<<<< HEAD
+=======
+// Import the Manage Schools Page
+import 'manage_schools_page.dart'; // ADD THIS IMPORT
+
+>>>>>>> main
 class ManagePrincipalsPage extends StatelessWidget {
   const ManagePrincipalsPage({super.key});
 
@@ -18,6 +29,7 @@ class ManagePrincipalsPage extends StatelessWidget {
   static const Color _primaryBlue = Color(0xFF1E88E5);
   static const Color _backgroundColor = Color(0xFFF0F2F5);
 
+<<<<<<< HEAD
   Future<int> _getCollectionCount(String collectionName) async {
     try {
       final querySnapshot = await FirebaseFirestore.instance
@@ -28,6 +40,86 @@ class ManagePrincipalsPage extends StatelessWidget {
     } catch (e) {
       debugPrint('Error fetching count for $collectionName: $e');
       return 0; 
+=======
+  // Get current user's office from Firestore
+  Future<String?> _getCurrentUserOffice() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return null;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        debugPrint('User office field: ${data['office']}');
+        return data['office'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching current user office: $e');
+      return null;
+    }
+  }
+
+  // Normalize district name for case-insensitive comparison
+  String _normalizeDistrict(String district) {
+    return district.trim().toLowerCase();
+  }
+
+  Future<int> _getSchoolCountForDistrict(String? office) async {
+    try {
+      if (office == null || office.isEmpty) {
+        debugPrint('Office is null or empty');
+        return 0;
+      }
+      
+      final normalizedOffice = _normalizeDistrict(office);
+      debugPrint('Looking for schools with district (normalized): $normalizedOffice');
+      
+      // Query all schools
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .get();
+      
+      debugPrint('Total schools in database: ${querySnapshot.docs.length}');
+      
+      // Check what fields exist in the first document
+      if (querySnapshot.docs.isNotEmpty) {
+        final firstDoc = querySnapshot.docs.first;
+        debugPrint('First school document fields: ${firstDoc.data().keys}');
+        debugPrint('First school office value: ${firstDoc.data()['office']}');
+        debugPrint('First school district value: ${firstDoc.data()['district']}');
+      }
+      
+      // Try different possible field names
+      final filteredSchools = querySnapshot.docs.where((doc) {
+        final data = doc.data();
+        
+        // Check multiple possible field names
+        final schoolDistrict = data['office'] as String? ?? 
+                             data['district'] as String? ?? 
+                             data['schoolDistrict'] as String?;
+        
+        if (schoolDistrict == null) {
+          debugPrint('School ${doc.id} has no district field');
+          return false;
+        }
+        
+        final normalizedSchoolDistrict = _normalizeDistrict(schoolDistrict);
+        debugPrint('School ${doc.id}: $normalizedSchoolDistrict vs User: $normalizedOffice');
+        
+        return normalizedSchoolDistrict == normalizedOffice;
+      }).length;
+      
+      debugPrint('Found $filteredSchools schools for district $office');
+      return filteredSchools;
+    } catch (e) {
+      debugPrint('Error fetching school count for district $office: $e');
+      return 0;
+>>>>>>> main
     }
   }
 
@@ -49,6 +141,7 @@ class ManagePrincipalsPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
+<<<<<<< HEAD
         child: FutureBuilder<int>(
           future: _getCollectionCount('schools'),
           builder: (context, schoolSnapshot) {
@@ -90,22 +183,138 @@ class ManagePrincipalsPage extends StatelessWidget {
                 }).length;
 
                 return _buildContent(context, totalPrincipals, pendingPrincipals, activePrincipals, totalSchools);
+=======
+        child: FutureBuilder<String?>(
+          future: _getCurrentUserOffice(),
+          builder: (context, officeSnapshot) {
+            if (officeSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (officeSnapshot.hasError) {
+              return Center(child: Text('Error: ${officeSnapshot.error}'));
+            }
+
+            final currentUserOffice = officeSnapshot.data;
+
+            return FutureBuilder<int>(
+              future: _getSchoolCountForDistrict(currentUserOffice),
+              builder: (context, schoolSnapshot) {
+                if (schoolSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final totalSchools = schoolSnapshot.data ?? 0;
+
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .where('userType', isEqualTo: 'Principal')
+                      .snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (userSnapshot.hasError) {
+                      return Center(child: Text('Error: ${userSnapshot.error}'));
+                    }
+
+                    final docs = userSnapshot.data?.docs ?? [];
+                    
+                    // Filter principals by office (case-insensitive)
+                    final districtPrincipals = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      final principalOffice = data['office'] as String?;
+                      
+                      if (currentUserOffice == null || principalOffice == null) return false;
+                      
+                      debugPrint('Principal office: $principalOffice, User office: $currentUserOffice');
+                      
+                      return _normalizeDistrict(principalOffice) == 
+                            _normalizeDistrict(currentUserOffice);
+                    }).toList();
+
+                    final totalPrincipals = districtPrincipals.length;
+
+                    final activePrincipals = districtPrincipals.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['isActive'] == true;
+                    }).length;
+
+                    final pendingPrincipals = districtPrincipals.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return data['isActive'] == false;
+                    }).length;
+
+                    debugPrint('Stats - Principals: $totalPrincipals, Active: $activePrincipals, Pending: $pendingPrincipals, Schools: $totalSchools');
+
+                    return _buildContent(
+                      context, 
+                      totalPrincipals, 
+                      pendingPrincipals, 
+                      activePrincipals, 
+                      totalSchools, 
+                      currentUserOffice
+                    );
+                  },
+                );
+>>>>>>> main
               },
             );
           },
         ),
       ),
+<<<<<<< HEAD
       // Bottom Navigation Bar has been removed
     );
   }
 
   Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools) {
+=======
+    );
+  }
+
+  Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
+>>>>>>> main
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+<<<<<<< HEAD
           _buildStatsGrid(context, total, pending, active, totalSchools), 
+=======
+          // District Info Header
+          if (district != null && district.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.location_on, size: 16, color: Colors.blue.shade800),
+                    const SizedBox(width: 8),
+                    Text(
+                      'District: $district',
+                      style: TextStyle(
+                        color: Colors.blue.shade800,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
+          _buildStatsGrid(context, total, pending, active, totalSchools, district), 
+>>>>>>> main
           const SizedBox(height: 24),
           _buildManagementOptions(context),
         ],
@@ -113,7 +322,11 @@ class ManagePrincipalsPage extends StatelessWidget {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools) {
+=======
+  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
+>>>>>>> main
     return Column(
       children: [
         Row(
@@ -127,7 +340,15 @@ class ManagePrincipalsPage extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
+<<<<<<< HEAD
                   MaterialPageRoute(builder: (context) => const PendingPrincipalApprovalsPage()),
+=======
+                  MaterialPageRoute(
+                    builder: (context) => PendingPrincipalApprovalsPage(
+                      officeFilter: district,
+                    ),
+                  ),
+>>>>>>> main
                 );
               },
             ),
@@ -144,11 +365,39 @@ class ManagePrincipalsPage extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
+<<<<<<< HEAD
                   MaterialPageRoute(builder: (context) => const ManagePrincipalsListPage()),
                 );
               },
             ),
             _buildStatCard('Schools', totalSchools.toString(), Icons.apartment_outlined),
+=======
+                  MaterialPageRoute(
+                    builder: (context) => ManagePrincipalsListPage(
+                      officeFilter: district,
+                    ),
+                  ),
+                );
+              },
+            ),
+            // MODIFIED THIS CARD TO REDIRECT TO MANAGE SCHOOLS PAGE
+            _buildStatCard(
+              'Schools in District', 
+              totalSchools.toString(), 
+              Icons.apartment_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ManageSchoolsPage(
+                      district: district, // Pass the district as parameter
+                      userNic: 'ADMIN', // Required parameter
+                    ),
+                  ),
+                );
+              },
+            ),
+>>>>>>> main
           ],
         ),
       ],

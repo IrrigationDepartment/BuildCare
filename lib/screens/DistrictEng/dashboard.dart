@@ -20,8 +20,13 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   int _selectedIndex = 0;
   
   int _totalSchools = 0;
+<<<<<<< HEAD
   int _activeTOs = 0;
   int _pendingRequests = 0;
+=======
+  int _totalTOs = 0;
+  int _totalPrincipals = 0;
+>>>>>>> main
   bool _isLoading = true; 
 
   late final String userNic;
@@ -42,8 +47,13 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
       if (mounted) {
         setState(() {
           _totalSchools = counts.totalSchools;
+<<<<<<< HEAD
           _activeTOs = counts.activeTOs;
           _pendingRequests = counts.pendingRequests;
+=======
+          _totalTOs = counts.totalTOs; 
+          _totalPrincipals = counts.totalPrincipals; 
+>>>>>>> main
           _isLoading = false;
         });
       }
@@ -140,8 +150,13 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                   DashboardOverview(
                     isLoading: _isLoading,
                     totalSchools: _totalSchools,
+<<<<<<< HEAD
                     activeTOs: _activeTOs,
                     pendingRequests: _pendingRequests,
+=======
+                    totalTOs: _totalTOs,
+                    totalPrincipals: _totalPrincipals,
+>>>>>>> main
                     userNic: userNic, 
                   ),
                   const SizedBox(height: 24),
@@ -151,7 +166,10 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                   const SizedBox(height: 24), 
                   const RecentUsersSection(),
                   const SizedBox(height: 24), 
+<<<<<<< HEAD
                   // Approval Request කොටස මෙතැනින් ඉවත් කරන ලදී.
+=======
+>>>>>>> main
                 ],
               ),
             ),

@@ -560,6 +560,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
         ],
       ),
     );
+<<<<<<< HEAD
   }
 
   Widget _buildLabeledDropdown(
@@ -619,4 +620,87 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
                 child: Icon(icon, color: const Color(0xFF53BDFF)))
             : suffixIcon);
   }
+=======
+  }
+
+  Widget _buildDropdownFormField() {
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedOffice,
+      hint: const Text('Select Your Office'),
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[100],
+      ),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedOffice = newValue;
+        });
+      },
+      items: _offices.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value),
+        );
+      }).toList(),
+      validator: (value) => value == null ? 'Please select an office' : null,
+    );
+  Widget _buildLabeledDropdown(
+      {required String label,
+      required String hint,
+      required String? value,
+      required List<String> items,
+      required ValueChanged<String?> onChanged}) {
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 20.0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: const TextStyle(
+                  color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+              value: value,
+              items: items
+                  .map((String office) => DropdownMenuItem<String>(
+                      value: office, child: Text(office)))
+                  .toList(),
+              onChanged: onChanged,
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: _inputDecoration(hint, null, null),
+              validator: (value) =>
+                  value == null ? 'Please select an option' : null)
+        ]));
+  }
+
+  InputDecoration _inputDecoration(
+      String hintText, IconData? icon, Widget? suffixIcon) {
+    return InputDecoration(
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey.shade500),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: Colors.red, width: 1.0)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30.0),
+            borderSide: const BorderSide(color: Colors.red, width: 2.0)),
+        suffixIcon: icon != null
+            ? Padding(
+                padding: const EdgeInsets.only(right: 12.0),
+                child: Icon(icon, color: const Color(0xFF53BDFF)))
+            : suffixIcon);
+  }
+>>>>>>> main
 }

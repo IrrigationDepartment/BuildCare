@@ -561,7 +561,11 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
+<<<<<<< HEAD
             value: currentValue,
+=======
+            initialValue: currentValue,
+>>>>>>> main
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[600]),

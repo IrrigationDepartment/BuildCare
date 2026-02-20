@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'issue_report_details_screen.dart';
+<<<<<<< HEAD
+=======
+import 'add_issue_screen.dart'; 
+import 'add_issue_screen.dart'; // Placeholder for adding new issues
+>>>>>>> main
 import 'add_issue_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this for getting current user data
 
@@ -112,6 +117,51 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
+<<<<<<< HEAD
+=======
+        title: const Text('Issue Report', style: TextStyle(color: kTextColor)),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: kTextColor),
+      ),
+      // --- Button to add a new issue report ---
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddIssueScreen(userNic: widget.userNic),
+            ),
+          );
+        },
+        label: const Text('Add Issue'),
+        icon: const Icon(Icons.add),
+        backgroundColor: kPrimaryBlue,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        // Assumes your collection is named 'issues'
+        stream: FirebaseFirestore.instance.collection('issues').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No issues found.'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final issueDoc = snapshot.data!.docs[index];
+              return _buildIssueCard(issueDoc);
+            },
+          );
+        },
+>>>>>>> main
         title: Text(
           _getAppBarTitle(),
           style: const TextStyle(color: kTextColor),
@@ -311,6 +361,15 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
 
   // --- Helper to get color for the status chip ---
   Color _getStatusColor(String? status) {
+<<<<<<< HEAD
+=======
+    switch (status) {
+      case 'In Progress':
+        return Colors.blue.shade100;
+      case 'Pending':
+        return Colors.amber.shade100;
+      case 'Resolved':
+>>>>>>> main
     switch (status?.toLowerCase()) {
       case 'in progress':
       case 'processing':
@@ -327,6 +386,15 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
 
   // --- Helper to get text color for the status chip ---
   Color _getStatusTextColor(String? status) {
+<<<<<<< HEAD
+=======
+    switch (status) {
+      case 'In Progress':
+        return Colors.blue.shade800;
+      case 'Pending':
+        return Colors.amber.shade800;
+      case 'Resolved':
+>>>>>>> main
     switch (status?.toLowerCase()) {
       case 'in progress':
       case 'processing':
@@ -373,6 +441,16 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
+<<<<<<< HEAD
+=======
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: kTextColor,
+                    ),
+>>>>>>> main
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -414,6 +492,14 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                 ),
               ],
             ),
+<<<<<<< HEAD
+=======
+            const SizedBox(height: 4),
+            Text(
+              school,
+              style: const TextStyle(color: kSubTextColor, fontSize: 14),
+            ),
+>>>>>>> main
             const SizedBox(height: 8),
             Row(
               children: [
@@ -463,6 +549,11 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
+<<<<<<< HEAD
+=======
+                        builder: (context) =>
+                            IssueReportDetailsScreen(issueId: issueId),
+>>>>>>> main
                         builder: (context) => IssueReportDetailsScreen(
                           issueId: issueId,
                           userNic: widget.userNic,
@@ -480,6 +571,51 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
+<<<<<<< HEAD
+=======
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // --- MODIFICATION ---
+                    // Navigate directly to AddIssueScreen in Edit Mode
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddIssueScreen(
+                          userNic: widget.userNic,
+                          issueId: issueId, // Pass the ID to enable edit mode
+                        ),
+                      ),
+                    );
+                    // --- END OF MODIFICATION ---
+                    // TODO: Navigate to an "EditIssueScreen"
+                    // For now, it can also go to the details screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            IssueReportDetailsScreen(issueId: issueId),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Edit'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+}
+>>>>>>> main
                 // Show edit button only for the reporter or admin roles
                 if (_canEditIssue(reporterNic))
                   ElevatedButton.icon(
@@ -520,4 +656,8 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     // District Engineers and Technical Officers can edit all issues in their view
     return _userRole == 'District Engineer' || _userRole == 'Technical Officer';
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> main
