@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
 import 'screens/ProvincialEng/dashboard.dart';
 import 'screens/ChiefEng/dashboard.dart';
 import 'screens/DistrictEng/dashboard.dart';
@@ -51,10 +50,8 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  
   Future<void> _login() async {
     print('🔵 Login started');
-    
     
     if (_nicController.text.trim().isEmpty || 
         _passwordController.text.trim().isEmpty) {
@@ -67,7 +64,6 @@ class _LoginPageState extends State<LoginPage> {
     try {
       print('📝 NIC entered: ${_nicController.text.trim()}');
       
-     
       print('🔍 Searching for user in Firestore...');
       final querySnapshot = await _firestore
           .collection('users')
@@ -84,7 +80,6 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      
       final userDoc = querySnapshot.docs.first;
       final userData = userDoc.data();
       final email = userData['email'] as String;
@@ -96,7 +91,6 @@ class _LoginPageState extends State<LoginPage> {
       print(' isActive: $isActive');
       print(' userType: $userType');
 
-      
       if (!isActive) {
         print(' User account is not active');
         _showMessage(
@@ -116,7 +110,6 @@ class _LoginPageState extends State<LoginPage> {
 
       print(' Login successful!');
 
-      
       if (!mounted) return;
 
       Widget destination;
@@ -204,11 +197,12 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Image.network(
-                  'https://i.imgur.com/3TXeXfV.png',
+                // --- FIXED: Swapped Image.network for Image.asset ---
+                Image.asset(
+                  'lib/assets/images/login.png',
                   height: 200,
                   errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.map, size: 150, color: Colors.grey),
+                      const Icon(Icons.broken_image, size: 150, color: Colors.grey),
                 ),
                 const SizedBox(height: 20),
                 const Text(

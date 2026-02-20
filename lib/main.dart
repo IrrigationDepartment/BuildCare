@@ -22,13 +22,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Splash Screen with Animation',
+      title: 'BuildCare',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-         home: const SplashScreen(),
-      
-
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -101,21 +99,19 @@ class _SplashScreenState extends State<SplashScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            // --- The Animated Image ---
+            // --- The Animated Logo Image ---
             SlideTransition(
               position: _slideAnimation,
               child: FadeTransition(
                 opacity: _fadeAnimation,
-                // --- FIXED: Using a local asset is more reliable for splash screens ---
-                // Make sure you have an 'assets' folder with this image in your project root
-                // and have added it to your pubspec.yaml file.
+                // Pointing to your GIF in the lib/src folder
                 child: Image.asset(
-                  'assets/splash_image.png',
+                  'lib/src/my.gif', 
                   width: 250,
                   height: 250,
                   errorBuilder: (context, error, stackTrace) {
                     // This will show if the asset fails to load
-                    return const Icon(Icons.map, size: 150, color: Colors.grey);
+                    return const Icon(Icons.broken_image, size: 150, color: Colors.grey);
                   },
                 ),
               ),

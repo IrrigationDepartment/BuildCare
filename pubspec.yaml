@@ -55,8 +55,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/images/
     - assets/icons/
-    - lib/src/
+    - lib/src/my.gif # Explicitly pointing to your logo
+    - lib/assets/images/login.png # Explicitly pointing to your login image
