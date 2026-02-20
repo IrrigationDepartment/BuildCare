@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'damage_details_dialog.dart';
 import 'add_issue_screen.dart';
+import 'add_issue_screen.dart'; 
 
 class ViewDamageDetailsPage extends StatefulWidget {
   final String userNic;
@@ -152,12 +153,60 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
     );
   }
 
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('issues')
+            .orderBy('timestamp', descending: true) 
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No damage reports found.'));
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final issueDoc = snapshot.data!.docs[index];
+              return _buildIssueCard(issueDoc);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'In Progress': return Colors.blue.shade100;
+      case 'Pending': return Colors.amber.shade100;
+      case 'Resolved': return Colors.green.shade100;
+      default: return Colors.grey.shade200;
+    }
+  }
+
+  Color _getStatusTextColor(String? status) {
+    switch (status) {
+      case 'In Progress': return Colors.blue.shade800;
+      case 'Pending': return Colors.amber.shade800;
+      case 'Resolved': return Colors.green.shade800;
+      default: return Colors.grey.shade800;
+    }
+  }
+
   Widget _buildIssueCard(DocumentSnapshot issueDoc) {
     final data = issueDoc.data() as Map<String, dynamic>;
     final String issueId = issueDoc.id;
     final String title = data['issueTitle'] ?? 'No Title';
     final String school = data['schoolName'] ?? 'Unknown School';
     final String currentStatus = data['status'] ?? 'Pending';
+    final String status = data['status'] ?? 'Unknown';
 
     return Card(
       elevation: 2,
@@ -215,12 +264,23 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                       }).toList(),
                     ),
                   ),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: kTextColor),
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    status,
+                    style: TextStyle(color: _getStatusTextColor(status), fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  backgroundColor: _getStatusColor(status),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(school,
                 style: const TextStyle(color: kSubTextColor, fontSize: 14)),
+            Text(school, style: const TextStyle(color: kSubTextColor, fontSize: 14)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -231,6 +291,7 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                       MaterialPageRoute(
                         builder: (context) =>
                             DamageDetailsDialog(issueId: issueId),
+                        builder: (context) => DamageDetailsDialog(issueId: issueId),
                       ),
                     );
                   },
@@ -241,6 +302,7 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -252,6 +314,7 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                         builder: (context) => AddIssueScreen(
                           userNic: widget.userNic,
                           issueId: issueId,
+                          issueId: issueId, 
                         ),
                       ),
                     );
@@ -263,6 +326,7 @@ class _ViewDamageDetailsPageState extends State<ViewDamageDetailsPage> {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ],

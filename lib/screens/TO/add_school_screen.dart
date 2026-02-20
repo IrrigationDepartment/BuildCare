@@ -20,18 +20,27 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController(); // New field
+  final _emailController = TextEditingController();
   final _zoneController = TextEditingController();
   final _studentsController = TextEditingController();
   final _teachersController = TextEditingController();
   final _staffController = TextEditingController();
 
   // --- State for Dropdown & Checkboxes ---
+  // --- State for Dropdowns & Checkboxes ---
   String? _selectedSchoolType;
   final List<String> _schoolTypes = [
     'Government',
     'Semi-Government',
     'Private',
     'International',
+  ];
+
+  String? _selectedDistrict;
+  final List<String> _districts = [
+    'Galle',
+    'Matara',
+    'Hambanthota',
   ];
 
   bool _hasElectricity = false;
@@ -66,6 +75,10 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     // First, validate the form
     if (!_formKey.currentState!.validate()) {
       return; // If validation fails, do nothing
+  // --- Main Save Function ---
+  Future<void> _saveSchool() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
 
     setState(() => _isLoading = true);
@@ -78,6 +91,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
         'schoolPhone': _phoneController.text.trim(),
         'schoolEmail': _emailController.text.trim(),
         'schoolType': _selectedSchoolType,
+        'schoolDistrict': _selectedDistrict, // Saved District
         'educationalZone': _zoneController.text.trim(),
         'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
         'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
@@ -101,6 +115,26 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
       await FirebaseFirestore.instance.collection('schools').add(schoolData);
 
       // Show success message and go back
+        'addedByNic': widget.userNic,
+        'addedAt': Timestamp.now(),
+        'isActive': false,
+      };
+
+      // 1. Save School
+      DocumentReference schoolRef = await FirebaseFirestore.instance
+          .collection('schools')
+          .add(schoolData);
+
+      // 2. Trigger Notification
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'title': 'New School Added',
+        'subtitle': '${_nameController.text.trim()} was added by Principal.',
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'type': 'school',
+        'schoolId': schoolRef.id,
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -145,6 +179,8 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                   const SizedBox(height: 24),
 
                   // --- 3. Form Fields ---
+                  _buildHeader(),
+                  const SizedBox(height: 24),
                   _buildTextField(
                     label: 'School Name',
                     hint: 'Enter Your School name',
@@ -169,6 +205,9 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                       if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                         return 'Please enter a valid email';
                       }
+                      if (value == null || value.isEmpty) return 'Field required';
+                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
+                        return 'Enter valid email';
                       return null;
                     },
                   ),
@@ -189,6 +228,13 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                     },
                   ),
                   _buildDropdownField(),
+                      if (value == null || value.isEmpty) return 'Field required';
+                      if (value.length != 10) return 'Must be 10 digits';
+                      return null;
+                    },
+                  ),
+                  _buildSchoolTypeDropdown(),
+                  _buildDistrictDropdown(), // The new District dropdown
                   _buildTextField(
                     label: 'School Educational Zone',
                     hint: 'Enter Your School Educational Zone',
@@ -230,6 +276,18 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
 
   // --- Helper Widgets ---
 
+                  _buildInfrastructureCheckboxes(),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- Helper Widget: Header ---
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -252,6 +310,14 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
         // Save Button
         _isLoading
             ? const CircularProgressIndicator()
+              fontSize: 20, fontWeight: FontWeight.bold, color: kTextColor),
+        ),
+        _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : OutlinedButton(
                 onPressed: _saveSchool,
                 style: OutlinedButton.styleFrom(
@@ -260,6 +326,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('Save'),
               ),
@@ -267,6 +334,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     );
   }
 
+  // --- Helper Widget: Standard Text Field ---
   Widget _buildTextField({
     required String label,
     required String hint,
@@ -287,6 +355,11 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
               color: kTextColor,
             ),
           ),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: kTextColor)),
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
@@ -306,6 +379,16 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
   }
 
   Widget _buildDropdownField() {
+                (value) =>
+                    (value == null || value.isEmpty) ? 'Field required' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Helper Widget: School Type Dropdown ---
+  Widget _buildSchoolTypeDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -346,6 +429,60 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     );
   }
 
+          const Text('School Type',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: kTextColor)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _selectedSchoolType,
+            items: _schoolTypes
+                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                .toList(),
+            onChanged: (newValue) =>
+                setState(() => _selectedSchoolType = newValue),
+            decoration: _fieldDecoration('Select School Type').copyWith(
+              suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+            ),
+            validator: (value) => value == null ? 'Please select a type' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Helper Widget: School District Dropdown ---
+  Widget _buildDistrictDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('School District',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: kTextColor)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _selectedDistrict,
+            items: _districts
+                .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                .toList(),
+            onChanged: (newValue) =>
+                setState(() => _selectedDistrict = newValue),
+            decoration: _fieldDecoration('Select School District').copyWith(
+              suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+            ),
+            validator: (value) => value == null ? 'Please select a district' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Helper Widget: Infrastructure Checkboxes ---
   Widget _buildInfrastructureCheckboxes() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,6 +495,9 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
             color: kTextColor,
           ),
         ),
+        const Text('Infrastructure Components',
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.bold, color: kTextColor)),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -399,6 +539,26 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     required bool value,
     required Function(bool?) onChanged,
   }) {
+              color: kFieldColor, borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            children: [
+              _buildCheckboxTile('Electricity', _hasElectricity,
+                  (val) => setState(() => _hasElectricity = val!)),
+              _buildCheckboxTile('Water Supply', _hasWaterSupply,
+                  (val) => setState(() => _hasWaterSupply = val!)),
+              _buildCheckboxTile('Sanitation', _hasSanitation,
+                  (val) => setState(() => _hasSanitation = val!)),
+              _buildCheckboxTile('Communication Facilities', _hasCommunication,
+                  (val) => setState(() => _hasCommunication = val!)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCheckboxTile(
+      String title, bool value, ValueChanged<bool?> onChanged) {
     return CheckboxListTile(
       title: Text(title, style: const TextStyle(color: kTextColor)),
       value: value,
@@ -439,6 +599,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.red, width: 2.0),
       ),
+          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     );
   }
 
@@ -449,6 +610,8 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
     if (int.tryParse(value) == null) {
       return 'Please enter a valid number';
     }
+    if (value == null || value.isEmpty) return 'Field required';
+    if (int.tryParse(value) == null) return 'Enter valid number';
     return null;
   }
 }
