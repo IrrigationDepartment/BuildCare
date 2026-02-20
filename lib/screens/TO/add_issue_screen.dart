@@ -775,6 +775,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     );
   }
 }
+}
         child: _isPageLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(

@@ -310,6 +310,7 @@ class _DashboardScreenState extends State<TODashboard> {
         break;
       default:
         debugPrint("Unknown activity type: $type");
+    } 
     }
 
     if (page != null && mounted) {
@@ -362,6 +363,42 @@ class _DashboardScreenState extends State<TODashboard> {
         backgroundColor: Colors.white,
         elevation: 10,
         type: BottomNavigationBarType.fixed,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildWelcomeHeader(),
+                const SizedBox(height: 24),
+                _buildGridMenu(),
+                const SizedBox(height: 24),
+                _buildRecentActivityHeader(),
+                const SizedBox(height: 16),
+                // --- THIS IS THE NEW WIDGET ---
+                _buildRecentActivitySection(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// ====================================================================
+// HELPER WIDGETS
+// ====================================================================
+
+  /// 1. Builds the personalized welcome header.
+  Widget _buildWelcomeHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      decoration: BoxDecoration(
+        color: kHeaderGrey,
+        borderRadius: BorderRadius.circular(20),
+      ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -527,6 +564,127 @@ class _DashboardScreenState extends State<TODashboard> {
                 fontWeight: FontWeight.w600,
                 color: kTextColor,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 3. Builds the 'Recent Activity' section header.
+  Widget _buildRecentActivityHeader() {
+    return Row(
+      children: [
+        Icon(Icons.history, color: kSubTextColor),
+        const SizedBox(width: 8),
+        Text(
+          'Recent Activity',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: kTextColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- 4. NEW: Builds the merged activity list ---
+  Widget _buildRecentActivitySection() {
+    return FutureBuilder<List<RecentActivityItem>>(
+      future: _recentActivitiesFuture, // Use the future defined in initState
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+              child: Text('Error loading activity: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text(
+              'No recent activities found.',
+              style: TextStyle(color: kSubTextColor),
+            ),
+          );
+        }
+
+        // --- Data Loaded State ---
+        final activities = snapshot.data!;
+        return Column(
+          children: activities.map((activity) {
+            return _buildActivityCard(
+              title: activity.title,
+              subtitle: activity.subtitle,
+              icon: activity.icon, // Pass the correct icon
+              onTap: () {
+                _navigateToDetails(activity.type, activity.id);
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  /// Helper widget for the activity list items (Activity Card)
+  /// --- UPDATED to match screenshot ---
+  Widget _buildActivityCard({
+    required String title,
+    required String subtitle,
+    required IconData icon, // Accepts icon from the activity item
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 2,
+      color: kCardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Icon(icon, color: kPrimaryBlue, size: 28), // Use the passed icon
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: kTextColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: kSubTextColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: onTap,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kPrimaryBlue,
+                side: BorderSide(color: kLightBlue),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Text('View Details'),
             ),
           ],
         ),

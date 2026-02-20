@@ -231,7 +231,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
- 
+
 
   // --- NEW: Helper to build section cards ---
   Widget _buildSectionCard({

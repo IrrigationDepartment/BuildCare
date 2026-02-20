@@ -28,6 +28,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   final List<String> _schoolTypes = ['Provincial', 'Government'];
 
   String? _selectedDistrict;
+  final List<String> _districts = ['Galle', 'Matara', 'Hambantota'];
   final List<String> _districts = ['Galle', 'Matara', 'Hambantota', 'Colombo'];
 
   // State for UI

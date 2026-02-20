@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // <-- 1. IMPORT FIREBASE AUTH
 import 'package:firebase_auth/firebase_auth.dart';
 
 class TORegistrationPage extends StatefulWidget {
@@ -179,6 +180,14 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     });
   }
 
+  // --- (!!!) MODIFIED: Firebase Registration Logic ---
+  Future<void> _registerUser() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) {
+      return; // Stop if form is invalid
+    }
+
+    // Perform password validation check
   // --- Firebase Registration Logic ---
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
@@ -235,6 +244,8 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
       return;
     }
 
+    // --- ADDED: Final NIC check before submit ---
+    // Run the check one last time in case the user didn't lose focus
     await _checkNicDuplication();
     if (_isNicDuplicate) {
       if (mounted) {
@@ -243,18 +254,27 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
           content: Text('This NIC is already registered.'),
         ));
       }
+      return; // Stop submission
+    }
+    // --- END ---
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      // --- 2. CREATE USER IN FIREBASE AUTH ---
       UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
+      // --- 3. GET THE NEW USER'S UID ---
+      String? uid = userCredential.user?.uid;
+
+      if (uid != null) {
+        // --- 4. CREATE THE DATA MAP (WITHOUT PASSWORD) ---
       String? uid = userCredential.user?.uid;
 
       if (uid != null) {
@@ -267,6 +287,14 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
           'mobilePhone': _mobileController.text.trim(),
           'securityQuestionPet': _petNameController.text.trim(),
           'securityQuestionNickname': _nicknameController.text.trim(),
+          // --- NO PASSWORD SAVED TO FIRESTORE ---
+          'userType': 'Technical Officer',
+          'createdAt': Timestamp.now(),
+          'isActive': _initialIsActiveStatus, // Automatically set to false
+          'profile_image': _defaultProfileImageUrl,
+        };
+
+        // --- 5. SAVE USER DATA TO FIRESTORE USING THE AUTH UID ---
           'password': _passwordController.text.trim(), // Consider hashing this!
           'userType': 'Technical Officer',
           'createdAt': Timestamp.now(),
@@ -302,6 +330,9 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
             }
           });
         }
+      }
+    } on FirebaseAuthException catch (e) {
+      // --- 6. HANDLE AUTHENTICATION ERRORS ---
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -323,6 +354,14 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(backgroundColor: Colors.red, content: Text(message)));
+      }
+    } catch (e) {
+      // Handle general errors (e.g., Firestore write failed)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Registration failed: $e')));
+      }
       }
     } catch (e) {
       if (mounted) {
@@ -724,6 +763,8 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     );
   }
 
+  // --- Helper Widgets for Form Fields ---
+  // --- MODIFIED: Added FocusNode, errorText, and isChecking ---
   Widget _buildLabeledTextField({
     required String label,
     required TextEditingController controller,
@@ -734,6 +775,11 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
     bool isReadOnly = false,
     VoidCallback? onVisibilityToggle,
     TextInputType? keyboardType,
+    String? infoMessage,
+    String? Function(String?)? validator,
+    FocusNode? focusNode,
+    String? errorText, // <-- For NIC error
+    bool isChecking = false, // <-- For spinner
     String? Function(String?)? validator,
     FocusNode? focusNode,
     String? errorText,
@@ -744,6 +790,27 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+              if (infoMessage != null)
+                IconButton(
+                  icon: Icon(Icons.info_outline,
+                      color: Colors.grey.shade500, size: 20),
+                  onPressed: () =>
+                      _showInfoDialog(context, 'Password Guide', infoMessage),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                )
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+              controller: controller,
+              focusNode: focusNode, // <-- Use the FocusNode
           Text(label,
               style: const TextStyle(
                   color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
@@ -757,6 +824,10 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
               style: const TextStyle(color: Color.fromARGB(221, 58, 58, 58)),
               decoration: _inputDecoration(
                 hint,
+                isChecking ? null : icon, // <-- Hide icon if checking
+                isChecking
+                    ? const Padding(
+                        // <-- Show spinner if checking
                 isChecking ? null : icon,
                 isChecking
                     ? const Padding(
@@ -767,6 +838,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                           child: CircularProgressIndicator(strokeWidth: 2.0),
                         ),
                       )
+                    : (isPassword // <-- Show password toggle
                     : (isPassword
                         ? IconButton(
                             icon: Icon(
@@ -776,6 +848,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                                 color: const Color(0xFF53BDFF)),
                             onPressed: onVisibilityToggle)
                         : null),
+                errorText, // <-- Pass error text
                 errorText,
               ),
               validator: validator ??
