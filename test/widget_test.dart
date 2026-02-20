@@ -8,7 +8,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:buildcare/main.dart';
+// IMPORTANT: If your pubspec.yaml says "name: BuildCare" (Capitalized), use this:
+import 'package:BuildCare/main.dart' show MyApp;
+
+// OR, if you changed your pubspec.yaml to "name: buildcare" (Lowercase), use this instead:
+// import 'package:buildcare/main.dart' show MyApp;
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
