@@ -562,6 +562,28 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
     );
   }
 
+  Widget _buildDropdownFormField() {
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedOffice,
+      hint: const Text('Select Your Office'),
+      decoration: InputDecoration(
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[100],
+      ),
+      onChanged: (String? newValue) {
+        setState(() {
+          _selectedOffice = newValue;
+        });
+      },
+      items: _offices.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(
+          value: value,
+          child: Text(value),
+        );
+      }).toList(),
+      validator: (value) => value == null ? 'Please select an office' : null,
+    );
   Widget _buildLabeledDropdown(
       {required String label,
       required String hint,

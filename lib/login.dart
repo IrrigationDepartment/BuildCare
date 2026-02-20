@@ -86,6 +86,7 @@ class _LoginPageState extends State<LoginPage> {
       final userDoc = querySnapshot.docs.first;
       final userData = userDoc.data();
       final String? email = userData['email'] as String?;
+      final String uid = userDoc.id; // This is the user's Auth UID
       final String? uid = userDoc.id; // This is the user's Auth UID
 
       if (email == null || email.isEmpty) {
@@ -364,6 +365,7 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+}
 }
 }
 }

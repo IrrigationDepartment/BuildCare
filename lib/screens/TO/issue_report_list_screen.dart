@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'issue_report_details_screen.dart';
+import 'add_issue_screen.dart'; 
 import 'add_issue_screen.dart'; // Placeholder for adding new issues
 import 'add_issue_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this for getting current user data
@@ -551,6 +552,18 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: () {
+                    // --- MODIFICATION ---
+                    // Navigate directly to AddIssueScreen in Edit Mode
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddIssueScreen(
+                          userNic: widget.userNic,
+                          issueId: issueId, // Pass the ID to enable edit mode
+                        ),
+                      ),
+                    );
+                    // --- END OF MODIFICATION ---
                     // TODO: Navigate to an "EditIssueScreen"
                     // For now, it can also go to the details screen
                     Navigator.push(
@@ -577,6 +590,7 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
       ),
     );
   }
+}
 }
                 // Show edit button only for the reporter or admin roles
                 if (_canEditIssue(reporterNic))

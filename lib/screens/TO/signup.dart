@@ -295,6 +295,8 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
         };
 
         // --- 5. SAVE USER DATA TO FIRESTORE USING THE AUTH UID ---
+
+        // --- 5. SAVE USER DATA TO FIRESTORE USING THE AUTH UID ---
           'password': _passwordController.text.trim(), // Consider hashing this!
           'userType': 'Technical Officer',
           'createdAt': Timestamp.now(),
@@ -872,6 +874,7 @@ class _TORegistrationPageState extends State<TORegistrationPage> {
                   color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
+              initialValue: value,
               value: value,
               items: items
                   .map((String office) => DropdownMenuItem<String>(
