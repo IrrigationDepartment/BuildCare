@@ -26,8 +26,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   // --- UI Controllers ---
   final TextEditingController _schoolNameController = TextEditingController();
-  final TextEditingController _floorsController = TextEditingController();
-  final TextEditingController _classroomsController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
 
@@ -65,31 +63,56 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   @override
   void initState() {
     super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    setState(() => _isPageLoading = true);
+
     if (_isEditMode) {
-      _loadIssueData();
+      await _loadIssueData();
+    } else {
+      await _fetchSchoolFromUserNic();
+    }
+
+    if (mounted) {
+      setState(() => _isPageLoading = false);
     }
   }
 
-  @override
-  void dispose() {
-    _schoolNameController.dispose();
-    _floorsController.dispose();
-    _classroomsController.dispose();
-    _descriptionController.dispose();
-    _dateController.dispose();
-    super.dispose();
+  // --- Fetch School based on User NIC ---
+  Future<void> _fetchSchoolFromUserNic() async {
+    try {
+      // Find the user document using the NIC
+      QuerySnapshot userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('nic', isEqualTo: widget.userNic)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        var userData = userQuery.docs.first.data() as Map<String, dynamic>;
+        // Extract the school name associated with this user
+        String? linkedSchool = userData['schoolName'];
+        
+        if (linkedSchool != null && linkedSchool.isNotEmpty) {
+          _schoolNameController.text = linkedSchool;
+        } else {
+          _schoolNameController.text = 'School Not Found in Profile';
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching user school details: $e");
+    }
   }
 
   // --- Fetch existing data if in Edit Mode ---
   Future<void> _loadIssueData() async {
-    setState(() => _isPageLoading = true);
     try {
       final doc = await FirebaseFirestore.instance.collection('issues').doc(widget.issueId!).get();
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
         _schoolNameController.text = data['schoolName'] ?? '';
-        _floorsController.text = data['numFloors']?.toString() ?? '';
-        _classroomsController.text = data['numClassrooms']?.toString() ?? '';
         _descriptionController.text = data['description'] ?? '';
         _selectedBuilding = data['buildingName'];
         _selectedDamageType = data['damageType'];
@@ -101,9 +124,15 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       }
     } catch (e) {
       debugPrint('Error loading data: $e');
-    } finally {
-      if (mounted) setState(() => _isPageLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _schoolNameController.dispose();
+    _descriptionController.dispose();
+    _dateController.dispose();
+    super.dispose();
   }
 
   // --- Image Handling Logic ---
@@ -162,8 +191,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding,
-        'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
-        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
         'damageType': _selectedDamageType,
         'issueTitle': '$_selectedBuilding - $_selectedDamageType',
         'description': _descriptionController.text.trim(),
@@ -209,8 +236,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding,
-        'numFloors': int.tryParse(_floorsController.text.trim()) ?? 0,
-        'numClassrooms': int.tryParse(_classroomsController.text.trim()) ?? 0,
         'damageType': _selectedDamageType,
         'issueTitle': '$_selectedBuilding - $_selectedDamageType',
         'description': _descriptionController.text.trim(),
@@ -248,7 +273,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       appBar: AppBar(
         backgroundColor: Colors.white, elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)),
-        title: Text(_isEditMode ? "Edit Building Issue" : "Add school building Issues", 
+        title: Text(_isEditMode ? "Edit Building Issue" : "Add School Building Issues", 
             style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 18)),
         actions: [
           Padding(
@@ -269,12 +294,10 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildTextField("School Name", "Enter Your School name", _schoolNameController, isNumber: false),
-                _buildDropdown("Select Damage Building", "select Type of Damage Building", _buildingTypes, _selectedBuilding, (val) => setState(() => _selectedBuilding = val)),
-                _buildTextField("Number of Floors", "Enter number of floors in building", _floorsController, isNumber: true),
-                _buildTextField("Number of Classrooms", "Enter Number of rooms in building", _classroomsController, isNumber: true),
-                _buildDropdown("Type Of Damage", "select Type of Damage", _damageTypes, _selectedDamageType, (val) => setState(() => _selectedDamageType = val)),
-                _buildDescriptionField("Description of Issue", "Describe your School building Issue", _descriptionController),
+                _buildTextField("School Name", "School Name", _schoolNameController, readOnly: true), // Made Read-Only
+                _buildDropdown("Select Damage Building", "Select Type of Damage Building", _buildingTypes, _selectedBuilding, (val) => setState(() => _selectedBuilding = val)),
+                _buildDropdown("Type Of Damage", "Select Type of Damage", _damageTypes, _selectedDamageType, (val) => setState(() => _selectedDamageType = val)),
+                _buildDescriptionField("Description of Issue", "Describe the School building Issue", _descriptionController),
                 _buildUploadImagesSection(),
                 _buildDateField("Date Of Damage Occurance", "Enter Date Of Damage Occurance", _dateController, _selectDate),
               ],
@@ -287,7 +310,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   // --- Helper Widgets to keep UI clean ---
 
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {required bool isNumber}) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller, {bool readOnly = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -295,8 +318,14 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
-          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-          decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12)),
+          readOnly: readOnly,
+          decoration: InputDecoration(
+            hintText: hint, 
+            filled: true, 
+            fillColor: readOnly ? Colors.grey[300] : _textFieldBackgroundColor, // Visual cue that it's read-only
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), 
+            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12)
+          ),
           validator: (v) => v!.isEmpty ? 'Required' : null,
         ),
       ]),
