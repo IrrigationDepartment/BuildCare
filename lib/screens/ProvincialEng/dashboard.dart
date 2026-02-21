@@ -7,6 +7,7 @@ import 'package:rxdart/rxdart.dart';
 import 'view_issues.dart';
 import 'contractors_list.dart';
 import 'contract_list.dart';
+import 'notifications.dart'; // <-- ADDED: Import for the notifications page
 
 // --- REGISTRATION PAGE IMPORTS ---
 import 'add_ce.dart';
@@ -110,8 +111,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
               );
             }).toList());
 
-    // FIX 1: Using shareValue() from RxDart prevents the stream from being listened to twice
-    // WHILE ALSO caching the latest value so it doesn't get stuck loading when scrolled!
     _activityStream = CombineLatestStream.list<List<ActivityItem>>([
       issuesStream,
       schoolsStream,
@@ -168,7 +167,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   @override
   Widget build(BuildContext context) {
     const Color pageBackgroundColor = Color(0xFFF4F6F8);
-    // Determine grid columns based on screen width for web responsiveness
     double screenWidth = MediaQuery.of(context).size.width;
     int gridCrossAxisCount =
         screenWidth > 1000 ? 4 : (screenWidth > 600 ? 3 : 2);
@@ -178,8 +176,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(maxWidth: 1200), // Max width for web
+            constraints: const BoxConstraints(maxWidth: 1200),
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -191,8 +188,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     delegate: SliverChildListDelegate([
                       _buildSectionTitle('User Management'),
                       const SizedBox(height: 16),
-
-                      // FIX 2: Used GridView with mainAxisExtent instead of childAspectRatio to prevent bottom overflow
                       GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -200,8 +195,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                           crossAxisCount: gridCrossAxisCount,
                           crossAxisSpacing: 16.0,
                           mainAxisSpacing: 16.0,
-                          mainAxisExtent:
-                              240, // This guarantees the cards are always 240px tall, no matter how narrow they get!
+                          mainAxisExtent: 240,
                         ),
                         children: const <Widget>[
                           UserCountBuilder(
@@ -234,7 +228,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 32),
                       _buildSectionTitle('Project Management'),
                       const SizedBox(height: 16),
@@ -259,12 +252,10 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                           }
                         },
                       ),
-
                       const SizedBox(height: 32),
                       _buildSectionTitle('System Alerts'),
                       const SizedBox(height: 16),
                       const IssueCountBuilder(title: 'Manage Issues'),
-
                       const SizedBox(height: 32),
                       _buildSectionTitle('Latest Updates'),
                       const SizedBox(height: 16),
@@ -286,8 +277,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   Widget _buildContractorCard(BuildContext context) {
     return SimpleCountCard(
       title: 'Contractors',
-      // --- FIXED: Updated from 'contractors' to 'contractor_details' ---
-      collectionName: 'contractor_details', 
+      collectionName: 'contractor_details',
       icon: Icons.construction,
       color: Colors.teal,
       onTap: () {
@@ -500,14 +490,68 @@ class DashboardHeader extends StatelessWidget {
               ],
             ),
           ),
+          
+          // --- UPDATED NOTIFICATION ICON WITH RED BADGE ---
           Container(
             decoration: BoxDecoration(
                 color: Colors.white, borderRadius: BorderRadius.circular(16)),
-            child: IconButton(
-              icon: Icon(Icons.notifications_active_outlined,
-                  color: Colors.blue.shade800),
-              onPressed: () {},
-              tooltip: 'Notifications',
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('isRead', isEqualTo: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                int unreadCount = 0;
+                if (snapshot.hasData) {
+                  unreadCount = snapshot.data!.docs.length;
+                }
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.notifications_active_outlined,
+                          color: Colors.blue.shade800),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const NotificationPage()),
+                        );
+                      },
+                      tooltip: 'Notifications',
+                    ),
+                    
+                    // The Red Dot / Badge Alert
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 1.5), // White border for contrast
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            unreadCount > 9 ? '9+' : unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -585,11 +629,9 @@ class UserCountBuilder extends StatelessWidget {
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 16.0), // Reduced horizontal padding slightly
+                    horizontal: 12.0, vertical: 16.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment
-                      .spaceBetween, // Evenly spaces items to prevent cramped overlaps
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -614,8 +656,6 @@ class UserCountBuilder extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           color: Colors.grey.shade600),
                     ),
-
-                    // FIX 3: FittedBox ensures badges shrink instead of overflowing if screen is extremely narrow
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Row(
@@ -627,7 +667,6 @@ class UserCountBuilder extends StatelessWidget {
                         ],
                       ),
                     ),
-
                     InkWell(
                       onTap: () {
                         Navigator.push(context,
