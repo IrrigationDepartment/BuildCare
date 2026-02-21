@@ -1,11 +1,14 @@
 import 'dart:convert'; // For JSON decoding
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http; // Import HTTP package
 
 class ManagePrincipalsListPage extends StatefulWidget {
-  const ManagePrincipalsListPage({super.key});
+  final String? officeFilter;
+  
+  const ManagePrincipalsListPage({super.key, this.officeFilter});
 
   @override
   State<ManagePrincipalsListPage> createState() =>
@@ -20,6 +23,7 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  String? _currentUserOffice;
 
   @override
   void initState() {
@@ -29,12 +33,49 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
         _searchQuery = _searchController.text.toLowerCase();
       });
     });
+    _getCurrentUserOffice();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Get current user's office from Firestore
+  Future<void> _getCurrentUserOffice() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        setState(() {
+          _currentUserOffice = widget.officeFilter;
+        });
+        return;
+      }
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        final office = data['office'] as String?;
+        
+        setState(() {
+          _currentUserOffice = office ?? widget.officeFilter;
+        });
+      } else {
+        setState(() {
+          _currentUserOffice = widget.officeFilter;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching current user office: $e');
+      setState(() {
+        _currentUserOffice = widget.officeFilter;
+      });
+    }
   }
 
   @override
@@ -48,10 +89,23 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
           icon: const Icon(Icons.arrow_back_ios, color: _textDark, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Active Principals Directory',
-          style: TextStyle(
-              color: _textDark, fontWeight: FontWeight.bold, fontSize: 18),
+        title: Column(
+          children: [
+            const Text(
+              'Active Principals Directory',
+              style: TextStyle(
+                  color: _textDark, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            if (_currentUserOffice != null && _currentUserOffice!.isNotEmpty)
+              Text(
+                '(${_currentUserOffice!} District)',
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+          ],
         ),
         centerTitle: true,
       ),
@@ -84,6 +138,7 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
                   .collection('users')
                   .where('userType', isEqualTo: 'Principal')
                   .where('isActive', isEqualTo: true)
+                  .where('office', isEqualTo: _currentUserOffice) // Filter by office
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -93,7 +148,7 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
                   return Center(child: Text("Error: ${snapshot.error}"));
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return _buildEmptyState();
+                  return _buildEmptyState(_currentUserOffice);
                 }
 
                 final docs = snapshot.data!.docs.where((doc) {
@@ -108,8 +163,25 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
                 }).toList();
 
                 if (docs.isEmpty) {
-                  return const Center(
-                      child: Text("No active principals found."));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text("No active principals found."),
+                        if (_currentUserOffice != null && _currentUserOffice!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'District: ${_currentUserOffice!}',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
                 }
 
                 return ListView.builder(
@@ -133,6 +205,7 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
     final String schoolName = data['schoolName'] ?? 'Unassigned School';
     final String? imageUrl = data['profile_image'];
     final bool isActive = data['isActive'] ?? true;
+    final String office = data['office'] ?? 'N/A';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -178,6 +251,14 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: Colors.blue.shade800)),
+                      const SizedBox(height: 4),
+                      Text(
+                        'District: $office',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -231,7 +312,7 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(String? district) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -240,6 +321,17 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
           const SizedBox(height: 16),
           Text("No Active Principals",
               style: TextStyle(color: Colors.grey.shade500)),
+          if (district != null && district.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'District: $district',
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 12,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -401,6 +493,7 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
     final String nic = userData['nic'] ?? 'N/A';
     final String schoolName = userData['schoolName'] ?? 'N/A';
     final String region = userData['region'] ?? 'N/A';
+    final String office = userData['office'] ?? 'N/A';
     final String? imageUrl = userData['profile_image'];
 
     return Scaffold(
@@ -491,6 +584,15 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
                           fontSize: 16,
                           color: Color(0xFF1E88E5),
                           fontWeight: FontWeight.w600)),
+                  if (office.isNotEmpty)
+                    Text(
+                      'District: $office',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -518,6 +620,8 @@ class _PrincipalProfileViewState extends State<PrincipalProfileView> {
                 _buildInfoRow(Icons.school_outlined, "School Name", schoolName),
                 const Divider(height: 1),
                 _buildInfoRow(Icons.map_outlined, "Region/Zone", region),
+                const Divider(height: 1),
+                _buildInfoRow(Icons.location_city_outlined, "District", office),
               ],
             ),
             

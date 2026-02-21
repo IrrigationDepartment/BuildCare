@@ -1,11 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
 import 'package:image_picker/image_picker.dart'; // Import Image Picker
 import 'package:http/http.dart' as http; // Import HTTP
 
 class ManageTechnicalOfficersListPage extends StatefulWidget {
-  const ManageTechnicalOfficersListPage({super.key});
+  final String? officeFilter;
+  
+  const ManageTechnicalOfficersListPage({
+    super.key,
+    required this.officeFilter,
+  });
 
   @override
   State<ManageTechnicalOfficersListPage> createState() =>
@@ -23,17 +29,55 @@ class _ManageTechnicalOfficersListPageState
 
   late TabController _tabController;
   String _searchQuery = "";
+  String? _currentUserOffice;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _getCurrentUserOffice();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  // Get current user's office from Firestore
+  Future<void> _getCurrentUserOffice() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        setState(() {
+          _currentUserOffice = widget.officeFilter;
+        });
+        return;
+      }
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        final office = data['office'] as String?;
+        
+        setState(() {
+          _currentUserOffice = office ?? widget.officeFilter;
+        });
+      } else {
+        setState(() {
+          _currentUserOffice = widget.officeFilter;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching current user office: $e');
+      setState(() {
+        _currentUserOffice = widget.officeFilter;
+      });
+    }
   }
 
   @override
@@ -47,9 +91,22 @@ class _ManageTechnicalOfficersListPageState
           icon: const Icon(Icons.arrow_back_ios_new, color: _textDark),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Technical Officers Directory',
-          style: TextStyle(color: _textDark, fontWeight: FontWeight.bold),
+        title: Column(
+          children: [
+            const Text(
+              'Technical Officers Directory',
+              style: TextStyle(color: _textDark, fontWeight: FontWeight.bold),
+            ),
+            if (_currentUserOffice != null && _currentUserOffice!.isNotEmpty)
+              Text(
+                '(${_currentUserOffice!} District)',
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+          ],
         ),
         centerTitle: true,
         bottom: TabBar(
@@ -109,6 +166,7 @@ class _ManageTechnicalOfficersListPageState
           .collection('users')
           .where('userType', isEqualTo: 'Technical Officer')
           .where('isActive', isEqualTo: isActive)
+          .where('office', isEqualTo: _currentUserOffice) // Filter by office
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -120,7 +178,9 @@ class _ManageTechnicalOfficersListPageState
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState(
-              isActive ? "No active officers found." : "No inactive officers.");
+            isActive ? "No active officers found." : "No inactive officers.",
+            _currentUserOffice,
+          );
         }
 
         final filteredDocs = snapshot.data!.docs.where((doc) {
@@ -130,7 +190,10 @@ class _ManageTechnicalOfficersListPageState
         }).toList();
 
         if (filteredDocs.isEmpty) {
-          return _buildEmptyState("No results found for '$_searchQuery'");
+          return _buildEmptyState(
+            "No results found for '$_searchQuery'",
+            _currentUserOffice,
+          );
         }
 
         return ListView.builder(
@@ -149,7 +212,7 @@ class _ManageTechnicalOfficersListPageState
     );
   }
 
-  Widget _buildEmptyState(String message) {
+  Widget _buildEmptyState(String message, String? office) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -158,6 +221,17 @@ class _ManageTechnicalOfficersListPageState
               size: 60, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(message, style: TextStyle(color: Colors.grey.shade500)),
+          if (office != null && office.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'District: $office',
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 12,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -189,10 +263,11 @@ class _UserCard extends StatelessWidget {
   final bool isActive;
   final VoidCallback onStatusChange;
 
-  const _UserCard(
-      {required this.doc,
-      required this.isActive,
-      required this.onStatusChange});
+  const _UserCard({
+    required this.doc,
+    required this.isActive,
+    required this.onStatusChange,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -34,7 +34,7 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
   Future<void> _fetchIssueDetails() async {
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('issues') // Assuming the collection name remains 'issues'
+          .collection('issues') 
           .doc(widget.issueId)
           .get();
 
@@ -88,29 +88,12 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text('Damage Details', // Updated title
+        title: const Text('Damage Details',
             style: TextStyle(color: kTextColor)),
         backgroundColor: kCardColor,
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
-        // OPTIONAL: Add an "Edit" button to navigate to your editing screen
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit Report',
-            onPressed: () {
-              // TODO: Navigate to an editable screen for the report
-              // For a full-screen implementation of 'DamageDetailsDialog', this might push to itself or an edit form.
-              // Example:
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => EditDamageReportScreen(issueId: widget.issueId),
-              //   ),
-              // );
-            },
-          )
-        ],
+        // Edit Button (IconButton) එක මෙතැනින් ඉවත් කර ඇත.
       ),
       body: _isPageLoading
           ? const Center(child: CircularProgressIndicator())
@@ -136,7 +119,7 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
 
                       // --- SECTION 2: ISSUE DETAILS CARD ---
                       _buildSectionCard(
-                        title: 'Damage Details', // Updated title
+                        title: 'Damage Details',
                         children: [
                           _buildDetailRow(
                             icon: Icons.category_outlined,
@@ -212,7 +195,6 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
 
   //  HELPER WIDGETS FOR VIEW SCREEN 
 
-  // Helper to build section cards
   Widget _buildSectionCard({
     required String title,
     required List<Widget> children,
@@ -239,14 +221,13 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
             const SizedBox(height: 4),
             Divider(color: kBackgroundColor.withOpacity(0.8)),
             const SizedBox(height: 12),
-            ...children, // Add all the child widgets
+            ...children,
           ],
         ),
       ),
     );
   }
 
-  //  Helper for Icon | Label | Value rows  
   Widget _buildDetailRow({
     required IconData icon,
     required String label,
@@ -276,7 +257,6 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     );
   }
 
-  //  Helper for Label: Value rows  
   Widget _buildLocationRow({required String label, required String value}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
@@ -302,8 +282,6 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
     );
   }
 
-  //  IMAGE GALLERY WIDGETS (Unchanged from previous) 
- 
   Widget _buildImageGallery(List<dynamic> images) {
     if (images.isEmpty) {
       return Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for current user
 
 class PendingApprovalsPage extends StatelessWidget {
   const PendingApprovalsPage({super.key});
@@ -10,6 +11,28 @@ class PendingApprovalsPage extends StatelessWidget {
   static const Color _textLight = Color(0xFF6B7280); // Muted Gray
   static const Color _primaryBlue = Color(0xFF2563EB); // Royal Blue
   static const Color _successGreen = Color(0xFF10B981); // Emerald
+
+  // Get current user's office from Firestore
+  Future<String?> _getCurrentUserOffice() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return null;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        return data['office'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching current user office: $e');
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,46 +51,61 @@ class PendingApprovalsPage extends StatelessWidget {
         ),
         centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        // --- UPDATED QUERY: Filter by 'Technical Officer' AND 'isActive: false' ---
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .where('userType', isEqualTo: 'Technical Officer') 
-            .where('isActive', isEqualTo: false)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: FutureBuilder<String?>(
+        future: _getCurrentUserOffice(),
+        builder: (context, officeSnapshot) {
+          if (officeSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: _primaryBlue));
           }
 
-          if (snapshot.hasError) {
-             // Shows error if Index is missing
-            return Center(child: Text("Error: ${snapshot.error}")); 
+          if (officeSnapshot.hasError) {
+            return Center(child: Text('Error fetching office: ${officeSnapshot.error}'));
           }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState();
-          }
+          final currentUserOffice = officeSnapshot.data;
 
-          final allDocs = snapshot.data!.docs;
+          return StreamBuilder<QuerySnapshot>(
+            // --- UPDATED QUERY: Filter by 'Technical Officer', 'isActive: false', AND same office ---
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .where('userType', isEqualTo: 'Technical Officer')
+                .where('isActive', isEqualTo: false)
+                .where('office', isEqualTo: currentUserOffice) // Added office filter
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: _primaryBlue));
+              }
 
-          return Column(
-            children: [
-              // 1. Summary Header (Simplified for TOs only)
-              _buildSummaryHeader(allDocs.length),
+              if (snapshot.hasError) {
+                return Center(child: Text("Error: ${snapshot.error}"));
+              }
 
-              // 2. The List of Users
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  itemCount: allDocs.length,
-                  itemBuilder: (context, index) {
-                    final doc = allDocs[index];
-                    return _buildUserCard(context, doc);
-                  },
-                ),
-              ),
-            ],
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return _buildEmptyState(currentUserOffice);
+              }
+
+              final allDocs = snapshot.data!.docs;
+
+              return Column(
+                children: [
+                  // 1. Summary Header with District Info
+                  _buildSummaryHeader(allDocs.length, currentUserOffice),
+
+                  // 2. The List of Users
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: allDocs.length,
+                      itemBuilder: (context, index) {
+                        final doc = allDocs[index];
+                        return _buildUserCard(context, doc);
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -76,7 +114,7 @@ class PendingApprovalsPage extends StatelessWidget {
 
   // --- WIDGETS ---
 
-  Widget _buildSummaryHeader(int count) {
+  Widget _buildSummaryHeader(int count, String? district) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Container(
@@ -90,28 +128,49 @@ class PendingApprovalsPage extends StatelessWidget {
           ],
           border: Border.all(color: Colors.blue.shade50),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Pending Requests", style: TextStyle(color: _textLight, fontSize: 14, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 4),
-                Text("Technical Officers", style: TextStyle(color: _textDark, fontSize: 18, fontWeight: FontWeight.bold)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Pending Requests", style: TextStyle(color: _textLight, fontSize: 14, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    Text("Technical Officers", style: TextStyle(color: _textDark, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    count.toString(),
+                    style: TextStyle(color: _primaryBlue, fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 12),
+            if (district != null && district.isNotEmpty)
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Text(
+                    'District: $district',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-              child: Text(
-                count.toString(),
-                style: TextStyle(color: _primaryBlue, fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ),
           ],
         ),
       ),
@@ -123,6 +182,7 @@ class PendingApprovalsPage extends StatelessWidget {
     final String name = data['name'] ?? 'Unknown';
     final String email = data['email'] ?? 'No Email';
     final String? imageUrl = data['profile_image'];
+    final String office = data['office'] ?? 'N/A';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -168,16 +228,32 @@ class PendingApprovalsPage extends StatelessWidget {
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textDark),
                       ),
                       const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          "Technical Officer",
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue.shade800),
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "Technical Officer",
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue.shade800),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              office,
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.green.shade800),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 6),
                       Text(email, style: const TextStyle(fontSize: 13, color: _textLight)),
@@ -239,7 +315,7 @@ class PendingApprovalsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(String? district) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -249,6 +325,17 @@ class PendingApprovalsPage extends StatelessWidget {
           Text("All Caught Up!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade600)),
           const SizedBox(height: 8),
           Text("No pending Technical Officers.", style: TextStyle(color: Colors.grey.shade500)),
+          if (district != null && district.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'District: $district',
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 12,
+                ),
+              ),
+            ),
         ],
       ),
     );
