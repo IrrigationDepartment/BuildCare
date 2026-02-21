@@ -110,6 +110,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
               );
             }).toList());
 
+    // FIX 1: Added .asBroadcastStream() to solve the "Bad State: Stream already listened to" error!
     _activityStream = CombineLatestStream.list<List<ActivityItem>>([
       issuesStream,
       schoolsStream,
@@ -119,7 +120,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           allLists.expand((list) => list).toList();
       combinedList.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       return combinedList.take(5).toList();
-    });
+    }).asBroadcastStream(); 
   }
 
   void _navigateToDetailPage(BuildContext context, ActivityItem item) {
@@ -128,28 +129,13 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 
     switch (item.itemType) {
       case 'issue':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => IssueDetailPage(issueId: docId),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => IssueDetailPage(issueId: docId)));
         break;
       case 'school':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SchoolDetailPage(schoolId: docId, schoolData: data),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => SchoolDetailPage(schoolId: docId, schoolData: data)));
         break;
       case 'user':
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UserDetailPage(userId: docId, userData: data),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => UserDetailPage(userId: docId, userData: data)));
         break;
       default:
         showDialog(
@@ -157,12 +143,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           builder: (context) => AlertDialog(
             title: const Text('Details'),
             content: Text('Details for ${item.itemType}'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
           ),
         );
     }
@@ -192,13 +173,17 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                     delegate: SliverChildListDelegate([
                       _buildSectionTitle('User Management'),
                       const SizedBox(height: 16),
-                      GridView.count(
+                      
+                      // FIX 2: Used GridView with mainAxisExtent instead of childAspectRatio to prevent bottom overflow
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: gridCrossAxisCount,
-                        crossAxisSpacing: 16.0,
-                        mainAxisSpacing: 16.0,
-                        childAspectRatio: 1.1, // Adjusted for better proportions on web
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: gridCrossAxisCount,
+                          crossAxisSpacing: 16.0,
+                          mainAxisSpacing: 16.0,
+                          mainAxisExtent: 240, // This guarantees the cards are always 240px tall, no matter how narrow they get!
+                        ),
                         children: const <Widget>[
                           UserCountBuilder(
                             title: 'Chief Engineer',
@@ -234,7 +219,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                       const SizedBox(height: 32),
                       _buildSectionTitle('Project Management'),
                       const SizedBox(height: 16),
-                      // Responsive Row for Projects
                       LayoutBuilder(
                         builder: (context, constraints) {
                           if (constraints.maxWidth > 600) {
@@ -276,7 +260,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         ),
       ),
       bottomNavigationBar: screenWidth > 800 
-          ? null // Hide bottom nav on large screens (assume sidebar or top nav would exist)
+          ? null 
           : const CustomBottomNavBar(currentIndex: 0),
     );
   }
@@ -288,16 +272,10 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       icon: Icons.construction,
       color: Colors.teal,
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ContractorsListPage()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractorsListPage()));
       },
       onAdd: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddContractorScreen()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const AddContractorScreen()));
       },
     );
   }
@@ -309,16 +287,10 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       icon: Icons.description_outlined,
       color: Colors.indigo,
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ContractListPage()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractListPage()));
       },
       onAdd: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AddContractScreen()),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => const AddContractScreen()));
       },
     );
   }
@@ -340,10 +312,19 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       stream: _activityStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-              child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator()));
+          return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            width: double.infinity,
+            decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.shade200)
+            ),
+            child: Text('Error loading updates: ${snapshot.error}', style: TextStyle(color: Colors.red.shade700)),
+          );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Container(
@@ -358,8 +339,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
               children: [
                 Icon(Icons.history, size: 48, color: Colors.grey),
                 SizedBox(height: 16),
-                Text('No recent updates found.',
-                    style: TextStyle(color: Colors.grey, fontSize: 16)),
+                Text('No recent updates found.', style: TextStyle(color: Colors.grey, fontSize: 16)),
               ],
             ),
           );
@@ -397,7 +377,7 @@ class DashboardHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.blue.shade800,
         image: DecorationImage(
-          image: const NetworkImage('https://www.transparenttextures.com/patterns/cubes.png'), // Subtle texture
+          image: const NetworkImage('https://www.transparenttextures.com/patterns/cubes.png'), 
           colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.1), BlendMode.dstATop),
           fit: BoxFit.cover,
         ),
@@ -416,83 +396,55 @@ class DashboardHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  String? imageUrl;
-                  if (snapshot.hasData && snapshot.data!.exists) {
-                    final data = snapshot.data!.data() as Map<String, dynamic>;
-                    imageUrl = data['profile_image'];
-                  }
-                  return Container(
-                    padding: const EdgeInsets.all(4), // Border width
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: CircleAvatar(
-                      radius: 36,
-                      backgroundColor: Colors.blue.shade200,
-                      backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
-                          ? NetworkImage(imageUrl)
-                          : null,
-                      child: (imageUrl == null || imageUrl.isEmpty)
-                          ? const Icon(Icons.person, color: Colors.white, size: 40)
-                          : null,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 20),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back,',
-                    style: TextStyle(
-                      color: Colors.blue.shade100,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      userRole,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+          Expanded(
+            child: Row(
+              children: [
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(userId).snapshots(),
+                  builder: (context, snapshot) {
+                    String? imageUrl;
+                    if (snapshot.hasData && snapshot.data!.exists) {
+                      final data = snapshot.data!.data() as Map<String, dynamic>;
+                      imageUrl = data['profile_image'];
+                    }
+                    return Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                      child: CircleAvatar(
+                        radius: 36,
+                        backgroundColor: Colors.blue.shade200,
+                        backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null,
+                        child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Colors.white, size: 40) : null,
                       ),
-                    ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Welcome back,', style: TextStyle(color: Colors.blue.shade100, fontSize: 16)),
+                      Text(
+                        userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                        child: Text(userRole, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
           Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
             child: IconButton(
               icon: Icon(Icons.notifications_active_outlined, color: Colors.blue.shade800),
               onPressed: () {},
@@ -506,7 +458,7 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserCountBuilder (Updated Styling) ---
+// --- UserCountBuilder (Updated for Overflow Safety) ---
 // -----------------------------------------------------------------------------
 class UserCountBuilder extends StatelessWidget {
   final String userType;
@@ -527,10 +479,7 @@ class UserCountBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .where('userType', isEqualTo: userType)
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').where('userType', isEqualTo: userType).snapshots(),
       builder: (context, snapshot) {
         int total = 0;
         int active = 0;
@@ -566,62 +515,46 @@ class UserCountBuilder extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => UserListPage(
-                      userType: userType,
-                      title: title,
-                    ),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => UserListPage(userType: userType, title: title)));
               },
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 16.0), // Reduced horizontal padding slightly
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, // Evenly spaces items to prevent cramped overlaps
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: color.shade50,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, size: 28, color: color.shade700),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: color.shade50, shape: BoxShape.circle),
+                      child: Icon(icon, size: 26, color: color.shade700),
                     ),
-                    const SizedBox(height: 12),
                     Text(
                       total.toString(),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
+                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                     ),
-                    const SizedBox(height: 4),
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                    ),
+                    
+                    // FIX 3: FittedBox ensures badges shrink instead of overflowing if screen is extremely narrow
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildStatusBadge(active, Colors.green, 'Active'),
+                          const SizedBox(width: 6),
+                          _buildStatusBadge(pending, Colors.orange, 'Pending'),
+                        ],
                       ),
                     ),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildStatusBadge(active, Colors.green, 'Active'),
-                        const SizedBox(width: 8),
-                        _buildStatusBadge(pending, Colors.orange, 'Pending'),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                    
                     InkWell(
                       onTap: () {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (context) => addPage));
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => addPage));
                       },
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
@@ -638,10 +571,7 @@ class UserCountBuilder extends StatelessWidget {
                             const SizedBox(width: 4),
                             Text(
                               'Add New',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: color.shade700,
-                                  fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 12, color: color.shade700, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -666,19 +596,11 @@ class UserCountBuilder extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle),
-          ),
+          Container(width: 6, height: 6, decoration: BoxDecoration(color: badgeColor, shape: BoxShape.circle)),
           const SizedBox(width: 4),
           Text(
             "$count $label",
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: badgeColor,
-            ),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badgeColor),
           ),
         ],
       ),
@@ -687,7 +609,7 @@ class UserCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- SimpleCountCard (Updated Styling) ---
+// --- SimpleCountCard ---
 // -----------------------------------------------------------------------------
 class SimpleCountCard extends StatelessWidget {
   final String title;
@@ -713,9 +635,7 @@ class SimpleCountCard extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection(collectionName).snapshots(),
       builder: (context, snapshot) {
         String count = '...';
-        if (snapshot.hasData) {
-          count = snapshot.data!.docs.length.toString();
-        }
+        if (snapshot.hasData) count = snapshot.data!.docs.length.toString();
 
         return Container(
           decoration: BoxDecoration(
@@ -723,11 +643,7 @@ class SimpleCountCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
             ],
           ),
           child: Material(
@@ -741,10 +657,7 @@ class SimpleCountCard extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
                       child: Icon(icon, color: color, size: 32),
                     ),
                     const SizedBox(width: 20),
@@ -752,31 +665,13 @@ class SimpleCountCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
+                          Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                           const SizedBox(height: 4),
-                          Text(
-                            count,
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
+                          Text(count, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(Icons.add_circle, color: color, size: 32),
-                      onPressed: onAdd,
-                      tooltip: 'Add $title',
-                    ),
+                    IconButton(icon: Icon(Icons.add_circle, color: color, size: 32), onPressed: onAdd, tooltip: 'Add $title'),
                   ],
                 ),
               ),
@@ -789,17 +684,13 @@ class SimpleCountCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- ActivityItemCard (Updated Styling) ---
+// --- ActivityItemCard ---
 // -----------------------------------------------------------------------------
 class ActivityItemCard extends StatelessWidget {
   final ActivityItem item;
   final VoidCallback onTap;
 
-  const ActivityItemCard({
-    super.key,
-    required this.item,
-    required this.onTap,
-  });
+  const ActivityItemCard({super.key, required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -842,13 +733,7 @@ class ActivityItemCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Material(
         color: Colors.transparent,
@@ -861,10 +746,7 @@ class ActivityItemCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
                   child: Icon(icon, color: iconColor, size: 24),
                 ),
                 const SizedBox(width: 16),
@@ -872,24 +754,9 @@ class ActivityItemCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
+                      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
                       const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
+                      Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
@@ -897,20 +764,9 @@ class ActivityItemCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      _formatTimeAgo(item.timestamp),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    Text(_formatTimeAgo(item.timestamp), style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
                     const SizedBox(height: 8),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 14,
-                      color: Colors.grey.shade400,
-                    ),
+                    Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade400),
                   ],
                 ),
               ],
@@ -935,7 +791,7 @@ class ActivityItemCard extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- IssueCountBuilder (Updated Styling) ---
+// --- IssueCountBuilder ---
 // -----------------------------------------------------------------------------
 class IssueCountBuilder extends StatelessWidget {
   final String title;
@@ -947,36 +803,21 @@ class IssueCountBuilder extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection('issues').snapshots(),
       builder: (context, snapshot) {
         int total = 0;
-        if (snapshot.hasData) {
-          total = snapshot.data!.docs.length;
-        }
+        if (snapshot.hasData) total = snapshot.data!.docs.length;
 
         return Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.red.shade50, Colors.white],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            gradient: LinearGradient(colors: [Colors.red.shade50, Colors.white], begin: Alignment.centerLeft, end: Alignment.centerRight),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.red.shade100),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withOpacity(0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            boxShadow: [BoxShadow(color: Colors.red.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ViewIssuesPage()),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const ViewIssuesPage()));
               },
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -984,48 +825,24 @@ class IssueCountBuilder extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade100,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.warning_amber_rounded,
-                          color: Colors.red.shade700, size: 32),
+                      decoration: BoxDecoration(color: Colors.red.shade100, shape: BoxShape.circle),
+                      child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 32),
                     ),
                     const SizedBox(width: 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
-                            ),
-                          ),
+                          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                           const SizedBox(height: 4),
-                          Text(
-                            '$total issues need attention',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.red.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          Text('$total issues need attention', style: TextStyle(fontSize: 14, color: Colors.red.shade700, fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade600,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'View All',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
+                      decoration: BoxDecoration(color: Colors.red.shade600, borderRadius: BorderRadius.circular(20)),
+                      child: const Text('View All', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -1050,13 +867,7 @@ class CustomBottomNavBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))],
       ),
       child: SafeArea(
         child: BottomNavigationBar(
@@ -1068,21 +879,9 @@ class CustomBottomNavBar extends StatelessWidget {
           elevation: 0,
           onTap: (index) => _onTabTapped(context, index),
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+            BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'Settings'),
           ],
         ),
       ),
@@ -1094,22 +893,14 @@ class CustomBottomNavBar extends StatelessWidget {
     
     Widget destination;
     switch (index) {
-      case 0:
-        destination = const ProvincialEngDashboard();
-        break;
-      case 1:
-        destination = const ProfileManagementPage();
-        break;
-      case 2:
-        destination = const SettingsPage();
-        break;
-      default:
-        return;
+      case 0: destination = const ProvincialEngDashboard(); break;
+      case 1: destination = const ProfileManagementPage(); break;
+      case 2: destination = const SettingsPage(); break;
+      default: return;
     }
 
     if (index == 0) {
-      Navigator.pushAndRemoveUntil(
-          context, MaterialPageRoute(builder: (context) => destination), (route) => false);
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => destination), (route) => false);
     } else {
       Navigator.push(context, MaterialPageRoute(builder: (context) => destination));
     }
@@ -1117,7 +908,7 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- IssueDetailPage (Kept as is) ---
+// --- IssueDetailPage ---
 // -----------------------------------------------------------------------------
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
@@ -1129,12 +920,8 @@ class IssueDetailPage extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('issues').doc(issueId).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Issue not found'));
-          }
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData || !snapshot.data!.exists) return const Center(child: Text('Issue not found'));
           final data = snapshot.data!.data() as Map<String, dynamic>;
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -1161,7 +948,7 @@ class IssueDetailPage extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- SchoolDetailPage (Kept as is) ---
+// --- SchoolDetailPage ---
 // -----------------------------------------------------------------------------
 class SchoolDetailPage extends StatelessWidget {
   final String schoolId;
@@ -1207,7 +994,7 @@ class SchoolDetailPage extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserDetailPage (Kept as is) ---
+// --- UserDetailPage ---
 // -----------------------------------------------------------------------------
 class UserDetailPage extends StatelessWidget {
   final String userId;
