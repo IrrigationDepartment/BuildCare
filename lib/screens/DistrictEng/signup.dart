@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // <--- 1. IMPORT FIREBASE AUTH
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DistrictEngRegistrationPage extends StatefulWidget {
   const DistrictEngRegistrationPage({super.key});
@@ -15,28 +15,23 @@ class _DistrictEngRegistrationPageState
   final _formKey = GlobalKey<FormState>();
 
   // Controllers for all the fields
-  final _userTypeController =
-      TextEditingController(text: 'District Engineer'); // MODIFIED
+  final _userTypeController = TextEditingController(text: 'District Engineer');
   final _nameController = TextEditingController();
   final _nicController = TextEditingController();
   final _emailController = TextEditingController();
   final _officePhoneController = TextEditingController();
   final _mobileController = TextEditingController();
-  // REMOVED: final _petNameController = TextEditingController();
-  // REMOVED: final _nicknameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // NEW: State for the 'isActive' flag
   final bool _initialIsActiveStatus = false; // User starts as deactivated
 
-  // --- ADDED: Default Profile Image URL ---
   final String _defaultProfileImageUrl =
       'https://t4.ftcdn.net/jpg/00/64/67/63/360_F_64676383_Ldbm8TwlbnL43PId23vLdI3MgqhaNYf5.jpg';
 
-  // NEW: FocusNodes
+  // FocusNodes
   final _passwordFocusNode = FocusNode();
-  final _nicFocusNode = FocusNode(); // <-- For NIC check
+  final _nicFocusNode = FocusNode(); // <-- For real-time NIC check
 
   String? _selectedOffice;
   final List<String> _offices = ['Galle', 'Matara', 'Hambantota'];
@@ -45,7 +40,7 @@ class _DistrictEngRegistrationPageState
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
-  // NEW: State variables for password validation UI
+  // Password validation UI state
   bool _isPasswordFocused = false;
   bool _has8Chars = false;
   bool _hasLowercase = false;
@@ -53,7 +48,7 @@ class _DistrictEngRegistrationPageState
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
 
-  // --- NEW: State variables for NIC check ---
+  // State variables for NIC check
   bool _isCheckingNic = false;
   bool _isNicDuplicate = false;
 
@@ -68,44 +63,37 @@ class _DistrictEngRegistrationPageState
       });
     });
 
-    // --- ADDED: NIC Focus listener ---
+    // NIC Focus listener
     _nicFocusNode.addListener(_onNicFocusChange);
   }
 
   @override
   void dispose() {
-    // Dispose all controllers
     _userTypeController.dispose();
     _nameController.dispose();
     _nicController.dispose();
     _emailController.dispose();
     _officePhoneController.dispose();
     _mobileController.dispose();
-    // REMOVED: _petNameController.dispose();
-    // REMOVED: _nicknameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
 
-    // Dispose listeners and FocusNodes
     _passwordController.removeListener(_validatePassword);
     _passwordFocusNode.dispose();
 
-    // --- ADDED: Dispose NIC listener and node ---
     _nicFocusNode.removeListener(_onNicFocusChange);
     _nicFocusNode.dispose();
 
     super.dispose();
   }
 
-  // --- ADDED: Function to check NIC when focus is lost ---
+  // --- Real-time NIC check when focus is lost ---
   void _onNicFocusChange() {
-    // If the user is no longer focused on the NIC field, check the value
     if (!_nicFocusNode.hasFocus) {
       _checkNicDuplication();
     }
   }
 
-  // --- ADDED: The database check logic ---
   Future<void> _checkNicDuplication() async {
     final nic = _nicController.text.trim().toUpperCase();
 
@@ -116,7 +104,7 @@ class _DistrictEngRegistrationPageState
 
     setState(() {
       _isCheckingNic = true;
-      _isNicDuplicate = false; // Reset status
+      _isNicDuplicate = false; 
     });
 
     try {
@@ -132,12 +120,7 @@ class _DistrictEngRegistrationPageState
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error checking NIC: $e'),
-          backgroundColor: Colors.red,
-        ));
-      }
+      print("Error checking NIC: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -147,7 +130,6 @@ class _DistrictEngRegistrationPageState
     }
   }
 
-  // NEW: Function to validate password in real-time
   void _validatePassword() {
     final password = _passwordController.text;
     setState(() {
@@ -159,56 +141,40 @@ class _DistrictEngRegistrationPageState
     });
   }
 
-  // --- MODIFIED: Firebase Registration Logic ---
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) {
-      return; // Stop if form is invalid
+      return; 
     }
 
-    // Perform password validation check
-    if (!_has8Chars ||
-        !_hasLowercase ||
-        !_hasUppercase ||
-        !_hasNumber ||
-        !_hasSpecialChar) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            backgroundColor: Colors.orange,
-            content: Text(
-                'Please ensure the password meets all security requirements.')));
-      }
+    if (!_has8Chars || !_hasLowercase || !_hasUppercase || !_hasNumber || !_hasSpecialChar) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.orange,
+          content: Text('Please ensure the password meets all security requirements.')));
       return;
     }
 
-    // --- ADDED: Final NIC check before submit ---
+    // Final NIC check before submit to prevent race conditions
     await _checkNicDuplication();
     if (_isNicDuplicate) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('This NIC is already registered.'),
-        ));
-      }
-      return; // Stop submission
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        backgroundColor: Colors.redAccent,
+        content: Text('This NIC is already registered. Please check again.'),
+      ));
+      return; 
     }
-    // --- END ---
 
     setState(() => _isLoading = true);
 
     try {
-      // --- 2. CREATE USER IN FIREBASE AUTH ---
-      UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // --- 3. GET THE NEW USER'S UID ---
       String? uid = userCredential.user?.uid;
 
       if (uid != null) {
-        // --- 4. CREATE THE DATA MAP (WITHOUT PASSWORD) ---
         final userData = {
           'name': _nameController.text.trim(),
           'nic': _nicController.text.trim().toUpperCase(),
@@ -216,27 +182,19 @@ class _DistrictEngRegistrationPageState
           'office': _selectedOffice,
           'officePhone': _officePhoneController.text.trim(),
           'mobilePhone': _mobileController.text.trim(),
-          // REMOVED: 'securityQuestionPet': _petNameController.text.trim(),
-          // REMOVED: 'securityQuestionNickname': _nicknameController.text.trim(),
-          // --- NO PASSWORD SAVED TO FIRESTORE ---
           'userType': 'District Engineer',
           'createdAt': Timestamp.now(),
-          'isActive': _initialIsActiveStatus, // Automatically set to false
+          'isActive': _initialIsActiveStatus, 
           'profile_image': _defaultProfileImageUrl,
         };
 
-        // --- 5. SAVE USER DATA TO FIRESTORE USING THE AUTH UID ---
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .set(userData);
+        await FirebaseFirestore.instance.collection('users').doc(uid).set(userData);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 backgroundColor: Colors.green,
-                content: Text(
-                    'Registration successful! Your account is currently deactivated.')),
+                content: Text('Registration successful! Your account is pending approval.')),
           );
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
@@ -246,7 +204,6 @@ class _DistrictEngRegistrationPageState
         }
       }
     } on FirebaseAuthException catch (e) {
-      // --- 6. HANDLE AUTHENTICATION ERRORS ---
       String message = 'Registration failed. Please try again.';
       if (e.code == 'weak-password') {
         message = 'The password provided is too weak.';
@@ -257,79 +214,315 @@ class _DistrictEngRegistrationPageState
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(backgroundColor: Colors.red, content: Text(message)));
+            SnackBar(backgroundColor: Colors.redAccent, content: Text(message)));
       }
     } catch (e) {
-      // Handle general errors (e.g., Firestore write failed)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red, content: Text('Registration failed: $e')));
+            backgroundColor: Colors.redAccent, content: Text('Registration failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- Helper method to show info dialog ---
-  void _showInfoDialog(BuildContext context, String title, String content) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(content),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          actions: <Widget>[
-            TextButton(
-                child: const Text('OK'),
-                onPressed: () => Navigator.of(context).pop())
-          ],
-        );
-      },
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100, // Matching light background
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.black87,
+      ),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 550), // Responsive Constraint
+              child: Container(
+                padding: const EdgeInsets.all(40.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(Icons.map_outlined, size: 56, color: Colors.blueAccent),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'District Engineer Signup',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Register for your administrative account',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // --- Form Fields ---
+                      _buildLabeledTextField(
+                          label: 'User Type',
+                          isReadOnly: true,
+                          controller: _userTypeController,
+                          icon: Icons.work_outline,
+                          validator: (value) => null),
+
+                      _buildLabeledTextField(
+                          label: 'District Engineer Name',
+                          hint: 'Enter Your Name',
+                          controller: _nameController,
+                          icon: Icons.person_outline),
+
+                      // --- NIC Field (with real-time check) ---
+                      _buildLabeledTextField(
+                        label: 'NIC Number',
+                        hint: 'e.g., 123456789V or 199012345678',
+                        controller: _nicController,
+                        icon: Icons.credit_card,
+                        focusNode: _nicFocusNode,
+                        errorText: _isNicDuplicate ? 'This NIC is already registered' : null,
+                        suffixIcon: _isCheckingNic
+                            ? const Padding(
+                                padding: EdgeInsets.all(14.0),
+                                child: SizedBox(
+                                  width: 16, height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : null,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'NIC cannot be empty';
+                          }
+                          final nicRegex = RegExp(r'^(\d{9}[vVxX]|\d{12})$');
+                          if (!nicRegex.hasMatch(value.trim())) {
+                            return 'Invalid Sri Lankan NIC format';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      _buildLabeledDropdown(
+                          label: 'Select Your Office',
+                          hint: 'Select an Office',
+                          value: _selectedOffice,
+                          items: _offices,
+                          icon: Icons.business_outlined,
+                          onChanged: (newValue) =>
+                              setState(() => _selectedOffice = newValue)),
+
+                      _buildLabeledTextField(
+                          label: 'Email Address',
+                          hint: 'Enter Your Email Address',
+                          controller: _emailController,
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Email cannot be empty';
+                            }
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                              return 'Please enter a valid email';
+                            }
+                            return null;
+                          }),
+
+                      _buildLabeledTextField(
+                          label: 'Office Phone Number',
+                          hint: 'Enter 10-digit number',
+                          controller: _officePhoneController,
+                          icon: Icons.phone_in_talk_outlined,
+                          keyboardType: TextInputType.phone,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Office number cannot be empty';
+                            }
+                            final phoneRegex = RegExp(r'^\d{10}$');
+                            if (!phoneRegex.hasMatch(value.trim())) {
+                              return 'Office number must be 10 digits';
+                            }
+                            return null;
+                          }),
+
+                      _buildLabeledTextField(
+                          label: 'Mobile Number',
+                          hint: 'Enter 10-digit number',
+                          controller: _mobileController,
+                          icon: Icons.phone_iphone,
+                          keyboardType: TextInputType.phone,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Mobile number cannot be empty';
+                            }
+                            final phoneRegex = RegExp(r'^\d{10}$');
+                            if (!phoneRegex.hasMatch(value.trim())) {
+                              return 'Mobile number must be 10 digits';
+                            }
+                            return null;
+                          }),
+
+                      const Divider(height: 40),
+                      Text('Password', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                      const SizedBox(height: 16),
+
+                      _buildLabeledTextField(
+                        label: 'Enter Your Password',
+                        hint: 'Enter Your Password',
+                        controller: _passwordController,
+                        isPassword: true,
+                        isPasswordVisible: _isPasswordVisible,
+                        focusNode: _passwordFocusNode,
+                        icon: Icons.lock_outline,
+                        onVisibilityToggle: () => setState(
+                            () => _isPasswordVisible = !_isPasswordVisible),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Password cannot be empty';
+                          if (!_has8Chars || !_hasLowercase || !_hasUppercase || !_hasNumber || !_hasSpecialChar) {
+                            return 'Please meet all password requirements';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      if (_isPasswordFocused)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0, left: 4.0),
+                          child: _buildPasswordValidationUI(),
+                        ),
+
+                      _buildLabeledTextField(
+                        label: 'Re-Enter Your Password',
+                        hint: 'Re-Enter Your Password',
+                        controller: _confirmPasswordController,
+                        isPassword: true,
+                        icon: Icons.lock_outline,
+                        isPasswordVisible: _isConfirmPasswordVisible,
+                        onVisibilityToggle: () => setState(() =>
+                            _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Please confirm your password';
+                          if (value != _passwordController.text) return 'Passwords do not match';
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : ElevatedButton(
+                              onPressed: _registerUser,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                                elevation: 2,
+                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: const Text(
+                                'Complete Registration',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                      
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("Already Registered?", style: TextStyle(color: Colors.grey.shade700)),
+                          const SizedBox(width: 4),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                            child: const Text('Sign In',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent)),
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  // NEW: Widget to display the entire password validation checklist
+  // --- Helper Widgets ---
+
   Widget _buildPasswordValidationUI() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildValidationRow('At least 8 characters', _has8Chars),
-        const SizedBox(height: 4),
-        _buildValidationRow('Contains a lowercase letter', _hasLowercase),
-        const SizedBox(height: 4),
-        _buildValidationRow('Contains an uppercase letter', _hasUppercase),
-        const SizedBox(height: 4),
-        _buildValidationRow('Contains a number', _hasNumber),
-        const SizedBox(height: 4),
-        _buildValidationRow('Contains a special character', _hasSpecialChar),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildValidationRow('At least 8 characters', _has8Chars),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains a lowercase letter', _hasLowercase),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains an uppercase letter', _hasUppercase),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains a number', _hasNumber),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains a special character', _hasSpecialChar),
+        ],
+      ),
     );
   }
 
-  // NEW: Widget for a single row in the validation checklist
   Widget _buildValidationRow(String text, bool isValid) {
     return Row(
       children: [
         Icon(
           isValid ? Icons.check_circle : Icons.remove_circle_outline,
-          color: isValid ? Colors.green : Colors.grey.shade600,
-          size: 18,
+          color: isValid ? Colors.green : Colors.grey.shade500,
+          size: 16,
         ),
         const SizedBox(width: 8),
         Text(
           text,
           style: TextStyle(
             color: isValid ? Colors.green : Colors.grey.shade600,
-            fontSize: 14,
+            fontSize: 13,
           ),
         ),
       ],
     );
   }
 
-  // --- Helper Widgets for Form Fields (Copied from TORegistrationPage for consistency) ---
   Widget _buildLabeledTextField({
     required String label,
     required TextEditingController controller,
@@ -340,351 +533,110 @@ class _DistrictEngRegistrationPageState
     bool isReadOnly = false,
     VoidCallback? onVisibilityToggle,
     TextInputType? keyboardType,
-    String? infoMessage,
     String? Function(String?)? validator,
     FocusNode? focusNode,
-    String? errorText, // <-- For NIC error
-    bool isChecking = false, // <-- For spinner
+    String? errorText,
+    Widget? suffixIcon,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
-              if (infoMessage != null)
-                IconButton(
-                  icon: Icon(Icons.info_outline,
-                      color: Colors.grey.shade500, size: 20),
-                  onPressed: () =>
-                      _showInfoDialog(context, 'Password Guide', infoMessage),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                )
-            ],
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
-              controller: controller,
-              focusNode: focusNode, // <-- Use the FocusNode
-              readOnly: isReadOnly,
-              obscureText: isPassword && !isPasswordVisible,
-              keyboardType: keyboardType,
-              style: const TextStyle(color: Color.fromARGB(221, 58, 58, 58)),
-              decoration: _inputDecoration(
-                hint,
-                isChecking ? null : icon, // <-- Hide icon if checking
-                isChecking
-                    ? const Padding(
-                        // <-- Show spinner if checking
-                        padding: EdgeInsets.all(12.0),
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2.0),
-                        ),
-                      )
-                    : (isPassword // <-- Show password toggle
-                        ? IconButton(
-                            icon: Icon(
-                                isPasswordVisible
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: const Color(0xFF53BDFF)),
-                            onPressed: onVisibilityToggle)
-                        : null),
-                errorText, // <-- Pass error text
-              ),
-              validator: validator ??
-                  (value) => value!.isEmpty ? '$label cannot be empty' : null)
+            controller: controller,
+            focusNode: focusNode,
+            readOnly: isReadOnly,
+            obscureText: isPassword && !isPasswordVisible,
+            keyboardType: keyboardType,
+            style: const TextStyle(color: Colors.black87),
+            decoration: _inputDecoration(
+              hintText: hint,
+              icon: icon,
+              errorText: errorText,
+              suffixIcon: suffixIcon ??
+                  (isPassword
+                      ? IconButton(
+                          icon: Icon(
+                            isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: Colors.grey.shade600,
+                          ),
+                          onPressed: onVisibilityToggle,
+                        )
+                      : null),
+            ),
+            validator: validator ?? (value) => value!.isEmpty ? '$label cannot be empty' : null,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+          )
         ],
       ),
     );
   }
 
-  Widget _buildLabeledDropdown(
-      {required String label,
-      required String hint,
-      required String? value,
-      required List<String> items,
-      required ValueChanged<String?> onChanged}) {
+  Widget _buildLabeledDropdown({
+    required String label,
+    required String hint,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    IconData? icon,
+  }) {
     return Padding(
-        padding: const EdgeInsets.only(bottom: 20.0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: const TextStyle(
-                  color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-              value: value,
-              items: items
-                  .map((String office) => DropdownMenuItem<String>(
-                      value: office, child: Text(office)))
-                  .toList(),
-              onChanged: onChanged,
-              style: const TextStyle(color: Colors.black87, fontSize: 16),
-              decoration: _inputDecoration(hint, null, null, null),
-              validator: (value) =>
-                  value == null ? 'Please select an option' : null)
-        ]));
+            value: value,
+            items: items.map((String office) => DropdownMenuItem<String>(value: office, child: Text(office))).toList(),
+            onChanged: onChanged,
+            style: const TextStyle(color: Colors.black87, fontSize: 16),
+            decoration: _inputDecoration(hintText: hint, icon: icon),
+            validator: (value) => value == null ? 'Please select an option' : null,
+          )
+        ],
+      ),
+    );
   }
 
-  // --- MODIFIED: Added errorText parameter ---
-  InputDecoration _inputDecoration(
-      String hintText, IconData? icon, Widget? suffixIcon, String? errorText) {
+  InputDecoration _inputDecoration({
+    String? hintText, 
+    IconData? icon, 
+    Widget? suffixIcon, 
+    String? errorText
+  }) {
     return InputDecoration(
-        hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey.shade500),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            borderSide: const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
-        errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            borderSide: const BorderSide(color: Colors.red, width: 1.0)),
-        focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            borderSide: const BorderSide(color: Colors.red, width: 2.0)),
-
-        // --- MODIFIED: Pass the errorText ---
-        errorText: errorText,
-        suffixIcon: suffixIcon ?? // <-- Use the custom suffix first
-            (icon != null // <-- Otherwise, use the default icon
-                ? Padding(
-                    padding: const EdgeInsets.only(right: 12.0),
-                    child: Icon(icon, color: const Color(0xFF53BDFF)))
-                : null));
-  }
-  // --- END Helper Widgets ---
-
-  // --- Main Build Method ---
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text('Signup (District Engineer)',
-                    style: TextStyle(
-                        color: Color.fromARGB(255, 0, 0, 0),
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 30),
-                Container(
-                  padding: const EdgeInsets.all(24.0),
-                  decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 248, 248, 248),
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // --- Form Fields ---
-                        _buildLabeledTextField(
-                            label: 'User Type',
-                            isReadOnly: true,
-                            controller: _userTypeController,
-                            validator: (value) => null),
-                        _buildLabeledTextField(
-                            label: 'District Engineer Name',
-                            hint: 'Enter Your Name',
-                            controller: _nameController,
-                            icon: Icons.person_outline),
-
-                        // --- NIC Field (with duplication check) ---
-                        _buildLabeledTextField(
-                            label: 'NIC Number',
-                            hint: 'e.g., 123456789V or 199012345678',
-                            controller: _nicController,
-                            icon: Icons.credit_card,
-                            focusNode: _nicFocusNode, // <-- Added FocusNode
-                            isChecking: _isCheckingNic, // <-- Added check state
-                            errorText: _isNicDuplicate // <-- Added error
-                                ? 'This NIC is already registered'
-                                : null,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'NIC cannot be empty';
-                              }
-                              final nicRegex =
-                                  RegExp(r'^(\d{9}[vVxX]|\d{12})$');
-                              if (!nicRegex.hasMatch(value)) {
-                                return 'Invalid Sri Lankan NIC format';
-                              }
-                              return null;
-                            }),
-                        // --- END NIC Field ---
-
-                        _buildLabeledDropdown(
-                            label: 'Select Your Office',
-                            hint: 'Select an Office',
-                            value: _selectedOffice,
-                            items: _offices,
-                            onChanged: (newValue) =>
-                                setState(() => _selectedOffice = newValue)),
-                        _buildLabeledTextField(
-                            label: 'Email',
-                            hint: 'Enter Your Email Adress',
-                            controller: _emailController,
-                            icon: Icons.email_outlined,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Email cannot be empty';
-                              }
-                              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                                  .hasMatch(value)) {
-                                return 'Please enter a valid email';
-                              }
-                              return null;
-                            }),
-                        _buildLabeledTextField(
-                            label: 'Office Phone Number',
-                            hint: 'Enter 10-digit number',
-                            controller: _officePhoneController,
-                            icon: Icons.phone_in_talk_outlined,
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Office number cannot be empty';
-                              }
-                              final phoneRegex = RegExp(r'^\d{10}$');
-                              if (!phoneRegex.hasMatch(value)) {
-                                return 'Office number must be 10 digits';
-                              }
-                              return null;
-                            }),
-                        _buildLabeledTextField(
-                            label: 'Mobile Number',
-                            hint: 'Enter 10-digit number',
-                            controller: _mobileController,
-                            icon: Icons.phone_iphone,
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Mobile number cannot be empty';
-                              }
-                              final phoneRegex = RegExp(r'^\d{10}$');
-                              if (!phoneRegex.hasMatch(value)) {
-                                return 'Mobile number must be 10 digits';
-                              }
-                              return null;
-                            }),
-                        // REMOVED: Pet Name Text Field
-                        // REMOVED: Nickname Text Field
-
-                        // Password Field (with real-time validation)
-                        _buildLabeledTextField(
-                            label: 'Enter Your Password',
-                            hint: 'Enter Your Password',
-                            controller: _passwordController,
-                            isPassword: true,
-                            isPasswordVisible: _isPasswordVisible,
-                            focusNode: _passwordFocusNode,
-                            onVisibilityToggle: () => setState(
-                                () => _isPasswordVisible = !_isPasswordVisible),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Password cannot be empty';
-                              }
-                              if (!_has8Chars ||
-                                  !_hasLowercase ||
-                                  !_hasUppercase ||
-                                  !_hasNumber ||
-                                  !_hasSpecialChar) {
-                                return 'Please meet all password requirements';
-                              }
-                              return null;
-                            }),
-
-                        if (_isPasswordFocused)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                                top: 8.0, bottom: 8.0, left: 4.0),
-                            child: _buildPasswordValidationUI(),
-                          ),
-
-                        _buildLabeledTextField(
-                            label: 'Re-Enter Your Password',
-                            hint: 'Re-Enter Your Password',
-                            controller: _confirmPasswordController,
-                            isPassword: true,
-                            isPasswordVisible: _isConfirmPasswordVisible,
-                            onVisibilityToggle: () => setState(() =>
-                                _isConfirmPasswordVisible =
-                                    !_isConfirmPasswordVisible),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please confirm your password';
-                              }
-                              if (value != _passwordController.text) {
-                                return 'Passwords do not match';
-                              }
-                              return null;
-                            }),
-                        const SizedBox(height: 30),
-                        _isLoading
-                            ? const Center(child: CircularProgressIndicator())
-                            : SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                    onPressed: _registerUser,
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF53BDFF),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(30))),
-                                    child: const Text('Sign Up',
-                                        style: TextStyle(
-                                            fontSize: 18,
-                                            color: Color.fromARGB(
-                                                255, 255, 255, 255),
-                                            fontWeight: FontWeight.bold))))
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("Already Registered?"),
-                    TextButton(
-                      // Go back to login
-                      onPressed: () =>
-                          Navigator.of(context).popUntil((route) => route.isFirst),
-                      child: const Text('Sign in'),
-                    ),
-                  ],
-                )
-              ],
-            ),
-          ),
-        ),
+      hintText: hintText,
+      prefixIcon: icon != null ? Icon(icon, color: Colors.blueAccent.shade200) : null,
+      suffixIcon: suffixIcon,
+      errorText: errorText,
+      hintStyle: TextStyle(color: Colors.grey.shade500),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: const BorderSide(color: Colors.blueAccent, width: 2.0),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 2.0),
       ),
     );
   }

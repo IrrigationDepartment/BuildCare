@@ -260,33 +260,60 @@ class _ProvincialEngRegistrationPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade100, // Matching light background
       appBar: AppBar(
-        title: const Text('Register Provincial Engineer'),
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.black87,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24.0),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 550), // Web/Desktop restriction
+              child: Container(
+                padding: const EdgeInsets.all(40.0),
                 decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 248, 248, 248),
-                    borderRadius: BorderRadius.circular(20)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const Icon(Icons.architecture_outlined, size: 56, color: Colors.blueAccent),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Provincial Engineer Signup',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Register for your administrative account',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 32),
+
                       _buildLabeledTextField(
                           label: 'User Type',
                           controller: _userTypeController,
-                          isReadOnly: true),
+                          isReadOnly: true,
+                          icon: Icons.work_outline),
                       
                       _buildLabeledTextField(
                           label: 'Engineer\'s Name',
@@ -329,13 +356,14 @@ class _ProvincialEngRegistrationPageState
                           hint: 'Select an Office',
                           value: _selectedOffice,
                           items: _offices,
+                          icon: Icons.business_outlined,
                           onChanged: (val) => setState(() => _selectedOffice = val)),
 
                       _buildLabeledTextField(
                           label: 'Office Phone',
                           hint: '10-digit number',
                           controller: _officePhoneController,
-                          icon: Icons.phone,
+                          icon: Icons.phone_in_talk_outlined,
                           keyboardType: TextInputType.phone,
                           validator: (value) {
                             if (value == null || value.isEmpty) return 'Field cannot be empty';
@@ -355,27 +383,31 @@ class _ProvincialEngRegistrationPageState
                             return null;
                           }),
 
-                      const SizedBox(height: 16),
-                      const Text('Security Questions',
-                          style: TextStyle(
-                              color: Color(0xFF53BDFF),
-                              fontWeight: FontWeight.bold)),
+                      const Divider(height: 40),
+                      Text('Security Questions', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
                       const SizedBox(height: 16),
 
                       _buildLabeledTextField(
                           label: 'First Pet Name',
                           hint: 'Answer',
+                          icon: Icons.pets_outlined,
                           controller: _petNameController),
                       _buildLabeledTextField(
                           label: 'Childhood Nickname',
                           hint: 'Answer',
+                          icon: Icons.child_care,
                           controller: _nicknameController),
+
+                      const Divider(height: 40),
+                      Text('Password', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                      const SizedBox(height: 16),
 
                       // Password Fields
                       _buildLabeledTextField(
                           label: 'Password',
                           hint: 'Enter Password',
                           controller: _passwordController,
+                          icon: Icons.lock_outline,
                           isPassword: true,
                           isPasswordVisible: _isPasswordVisible,
                           focusNode: _passwordFocusNode,
@@ -391,8 +423,7 @@ class _ProvincialEngRegistrationPageState
 
                       if (_isPasswordFocused)
                         Padding(
-                          padding: const EdgeInsets.only(
-                              bottom: 16.0, left: 4.0),
+                          padding: const EdgeInsets.only(bottom: 16.0, left: 4.0),
                           child: _buildPasswordValidationUI(),
                         ),
 
@@ -400,6 +431,7 @@ class _ProvincialEngRegistrationPageState
                           label: 'Confirm Password',
                           hint: 'Re-enter Password',
                           controller: _confirmPasswordController,
+                          icon: Icons.lock_outline,
                           isPassword: true,
                           isPasswordVisible: _isConfirmPasswordVisible,
                           onVisibilityToggle: () => setState(() =>
@@ -413,45 +445,51 @@ class _ProvincialEngRegistrationPageState
                       const SizedBox(height: 24),
                       _isLoading
                           ? const Center(child: CircularProgressIndicator())
-                          : SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _registerUser,
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF53BDFF),
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(30))),
-                                child: const Text('Register',
-                                    style: TextStyle(
-                                        fontSize: 18,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
+                          : ElevatedButton(
+                              onPressed: _registerUser,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                                elevation: 2,
+                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16)),
                               ),
+                              child: const Text('Complete Registration',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2)),
                             ),
                       
-                      const SizedBox(height: 16),
-                      Center(
-                        child: TextButton(
-                          onPressed: () {
-                             Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ProvincialEngLoginPage(),
-                              ),
-                            );
-                          },
-                          child: const Text("Already have an account? Sign In",
-                              style: TextStyle(
-                                  color: Color(0xFF53BDFF),
-                                  fontWeight: FontWeight.bold)),
-                        ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("Already have an account?", style: TextStyle(color: Colors.grey.shade700)),
+                          const SizedBox(width: 4),
+                          TextButton(
+                            onPressed: () {
+                               Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProvincialEngLoginPage(),
+                                ),
+                              );
+                            },
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                            child: const Text("Sign In",
+                                style: TextStyle(
+                                    color: Colors.blueAccent,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                       )
                     ],
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -461,31 +499,40 @@ class _ProvincialEngRegistrationPageState
   // --- Helper UI Methods ---
 
   Widget _buildPasswordValidationUI() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildValidationRow('At least 8 characters', _has8Chars),
-        _buildValidationRow('Contains lowercase', _hasLowercase),
-        _buildValidationRow('Contains uppercase', _hasUppercase),
-        _buildValidationRow('Contains number', _hasNumber),
-        _buildValidationRow('Contains special char', _hasSpecialChar),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildValidationRow('At least 8 characters', _has8Chars),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains lowercase letter', _hasLowercase),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains uppercase letter', _hasUppercase),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains number', _hasNumber),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains special character', _hasSpecialChar),
+        ],
+      ),
     );
   }
 
   Widget _buildValidationRow(String text, bool isValid) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          Icon(isValid ? Icons.check_circle : Icons.remove_circle_outline,
-              color: isValid ? Colors.green : Colors.grey, size: 16),
-          const SizedBox(width: 8),
-          Text(text,
-              style: TextStyle(
-                  color: isValid ? Colors.green : Colors.grey, fontSize: 12)),
-        ],
-      ),
+    return Row(
+      children: [
+        Icon(isValid ? Icons.check_circle : Icons.remove_circle_outline,
+            color: isValid ? Colors.green : Colors.grey.shade500, size: 16),
+        const SizedBox(width: 8),
+        Text(text,
+            style: TextStyle(
+                color: isValid ? Colors.green : Colors.grey.shade600, fontSize: 13)),
+      ],
     );
   }
 
@@ -510,8 +557,7 @@ class _ProvincialEngRegistrationPageState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: const TextStyle(
-                  color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
               controller: controller,
@@ -519,9 +565,10 @@ class _ProvincialEngRegistrationPageState
               readOnly: isReadOnly,
               obscureText: isPassword && !isPasswordVisible,
               keyboardType: keyboardType,
+              style: const TextStyle(color: Colors.black87),
               decoration: _inputDecoration(
                 hint,
-                isChecking ? null : icon,
+                icon,
                 isChecking
                     ? const Padding(
                         padding: EdgeInsets.all(12.0),
@@ -534,9 +581,9 @@ class _ProvincialEngRegistrationPageState
                         ? IconButton(
                             icon: Icon(
                                 isPasswordVisible
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                                color: const Color(0xFF53BDFF)),
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: Colors.grey.shade600),
                             onPressed: onVisibilityToggle)
                         : null),
                 errorText,
@@ -548,18 +595,19 @@ class _ProvincialEngRegistrationPageState
     );
   }
 
-  Widget _buildLabeledDropdown(
-      {required String label,
-      required String hint,
-      required String? value,
-      required List<String> items,
-      required ValueChanged<String?> onChanged}) {
+  Widget _buildLabeledDropdown({
+    required String label,
+    required String hint,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    IconData? icon,
+  }) {
     return Padding(
         padding: const EdgeInsets.only(bottom: 20.0),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label,
-              style: const TextStyle(
-                  color: Color.fromARGB(179, 0, 0, 0), fontSize: 14)),
+              style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
               value: value,
@@ -568,7 +616,8 @@ class _ProvincialEngRegistrationPageState
                       value: office, child: Text(office)))
                   .toList(),
               onChanged: onChanged,
-              decoration: _inputDecoration(hint, null, null, null),
+              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              decoration: _inputDecoration(hint, icon, null, null),
               validator: (value) =>
                   value == null ? 'Please select an option' : null)
         ]));
@@ -578,33 +627,29 @@ class _ProvincialEngRegistrationPageState
       Widget? suffixIcon, String? errorText) {
     return InputDecoration(
       hintText: hintText,
+      prefixIcon: icon != null ? Icon(icon, color: Colors.blueAccent.shade200) : null,
       hintStyle: TextStyle(color: Colors.grey.shade500),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Colors.grey.shade50,
       contentPadding:
-          const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+          const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(16.0),
+          borderSide: BorderSide(color: Colors.grey.shade300)),
       enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(16.0),
+          borderSide: BorderSide(color: Colors.grey.shade300)),
       focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: const BorderSide(color: Color(0xFF53BDFF), width: 2.0)),
+          borderRadius: BorderRadius.circular(16.0),
+          borderSide: const BorderSide(color: Colors.blueAccent, width: 2.0)),
       errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: const BorderSide(color: Colors.red, width: 1.0)),
+          borderRadius: BorderRadius.circular(16.0),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.0)),
       focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: const BorderSide(color: Colors.red, width: 2.0)),
+          borderRadius: BorderRadius.circular(16.0),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 2.0)),
       errorText: errorText,
-      suffixIcon: suffixIcon ??
-          (icon != null
-              ? Padding(
-                  padding: const EdgeInsets.only(right: 12.0),
-                  child: Icon(icon, color: const Color(0xFF53BDFF)))
-              : null),
+      suffixIcon: suffixIcon,
     );
   }
 }
@@ -679,7 +724,10 @@ class _ProvincialEngLoginPageState extends State<ProvincialEngLoginPage> {
            
            if (mounted) {
              ScaffoldMessenger.of(context).showSnackBar(
-               SnackBar(content: Text('Welcome, ${userData['name']}!')),
+               SnackBar(
+                 content: Text('Welcome, ${userData['name']}!'),
+                 backgroundColor: Colors.green,
+               ),
              );
              
              // Navigate to Dashboard
@@ -695,7 +743,10 @@ class _ProvincialEngLoginPageState extends State<ProvincialEngLoginPage> {
           await FirebaseAuth.instance.signOut();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('User data not found in system.')));
+               const SnackBar(
+                 content: Text('User data not found in system.'),
+                 backgroundColor: Colors.redAccent,
+               ));
           }
         }
 
@@ -710,12 +761,12 @@ class _ProvincialEngLoginPageState extends State<ProvincialEngLoginPage> {
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), backgroundColor: Colors.red));
+            SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -726,77 +777,137 @@ class _ProvincialEngLoginPageState extends State<ProvincialEngLoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade100, // Matching light background
       appBar: AppBar(
-        title: const Text('Provincial Engineer Login'),
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        foregroundColor: Colors.black87,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.person_pin_circle_outlined,
-                  size: 100, color: Color(0xFF53BDFF)),
-              const SizedBox(height: 32),
-              
-              TextFormField(
-                controller: _loginIdController,
-                decoration: _inputDecoration('NIC or Email Address', Icons.person_outline),
-                validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              
-              TextFormField(
-                controller: _passwordController,
-                obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-                  suffixIcon: IconButton(
-                    icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                        color: const Color(0xFF53BDFF)),
-                    onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 450), // Mobile/web constraint
+              child: Container(
+                padding: const EdgeInsets.all(40.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(Icons.person_pin_circle_outlined, size: 80, color: Colors.blueAccent),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Provincial Engineer',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Login to access your dashboard',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 40),
+                      
+                      TextFormField(
+                        controller: _loginIdController,
+                        style: const TextStyle(color: Colors.black87),
+                        decoration: _inputDecoration('NIC or Email Address', Icons.person_outline),
+                        validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: !_isPasswordVisible,
+                        style: const TextStyle(color: Colors.black87),
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: Icon(Icons.lock_outline, color: Colors.blueAccent.shade200),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: Colors.grey.shade600,
+                            ),
+                            onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                            borderSide: const BorderSide(color: Colors.blueAccent, width: 2.0),
+                          ),
+                        ),
+                        validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 32),
+                      
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _loginUser,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                          elevation: 2,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text('Sign In',
+                                style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("Don't have an account?", style: TextStyle(color: Colors.grey.shade700)),
+                          const SizedBox(width: 4),
+                          TextButton(
+                            onPressed: () {
+                               Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProvincialEngRegistrationPage(),
+                                ),
+                              );
+                            },
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                            child: const Text("Sign Up",
+                                style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                validator: (val) => (val == null || val.isEmpty) ? 'Required' : null,
               ),
-              const SizedBox(height: 32),
-              
-              ElevatedButton(
-                onPressed: _isLoading ? null : _loginUser,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF53BDFF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Sign In',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ),
-              
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                   Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProvincialEngRegistrationPage(),
-                    ),
-                  );
-                },
-                child: const Text("Don't have an account? Sign Up",
-                    style: TextStyle(color: Color(0xFF53BDFF), fontWeight: FontWeight.bold)),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -806,10 +917,22 @@ class _ProvincialEngLoginPageState extends State<ProvincialEngLoginPage> {
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      suffixIcon: Icon(icon, color: const Color(0xFF53BDFF)),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+      prefixIcon: Icon(icon, color: Colors.blueAccent.shade200),
       filled: true,
-      fillColor: Colors.grey[100],
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16.0),
+        borderSide: const BorderSide(color: Colors.blueAccent, width: 2.0),
+      ),
     );
   }
 }

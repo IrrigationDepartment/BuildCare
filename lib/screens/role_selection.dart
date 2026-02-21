@@ -5,6 +5,7 @@ import 'ProvincialEng/signup.dart';
 import 'Principal/signup.dart';
 import 'DistrictEng/signup.dart';
 import 'TO/signup.dart';
+import 'ChiefEng/signup.dart'; // Linked successfully
 
 class RoleSelectionPage extends StatefulWidget {
   const RoleSelectionPage({super.key});
@@ -19,18 +20,17 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     'Principal',
     'TO',
     'District Engineer',
-    'Chief Engineer',
-    'Provincial Director' // Note: Your switch statement uses 'Provincial Engineer'
+    'Chief Engineer', 
+    'Provincial Director' 
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. Light grey background for the full screen
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         title: const Text('Back to Login'),
-        backgroundColor: Colors.transparent, // Make AppBar blend with background
+        backgroundColor: Colors.transparent, 
         elevation: 0,
         foregroundColor: Colors.black87,
       ),
@@ -38,10 +38,8 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-            // 2. Constrain the width for web/desktop viewing
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 450),
-              // 3. The white Card container
               child: Container(
                 padding: const EdgeInsets.all(40.0),
                 decoration: BoxDecoration(
@@ -56,7 +54,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                   ],
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min, // Fit content height
+                  mainAxisSize: MainAxisSize.min, 
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Icon(Icons.work_outline, size: 56, color: Colors.blueAccent),
@@ -81,7 +79,6 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                     ),
                     const SizedBox(height: 32),
                     
-                    // 4. Using a mapped Column instead of ListView for better card sizing
                     ..._roles.map((role) {
                       final isSelected = _selectedRole == role;
                       return _buildRoleButton(role, isSelected);
@@ -102,7 +99,10 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                             case 'District Engineer':
                               destination = const DistrictEngRegistrationPage();
                               break;
-                            // Note: Make sure this string matches the one in your _roles list above!
+                            // --- LINKED CHIEF ENGINEER HERE ---
+                            case 'Chief Engineer':
+                              destination = const ChiefEngRegistrationPage();
+                              break;
                             case 'Provincial Engineer': 
                             case 'Provincial Director':
                               destination = const ProvincialEngRegistrationPage();
@@ -169,7 +169,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          alignment: Alignment.centerLeft, // Aligns text to the left for a cleaner list look
+          alignment: Alignment.centerLeft, 
         ),
         child: Row(
           children: [
