@@ -82,95 +82,134 @@ class ViewIssuesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('All Reported Issues'),
-        backgroundColor: const Color(0xFFE8F2FF),
+        title: const Text('All Reported Issues', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black87),
         elevation: 1,
+        centerTitle: true,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('issues')
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No issues reported yet.'));
-          }
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900), // Responsive constraint
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('issues')
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Center(child: Text('No issues reported yet.'));
+              }
 
-          final issues = snapshot.data!.docs;
+              final issues = snapshot.data!.docs;
 
-          return ListView.builder(
-            itemCount: issues.length,
-            itemBuilder: (context, index) {
-              final issueDoc = issues[index];
-              final data = issueDoc.data() as Map<String, dynamic>;
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+                itemCount: issues.length,
+                itemBuilder: (context, index) {
+                  final issueDoc = issues[index];
+                  final data = issueDoc.data() as Map<String, dynamic>;
 
-              final issueId = issueDoc.id;
-              final issueTitle = data['issueTitle'] ?? 'No Title';
-              final schoolName = data['schoolName'] ?? 'Unknown School';
-              final status = data['status'] ?? 'Pending';
-              final statusColor = _getStatusColor(status);
+                  final issueId = issueDoc.id;
+                  final issueTitle = data['issueTitle'] ?? 'No Title';
+                  final schoolName = data['schoolName'] ?? 'Unknown School';
+                  final status = data['status'] ?? 'Pending';
+                  final statusColor = _getStatusColor(status);
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                child: ListTile(
-                  leading: Icon(Icons.warning_amber_rounded, color: statusColor),
-                  title: Text(
-                    issueTitle,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(schoolName, style: const TextStyle(color: Colors.black54)),
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          const Text('Status: ',
-                              style: TextStyle(fontWeight: FontWeight.w500)),
-                          Text(status,
-                              style: TextStyle(
-                                  color: statusColor, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  trailing:
-                      const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black54),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => IssueReportDetailsScreen(
-                          issueId: issueId,
-                          userNic: data['addedByNic'] ?? '',
-                          isAdminView: true,
+                  return Card(
+                    elevation: 0,
+                    margin: const EdgeInsets.only(bottom: 12.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => IssueReportDetailsScreen(
+                              issueId: issueId,
+                              userNic: data['addedByNic'] ?? '',
+                              isAdminView: true,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.warning_amber_rounded, color: statusColor),
+                          ),
+                          title: Text(
+                            issueTitle,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(schoolName, style: const TextStyle(color: Colors.black54)),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: statusColor.withOpacity(0.5)),
+                                    ),
+                                    child: Text(
+                                      status.toUpperCase(),
+                                      style: TextStyle(
+                                          color: statusColor,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black38),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               );
             },
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 }
 
+// ============================================================================
+// ISSUE DETAILS SCREEN
+// ============================================================================
 class IssueReportDetailsScreen extends StatefulWidget {
   final String issueId;
   final String userNic;
   final bool isAdminView;
-  
+
   const IssueReportDetailsScreen({
     super.key,
     required this.issueId,
@@ -179,17 +218,13 @@ class IssueReportDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<IssueReportDetailsScreen> createState() =>
-      _IssueReportDetailsScreenState();
+  State<IssueReportDetailsScreen> createState() => _IssueReportDetailsScreenState();
 }
 
 class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   // Style Constants
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
-  static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
-  static const Color kCardColor = Colors.white;
-  static const Color kIconColor = Color(0xFF9E9E9E);
   static const Color kPrimaryColor = Color(0xFF4A6FA5);
 
   // State Variables
@@ -203,12 +238,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
   String? _currentUserId;
   String? _currentUserName;
 
-  // Status options - Only Pending, Processing, Completed
-  final List<String> _statusOptions = [
-    'Pending',
-    'Processing',
-    'Completed'
-  ];
+  final List<String> _statusOptions = ['Pending', 'Processing', 'Completed'];
 
   @override
   void initState() {
@@ -217,125 +247,92 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     _fetchIssueDetails();
   }
 
-  // ============================================================================
-  // HELPER FUNCTIONS
-  // ============================================================================
-
-  // Fetch user details based on NIC
+  // --- Helpers ---
   Future<QuerySnapshot> _fetchReporterDetails(String nic) {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .where('nic', isEqualTo: nic)
-        .limit(1)
-        .get();
+    return FirebaseFirestore.instance.collection('users').where('nic', isEqualTo: nic).limit(1).get();
   }
 
-  // Status color logic
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange.shade700;
-      case 'processing':
-        return Colors.blue.shade700;
-      case 'completed':
-        return Colors.green.shade700;
-      default:
-        return Colors.grey.shade600;
+      case 'pending': return Colors.orange.shade700;
+      case 'processing': return Colors.blue.shade700;
+      case 'completed': return Colors.green.shade700;
+      default: return Colors.grey.shade600;
     }
   }
 
-  // Get status icon
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'pending':
-        return Icons.pending;
-      case 'processing':
-        return Icons.build;
-      case 'completed':
-        return Icons.check_circle;
-      default:
-        return Icons.help;
+      case 'pending': return Icons.pending;
+      case 'processing': return Icons.build;
+      case 'completed': return Icons.check_circle;
+      default: return Icons.help;
     }
   }
 
-  // Detail section builder
+  // --- Responsive Detail Card Builder ---
   Widget _buildDetailSection({
     required String title,
     required String value,
     required IconData icon,
     bool isLongText = false,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Card(
-        elevation: 0.5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: Colors.blueGrey.shade700, size: 24),
-                  const SizedBox(width: 10),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 10),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isLongText ? 4.0 : 0.0,
-                  vertical: 4.0,
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 16.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Colors.blueGrey.shade700, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
                 ),
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: isLongText ? 16 : 17,
-                    fontWeight: isLongText ? FontWeight.normal : FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
+              ],
+            ),
+            const Divider(height: 16),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: isLongText ? 15 : 16,
+                fontWeight: isLongText ? FontWeight.normal : FontWeight.w600,
+                color: Colors.black87,
+                height: 1.4,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // Status change dialog - Simplified for Pending, Processing, Completed
+  // --- Dialogs ---
   void _showStatusChangeDialog(BuildContext context, String currentStatus) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Update Issue Status'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Current Status: $currentStatus',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: _getStatusColor(currentStatus),
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, color: _getStatusColor(currentStatus)),
               ),
               const SizedBox(height: 20),
               ..._statusOptions.map((status) {
-                return _statusOption(
-                  context,
-                  status,
-                  _getStatusColor(status),
-                  status == currentStatus,
-                );
+                return _statusOption(context, status, _getStatusColor(status), status == currentStatus);
               }),
             ],
           ),
@@ -352,62 +349,44 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
   Widget _statusOption(BuildContext context, String status, Color color, bool isCurrent) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: isCurrent ? color : Colors.grey.shade300, width: isCurrent ? 2 : 1),
+      ),
       child: ListTile(
         leading: Icon(_getStatusIcon(status), color: color),
-        title: Text(
-          status,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        trailing: isCurrent
-            ? const Icon(Icons.check, color: Colors.green)
-            : null,
+        title: Text(status, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
+        trailing: isCurrent ? const Icon(Icons.check_circle, color: Colors.green) : null,
         onTap: () {
           if (!isCurrent) {
             _updateStatus(status);
             Navigator.pop(context);
           }
         },
-        tileColor: isCurrent ? color.withOpacity(0.1) : null,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: color.withOpacity(0.5)),
-        ),
+        tileColor: isCurrent ? color.withOpacity(0.05) : Colors.transparent,
       ),
     );
   }
 
-  // User details popup
   void _showUserPopup(BuildContext context, Map<String, dynamic> userData) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircleAvatar(
                 radius: 40,
-                backgroundImage: userData['profile_image'] != null
-                    ? NetworkImage(userData['profile_image'])
-                    : null,
-                child: userData['profile_image'] == null
-                    ? const Icon(Icons.person, size: 40)
-                    : null,
+                backgroundImage: userData['profile_image'] != null ? NetworkImage(userData['profile_image']) : null,
+                child: userData['profile_image'] == null ? const Icon(Icons.person, size: 40) : null,
               ),
-              const SizedBox(height: 10),
-              Text(
-                userData['name'] ?? 'Unknown',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                userData['userType'] ?? 'Staff',
-                style: const TextStyle(color: Colors.grey),
-              ),
+              const SizedBox(height: 16),
+              Text(userData['name'] ?? 'Unknown', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(userData['userType'] ?? 'Staff', style: const TextStyle(color: Colors.grey)),
               const Divider(height: 30),
               _userInfoRow(Icons.badge, "NIC", userData['nic']),
               _userInfoRow(Icons.phone, "Mobile", userData['mobilePhone']),
@@ -416,10 +395,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
           ],
         );
       },
@@ -428,19 +404,17 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
   Widget _userInfoRow(IconData icon, String label, String? value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
           Icon(icon, size: 20, color: Colors.blueGrey),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(color: Colors.black87),
+                style: const TextStyle(color: Colors.black87, fontSize: 15),
                 children: [
-                  TextSpan(
-                      text: "$label: ",
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  TextSpan(text: "$label: ", style: const TextStyle(fontWeight: FontWeight.w600)),
                   TextSpan(text: value ?? "N/A"),
                 ],
               ),
@@ -451,99 +425,59 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     );
   }
 
-  // ============================================================================
-  // CORE FUNCTIONS
-  // ============================================================================
-
+  // --- Logic ---
   Future<void> _getCurrentUser() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _currentUserId = user.uid;
       try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
           _currentUserName = userData['name'] ?? userData['email'] ?? 'Unknown';
         }
       } catch (e) {
-        print('Error fetching user data: $e');
+        debugPrint('Error fetching user data: $e');
       }
     }
   }
 
   Future<void> _fetchIssueDetails() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('issues')
-          .doc(widget.issueId)
-          .get();
-
+      final doc = await FirebaseFirestore.instance.collection('issues').doc(widget.issueId).get();
       if (doc.exists) {
         _issueData = doc.data() as Map<String, dynamic>;
-
-        // Format occurrence date
         if (_issueData!['dateOfOccurance'] != null) {
-          final DateTime selectedDate =
-              (_issueData!['dateOfOccurance'] as Timestamp).toDate();
+          final DateTime selectedDate = (_issueData!['dateOfOccurance'] as Timestamp).toDate();
           _formattedDate = DateFormat('MMM dd, yyyy').format(selectedDate);
         }
-
-        // Format reported date (timestamp)
         if (_issueData!['timestamp'] != null) {
-          final DateTime reportedDateTime =
-              (_issueData!['timestamp'] as Timestamp).toDate();
+          final DateTime reportedDateTime = (_issueData!['timestamp'] as Timestamp).toDate();
           _reportedDate = DateFormat('dd-MM-yyyy @ HH:mm').format(reportedDateTime);
         }
-
-        // Load images
-        _images = (_issueData!['imageUrls'] as List<dynamic>? ?? [])
-            .map((e) => e.toString())
-            .toList();
-
-        // Load status history
+        _images = (_issueData!['imageUrls'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         _statusHistory = _issueData!['statusHistory'] ?? [];
-
-        setState(() {
-          _isPageLoading = false;
-        });
+        if (mounted) setState(() => _isPageLoading = false);
       } else {
-        setState(() {
-          _isPageLoading = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Issue details not found.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          Navigator.of(context).pop();
-        }
+        if (mounted) setState(() => _isPageLoading = false);
+        _showErrorAndPop('Issue details not found.');
       }
     } catch (e) {
-      setState(() {
-        _isPageLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error fetching details: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) setState(() => _isPageLoading = false);
+      _showErrorAndPop('Error fetching details: $e');
+    }
+  }
+
+  void _showErrorAndPop(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+      Navigator.of(context).pop();
     }
   }
 
   Future<void> _updateStatus(String newStatus) async {
     if (_isUpdatingStatus || _currentUserId == null) return;
-
-    setState(() {
-      _isUpdatingStatus = true;
-    });
+    setState(() => _isUpdatingStatus = true);
 
     try {
       final statusUpdate = {
@@ -556,10 +490,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
       final updatedHistory = List.from(_statusHistory)..add(statusUpdate);
 
-      await FirebaseFirestore.instance
-          .collection('issues')
-          .doc(widget.issueId)
-          .update({
+      await FirebaseFirestore.instance.collection('issues').doc(widget.issueId).update({
         'status': newStatus,
         'statusHistory': updatedHistory,
         'lastUpdated': FieldValue.serverTimestamp(),
@@ -571,28 +502,16 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Status updated to $newStatus'),
-            backgroundColor: _getStatusColor(newStatus),
-          ),
+          SnackBar(content: Text('Status updated to $newStatus'), backgroundColor: _getStatusColor(newStatus)),
         );
       }
-
-      // Refresh data
       await _fetchIssueDetails();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update status: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
       }
     } finally {
-      setState(() {
-        _isUpdatingStatus = false;
-      });
+      if (mounted) setState(() => _isUpdatingStatus = false);
     }
   }
 
@@ -603,40 +522,27 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.7,
+          height: MediaQuery.of(context).size.height * 0.75,
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
+            borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
           ),
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(20.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Status History',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                    const Text('Status History', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                   ],
                 ),
               ),
+              const Divider(height: 1),
               Expanded(
                 child: _statusHistory.isEmpty
-                    ? const Center(
-                        child: Text('No status history available'),
-                      )
+                    ? const Center(child: Text('No status history available'))
                     : ListView.builder(
                         padding: const EdgeInsets.all(16.0),
                         itemCount: _statusHistory.length,
@@ -644,79 +550,56 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                         itemBuilder: (context, index) {
                           final history = _statusHistory[index];
                           final status = history['status'] ?? 'Unknown';
+                          final color = _getStatusColor(status);
                           final updatedBy = history['updatedBy'] ?? 'Unknown';
                           final note = history['note']?.toString();
                           final updatedAt = history['updatedAt'] is Timestamp
                               ? (history['updatedAt'] as Timestamp).toDate()
                               : DateTime.now();
-                          
+
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 10),
+                            elevation: 0,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey.shade200),
+                            ),
                             child: Padding(
-                              padding: const EdgeInsets.all(12.0),
+                              padding: const EdgeInsets.all(16.0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: _getStatusColor(status).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(4),
-                                          border: Border.all(
-                                            color: _getStatusColor(status),
-                                          ),
+                                          color: color.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: color),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(
-                                              _getStatusIcon(status),
-                                              size: 14,
-                                              color: _getStatusColor(status),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              status,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: _getStatusColor(status),
-                                              ),
-                                            ),
+                                            Icon(_getStatusIcon(status), size: 14, color: color),
+                                            const SizedBox(width: 6),
+                                            Text(status, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
                                           ],
                                         ),
                                       ),
                                       const Spacer(),
                                       Text(
                                         DateFormat('MMM dd, HH:mm').format(updatedAt),
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: kSubTextColor,
-                                        ),
+                                        style: const TextStyle(fontSize: 12, color: kSubTextColor),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Updated by: $updatedBy',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: kSubTextColor,
-                                    ),
-                                  ),
+                                  const SizedBox(height: 12),
+                                  Text('Updated by: $updatedBy',
+                                      style: const TextStyle(fontSize: 14, color: kSubTextColor)),
                                   if (note != null && note.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Note: $note',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
+                                    const SizedBox(height: 8),
+                                    Text('Note: $note', style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic)),
                                   ],
                                 ],
                               ),
@@ -740,12 +623,10 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title: const Text(
-          'Issue Details',
-          style: TextStyle(color: Colors.black87),
-        ),
-        backgroundColor: const Color(0xFFE8F2FF),
+        title: const Text('Issue Details', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
         elevation: 1,
+        centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
           if (_statusHistory.isNotEmpty)
@@ -776,54 +657,53 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _issueData == null
               ? const Center(child: Text('Issue not found.'))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Status Banner
-                      Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _issueData!['issueTitle'] ?? 'No Title',
-                                style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 900), // Limits width on desktop monitors
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Top Area: Status Banner
+                          Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: statusColor.withOpacity(0.5), width: 1.5),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Icon(
-                                    _getStatusIcon(currentStatus),
-                                    color: statusColor,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Current Status',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: statusColor,
+                                          _issueData!['issueTitle'] ?? 'No Title',
+                                          style: const TextStyle(
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
                                           ),
                                         ),
-                                        Text(
-                                          currentStatus,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: statusColor,
-                                          ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Icon(_getStatusIcon(currentStatus), color: statusColor, size: 24),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              currentStatus.toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w800,
+                                                color: statusColor,
+                                                letterSpacing: 1.2,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -831,337 +711,201 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                                   if (widget.isAdminView)
                                     ElevatedButton.icon(
                                       onPressed: () => _showStatusChangeDialog(context, currentStatus),
-                                      icon: const Icon(Icons.edit, size: 16),
-                                      label: const Text('Change Status'),
+                                      icon: const Icon(Icons.edit, size: 18),
+                                      label: const Text('Update Status'),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: statusColor,
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
+                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Top Info: Reporter and Date (Uses LayoutBuilder to sit side-by-side on wide screens)
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isWideScreen = constraints.maxWidth > 600;
+                              return Flex(
+                                direction: isWideScreen ? Axis.horizontal : Axis.vertical,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (widget.userNic.isNotEmpty)
+                                    Flexible(
+                                      flex: isWideScreen ? 1 : 0,
+                                      child: SizedBox(
+                                        width: double.infinity,
+                                        child: FutureBuilder<QuerySnapshot>(
+                                          future: _fetchReporterDetails(widget.userNic),
+                                          builder: (context, userSnapshot) {
+                                            if (userSnapshot.connectionState == ConnectionState.waiting) {
+                                              return const Card(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+                                            }
+                                            if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                                              return const SizedBox.shrink();
+                                            }
+
+                                            final userData = userSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                                            final reporterName = userData['name'] ?? 'Unknown';
+                                            final reporterRole = userData['userType'] ?? 'Staff';
+
+                                            return InkWell(
+                                              onTap: () => _showUserPopup(context, userData),
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Card(
+                                                elevation: 0,
+                                                color: Colors.blue.shade50,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  side: BorderSide(color: Colors.blue.shade200),
+                                                ),
+                                                child: Padding(
+                                                  padding: const EdgeInsets.all(16.0),
+                                                  child: Row(
+                                                    children: [
+                                                      CircleAvatar(
+                                                        backgroundColor: Colors.blue.shade200,
+                                                        backgroundImage: userData['profile_image'] != null
+                                                            ? NetworkImage(userData['profile_image'])
+                                                            : null,
+                                                        child: userData['profile_image'] == null
+                                                            ? const Icon(Icons.person, color: Colors.white)
+                                                            : null,
+                                                      ),
+                                                      const SizedBox(width: 16),
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            const Text("Reported By", style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                                                            Text("$reporterName ($reporterRole)",
+                                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      const Icon(Icons.info_outline, color: Colors.blue),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ),
                                     ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // Reporter Info Section
-                      if (widget.userNic.isNotEmpty)
-                        FutureBuilder<QuerySnapshot>(
-                          future: _fetchReporterDetails(widget.userNic),
-                          builder: (context, userSnapshot) {
-                            if (userSnapshot.connectionState == ConnectionState.waiting) {
-                              return const LinearProgressIndicator();
-                            }
-                            if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                              return const Text("Reporter info not found.");
-                            }
-
-                            final userDoc = userSnapshot.data!.docs.first;
-                            final userData = userDoc.data() as Map<String, dynamic>;
-                            final reporterName = userData['name'] ?? 'Unknown';
-                            final reporterRole = userData['userType'] ?? 'Staff';
-
-                            return InkWell(
-                              onTap: () => _showUserPopup(context, userData),
-                              child: Card(
-                                color: Colors.blue.shade50,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  side: BorderSide(color: Colors.blue.shade200),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Row(
-                                    children: [
-                                      CircleAvatar(
-                                        backgroundColor: Colors.blue.shade200,
-                                        backgroundImage: userData['profile_image'] != null
-                                            ? NetworkImage(userData['profile_image'])
-                                            : null,
-                                        child: userData['profile_image'] == null
-                                            ? const Icon(Icons.person, color: Colors.white)
-                                            : null,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text("Reported By:",
-                                              style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                          Text(
-                                            "$reporterName ($reporterRole)",
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold, fontSize: 16),
+                                  if (isWideScreen && widget.userNic.isNotEmpty) const SizedBox(width: 16),
+                                  if (!isWideScreen && widget.userNic.isNotEmpty) const SizedBox(height: 16),
+                                  Flexible(
+                                    flex: isWideScreen ? 1 : 0,
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: Card(
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          side: BorderSide(color: Colors.grey.shade200),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.access_time_filled, color: Colors.blueGrey.shade700, size: 38),
+                                              const SizedBox(width: 16),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text('Reported On', style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                                                  Text(_reportedDate, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                                ],
+                                              ),
+                                            ],
                                           ),
-                                          const Text("Tap to view details",
-                                              style: TextStyle(fontSize: 10, color: Colors.blue)),
-                                        ],
+                                        ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-
-                      const SizedBox(height: 20),
-
-                      // Reported On Section (Like in your image)
-                      Card(
-                        elevation: 0.5,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.access_time_outlined, 
-                                      color: Colors.blueGrey.shade700, size: 24),
-                                  const SizedBox(width: 10),
-                                  const Text(
-                                    'Reported On',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.black54,
                                     ),
                                   ),
                                 ],
-                              ),
-                              const Divider(height: 10),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                                child: Text(
-                                  _reportedDate,
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        ),
-                      ),
+                          const SizedBox(height: 24),
 
-                      const SizedBox(height: 10),
+                          // Description
+                          _buildDetailSection(
+                            title: 'Description',
+                            value: _issueData!['description'] ?? 'No description provided.',
+                            icon: Icons.notes,
+                            isLongText: true,
+                          ),
 
-                      // Description
-                      _buildDetailSection(
-                        title: 'Description',
-                        value: _issueData!['description'] ?? 'No description provided.',
-                        icon: Icons.description_outlined,
-                        isLongText: true,
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      // Images Section
-                      if (_images.isNotEmpty) ...[
-                        const Text(
-                          "Attached Photos",
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 120,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _images.length,
-                            itemBuilder: (context, index) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 10.0),
-                                child: InkWell(
+                          // Image Gallery (Web Friendly Layout)
+                          if (_images.isNotEmpty) ...[
+                            const Text("Attached Photos", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: _images.asMap().entries.map((entry) {
+                                int index = entry.key;
+                                String url = entry.value;
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(12),
                                   onTap: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => FullScreenImageViewer(
-                                          images: _images,
-                                          initialIndex: index,
-                                        ),
+                                        builder: (_) => FullScreenImageViewer(images: _images, initialIndex: index),
                                       ),
                                     );
                                   },
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius: BorderRadius.circular(12),
                                     child: Image.network(
-                                      _images[index],
-                                      width: 120,
-                                      height: 120,
+                                      url,
+                                      width: 140,
+                                      height: 140,
                                       fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Container(
-                                          width: 120,
-                                          color: Colors.grey.shade200,
-                                          child: const Center(child: CircularProgressIndicator()),
-                                        );
-                                      },
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          width: 120,
-                                          color: Colors.grey.shade200,
-                                          child: const Icon(Icons.broken_image, color: Colors.grey),
-                                        );
-                                      },
+                                      loadingBuilder: (context, child, progress) => progress == null
+                                          ? child
+                                          : Container(width: 140, height: 140, color: Colors.grey.shade100, child: const Center(child: CircularProgressIndicator())),
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          Container(width: 140, height: 140, color: Colors.grey.shade100, child: const Icon(Icons.broken_image, color: Colors.grey)),
                                     ),
                                   ),
-                                ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // Building/Issue Details Grid
+                          const Text("Property Details", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final cardWidth = constraints.maxWidth > 600 ? (constraints.maxWidth / 2) - 8 : constraints.maxWidth;
+                              return Wrap(
+                                spacing: 16,
+                                runSpacing: 0,
+                                children: [
+                                  SizedBox(width: cardWidth, child: _buildDetailSection(title: 'School Name', value: _issueData!['schoolName'] ?? 'N/A', icon: Icons.school_outlined)),
+                                  SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Building Name', value: _issueData!['buildingName'] ?? 'N/A', icon: Icons.domain)),
+                                  SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Type of Damage', value: _issueData!['damageType'] ?? 'N/A', icon: Icons.category_outlined)),
+                                  SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Date of Occurance', value: _formattedDate, icon: Icons.event)),
+                                  SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Building Area', value: _issueData!['buildingArea'] ?? 'N/A', icon: Icons.square_foot)),
+                                  SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Floors', value: _issueData!['numFloors']?.toString() ?? 'N/A', icon: Icons.layers_outlined)),
+                                  SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Classrooms', value: _issueData!['numClassrooms']?.toString() ?? 'N/A', icon: Icons.meeting_room_outlined)),
+                                ],
                               );
                             },
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-
-                      // Issue Details
-                      _buildDetailSection(
-                        title: 'Type of Damage',
-                        value: _issueData!['damageType'] ?? 'N/A',
-                        icon: Icons.category_outlined,
+                        ],
                       ),
-                      _buildDetailSection(
-                        title: 'Date of Occurance',
-                        value: _formattedDate,
-                        icon: Icons.calendar_today_outlined,
-                      ),
-                      _buildDetailSection(
-                        title: 'Building Area',
-                        value: _issueData!['buildingArea'] ?? 'N/A',
-                        icon: Icons.square_foot_outlined,
-                      ),
-                      _buildDetailSection(
-                        title: 'Number of Floors',
-                        value: _issueData!['numFloors']?.toString() ?? 'N/A',
-                        icon: Icons.layers_outlined,
-                      ),
-                      _buildDetailSection(
-                        title: 'Number of Classrooms',
-                        value: _issueData!['numClassrooms']?.toString() ?? 'N/A',
-                        icon: Icons.chair_outlined,
-                      ),
-                      _buildDetailSection(
-                        title: 'School Name',
-                        value: _issueData!['schoolName'] ?? 'N/A',
-                        icon: Icons.school_outlined,
-                      ),
-                      _buildDetailSection(
-                        title: 'Building Name',
-                        value: _issueData!['buildingName'] ?? 'N/A',
-                        icon: Icons.business_outlined,
-                      ),
-
-                      // Status History
-                      if (_statusHistory.isNotEmpty)
-                        Card(
-                          elevation: 0.5,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.history,
-                                        color: Colors.blueGrey.shade700, size: 24),
-                                    const SizedBox(width: 10),
-                                    const Text(
-                                      'Recent Status Updates',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const Divider(height: 10),
-                                ..._statusHistory.reversed.take(3).map((history) {
-                                  final status = history['status'] ?? 'Unknown';
-                                  final updatedBy = history['updatedBy'] ?? 'Unknown';
-                                  final updatedAt = history['updatedAt'] is Timestamp
-                                      ? (history['updatedAt'] as Timestamp).toDate()
-                                      : DateTime.now();
-
-                                  return ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                                    leading: Icon(
-                                      _getStatusIcon(status),
-                                      color: _getStatusColor(status),
-                                      size: 20,
-                                    ),
-                                    title: Text(
-                                      status,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: _getStatusColor(status),
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      'By $updatedBy • ${DateFormat('MMM dd, HH:mm').format(updatedAt)}',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  );
-                                }),
-                                if (_statusHistory.length > 3)
-                                  TextButton.icon(
-                                    onPressed: _showStatusHistory,
-                                    icon: const Icon(Icons.history),
-                                    label: const Text('View Full History'),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: kPrimaryColor,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                      // Update Status Button (for admin users only) - Styled like in your image
-                      if (widget.isAdminView) ...[
-                        const SizedBox(height: 30),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: ElevatedButton(
-                            onPressed: () => _showStatusChangeDialog(context, currentStatus),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 2,
-                              shadowColor: Colors.blue.withOpacity(0.3),
-                            ),
-                            child: const Text(
-                              'Update Status',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
     );
