@@ -32,6 +32,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
   final TextEditingController _contactController = TextEditingController();
 
   bool _isEditMode = false;
+  bool _isLoading = false; // Added loading state
 
   @override
   void initState() {
@@ -64,28 +65,36 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
 
   // --- Firebase Save / Update Logic ---
   Future<void> _saveContractor() async {
+    FocusScope.of(context).unfocus(); // Close keyboard
+
     // 1. Validate the form fields
     if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+
+      // Normalize NIC to uppercase to prevent duplicates like '123v' and '123V'
+      final String nic = _nicController.text.trim().toUpperCase();
+
       // 2. Prepare data
       final Map<String, dynamic> contractorData = {
         'companyName': _companyNameController.text.trim(),
         'cidaRegistrationNumber': _cidaController.text.trim(),
         'contractorName': _contractorNameController.text.trim(),
-        'nicNumber': _nicController.text.trim(),
+        'nicNumber': nic,
         'contactNumber': _contactController.text.trim(),
       };
 
       try {
+        // Reference the document directly using the NIC as the Primary Key (Document ID)
+        final docRef = FirebaseFirestore.instance.collection('contractor_details').doc(nic);
+
         if (_isEditMode) {
           // --- UPDATE Logic ---
           contractorData['lastUpdated'] = FieldValue.serverTimestamp();
-          await FirebaseFirestore.instance
-              .collection('contractor_details')
-              .doc(widget.contractorId!)
-              .update(contractorData);
+          await docRef.update(contractorData);
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
+                backgroundColor: Colors.green,
                 content: Text('Contractor details updated successfully!')),
           );
           // Pop twice: Close Edit screen, then close View screen
@@ -93,23 +102,38 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
           Navigator.of(context).pop();
         } else {
           // --- ADD (New) Logic ---
+          
+          // CHECK FOR DUPLICATES FIRST
+          final docSnapshot = await docRef.get();
+          if (docSnapshot.exists) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  backgroundColor: Colors.red,
+                  content: Text('Error: A contractor with NIC $nic already exists!')),
+            );
+            setState(() => _isLoading = false);
+            return; // Abort save
+          }
+
           contractorData['timestamp'] = FieldValue.serverTimestamp();
-          await FirebaseFirestore.instance
-              .collection('contractor_details')
-              .add(contractorData);
+          // Use .set() instead of .add() to force the NIC as the document ID
+          await docRef.set(contractorData);
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
+                backgroundColor: Colors.green,
                 content: Text('Contractor details saved successfully!')),
           );
           // Pop once: Close Add screen
           Navigator.pop(context);
         }
       } catch (e) {
-        // 5. Show error message
+        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save data: $e')),
+          SnackBar(backgroundColor: Colors.red, content: Text('Failed to save data: $e')),
         );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -143,6 +167,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
     required TextEditingController controller,
     String? Function(String?)? validator,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false, // Added readOnly property
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -162,12 +187,15 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
             controller: controller,
             keyboardType: keyboardType,
             validator: validator,
-            style: const TextStyle(color: kTextColor),
+            readOnly: readOnly, // Apply readOnly here
+            style: TextStyle(
+                color: readOnly ? Colors.grey.shade600 : kTextColor,
+                fontWeight: readOnly ? FontWeight.w500 : FontWeight.normal),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: const TextStyle(color: kSubTextColor),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: readOnly ? Colors.grey.shade200 : Colors.white,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
@@ -176,7 +204,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
               ),
               suffixIcon: Padding(
                 padding: const EdgeInsets.only(right: 12.0),
-                child: Icon(suffixIcon, color: kPrimaryBlue),
+                child: Icon(suffixIcon, color: readOnly ? Colors.grey : kPrimaryBlue),
               ),
             ),
           ),
@@ -189,7 +217,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
-      // --- App Bar (Adjusts title for Edit/Add) ---
+      // --- App Bar ---
       appBar: AppBar(
         backgroundColor: kBackgroundColor,
         elevation: 0,
@@ -271,10 +299,11 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
                           _buildResponsiveRow(
                             constraints,
                             _buildTextField(
-                              label: 'NIC number',
+                              label: _isEditMode ? 'NIC Number (Primary Key)' : 'NIC Number',
                               hintText: 'Enter NIC number',
                               suffixIcon: Icons.credit_card,
                               controller: _nicController,
+                              readOnly: _isEditMode, // Prevent changing NIC if editing
                               validator: (value) => value!.isEmpty
                                   ? 'Please enter NIC number'
                                   : null,
@@ -300,26 +329,28 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
                           const SizedBox(height: 32),
 
                           // --- Save/Update Button ---
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _saveContractor,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: kPrimaryBlue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                          _isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: _saveContractor,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: kPrimaryBlue,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      elevation: 5,
+                                    ),
+                                    child: Text(
+                                      _isEditMode ? 'Update Details' : 'Save Details',
+                                      style: const TextStyle(
+                                          fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
                                 ),
-                                elevation: 5,
-                              ),
-                              child: Text(
-                                _isEditMode ? 'Update Details' : 'Save Details',
-                                style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
                         ],
                       );
                     },

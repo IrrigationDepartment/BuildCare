@@ -20,6 +20,8 @@ class _AddContractScreenState extends State<AddContractScreen> {
   // --- Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
+  static const Color kTextColor = Color(0xFF333333);
+  static const Color kSubTextColor = Color(0xFF757575);
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // --- Form Controllers & State ---
@@ -161,6 +163,27 @@ class _AddContractScreenState extends State<AddContractScreen> {
     }
   }
 
+  // --- Helper for Responsive Layout ---
+  Widget _buildResponsiveRow(
+      BoxConstraints constraints, Widget widget1, Widget widget2) {
+    if (constraints.maxWidth >= 600) {
+      // Desktop / Tablet layout: Side by side
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: widget1),
+          const SizedBox(width: 16),
+          Expanded(child: widget2),
+        ],
+      );
+    } else {
+      // Mobile layout: Stacked vertically
+      return Column(
+        children: [widget1, widget2],
+      );
+    }
+  }
+
   // --- Widget for custom text fields ---
   Widget _buildTextField({
     required String label,
@@ -182,7 +205,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF333333),
+              color: kTextColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -192,10 +215,10 @@ class _AddContractScreenState extends State<AddContractScreen> {
             onTap: isDate ? onTap : null,
             keyboardType: keyboardType,
             validator: validator,
-            style: const TextStyle(color: Color(0xFF333333)),
+            style: const TextStyle(color: kTextColor),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: const TextStyle(color: Color(0xFF757575)),
+              hintStyle: const TextStyle(color: kSubTextColor),
               filled: true,
               fillColor: Colors.white,
               contentPadding:
@@ -223,7 +246,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
         backgroundColor: kBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF333333)),
+          icon: const Icon(Icons.arrow_back, color: kTextColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -231,93 +254,142 @@ class _AddContractScreenState extends State<AddContractScreen> {
           _isEditMode ? 'Edit Contract' : 'Add Contract Details',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
-            color: Color(0xFF333333),
+            color: kTextColor,
           ),
         ),
         centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: _saveContractDetails,
-            child: Text(
-              // Change the button text based on 'Edit' mode
-              _isEditMode ? 'Update' : 'Save',
-              style: const TextStyle(
-                  color: kPrimaryBlue, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
+        // Removed the actions[] block from here to move the button to the bottom
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // 1. CIDA Registration Number
-                _buildTextField(
-                  label: 'CIDA Registration Number',
-                  hintText: 'Enter Your Registration Number',
-                  suffixIcon: Icons.badge,
-                  controller: _cidaController,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter CIDA number' : null,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800), // Max width for web
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Form(
+                  key: _formKey,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          // Sub-header text
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 24.0),
+                            child: Text(
+                              'Manage Contract Details',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: kSubTextColor,
+                              ),
+                            ),
+                          ),
+
+                          // Row 1: CIDA Reg Number & Contractor Name
+                          _buildResponsiveRow(
+                            constraints,
+                            _buildTextField(
+                              label: 'CIDA Registration Number',
+                              hintText: 'Enter Registration Number',
+                              suffixIcon: Icons.badge,
+                              controller: _cidaController,
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please enter CIDA number'
+                                  : null,
+                            ),
+                            _buildTextField(
+                              label: 'Contractor Name',
+                              hintText: 'Enter Contractor Name',
+                              suffixIcon: Icons.person,
+                              controller: _contractorController,
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please enter contractor name'
+                                  : null,
+                            ),
+                          ),
+
+                          // Row 2: Type of Contract & Value
+                          _buildResponsiveRow(
+                            constraints,
+                            _buildTextField(
+                              label: 'Type of Contract',
+                              hintText: 'Enter Contract Type',
+                              suffixIcon: Icons.category,
+                              controller: _typeController,
+                              validator: (value) => value!.isEmpty
+                                  ? 'Please enter contract type'
+                                  : null,
+                            ),
+                            _buildTextField(
+                              label: 'Value',
+                              hintText: 'Value of the Project',
+                              suffixIcon: Icons.attach_money,
+                              controller: _valueController,
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return 'Please enter project value';
+                                }
+                                if (double.tryParse(value) == null) {
+                                  return 'Enter a valid number';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+
+                          // Row 3: Start Date & End Date
+                          _buildResponsiveRow(
+                            constraints,
+                            _buildTextField(
+                              label: 'Start Date',
+                              hintText: 'Enter Project Start Date',
+                              suffixIcon: Icons.calendar_today,
+                              controller: _startDateController,
+                              isDate: true,
+                              onTap: () => _selectDate(context, true),
+                            ),
+                            _buildTextField(
+                              label: 'End Date',
+                              hintText: 'Enter Project End Date',
+                              suffixIcon: Icons.calendar_today,
+                              controller: _endDateController,
+                              isDate: true,
+                              onTap: () => _selectDate(context, false),
+                            ),
+                          ),
+
+                          const SizedBox(height: 32),
+
+                          // --- Save/Update Button (Moved to Bottom) ---
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _saveContractDetails,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: kPrimaryBlue,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                elevation: 5,
+                              ),
+                              child: Text(
+                                _isEditMode ? 'Update Details' : 'Save Details',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-                // 2. Contractor Name
-                _buildTextField(
-                  label: 'Contractor Name',
-                  hintText: 'Enter Contractor Name',
-                  suffixIcon: Icons.person,
-                  controller: _contractorController,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter contractor name' : null,
-                ),
-                // 3. Type of Contract
-                _buildTextField(
-                  label: 'Type of Contract',
-                  hintText: 'Enter Contract Type',
-                  suffixIcon: Icons.category,
-                  controller: _typeController,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter contract type' : null,
-                ),
-                // 4. Start Date
-                _buildTextField(
-                  label: 'Start date',
-                  hintText: 'Enter Project Start Date',
-                  suffixIcon: Icons.calendar_today,
-                  controller:
-                      _startDateController, // Pass the date controller
-                  isDate: true,
-                  onTap: () => _selectDate(context, true),
-                ),
-                // 5. End Date
-                _buildTextField(
-                  label: 'End date',
-                  hintText: 'Enter Project End Date',
-                  suffixIcon: Icons.calendar_today,
-                  controller:
-                      _endDateController, // Pass the date controller
-                  isDate: true,
-                  onTap: () => _selectDate(context, false),
-                ),
-                // 6. Value
-                _buildTextField(
-                  label: 'Value',
-                  hintText: 'Value of the Project',
-                  suffixIcon: Icons.attach_money,
-                  controller: _valueController,
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Please enter project value';
-                    if (double.tryParse(value) == null)
-                      return 'Enter a valid number';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
           ),
         ),
