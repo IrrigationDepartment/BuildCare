@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // Import the Manage Schools Page
-import 'manage_schools_page.dart'; // ADD THIS IMPORT
+import 'manage_schools_page.dart';
 
 import 'pending_approvals_page.dart';
 import 'school_master_plan_page.dart';
@@ -15,9 +15,17 @@ import 'manage_technical_officers_list.dart';
 class ManageTechnicalOfficersPage extends StatelessWidget {
   const ManageTechnicalOfficersPage({super.key});
 
-  static const Color _cardColor = Color(0xFFE3F2FD);
-  static const Color _primaryBlue = Color(0xFF1E88E5);
-  static const Color _backgroundColor = Color(0xFFF0F2F5);
+  // --- PREMIUM THEME CONSTANTS ---
+  static const Color _primaryColor = Color(0xFF1E3A8A); // Deep Indigo
+  static const Color _secondaryColor = Color(0xFF0D9488); // Teal
+  static const Color _backgroundColor = Color(0xFFF4F7FC); // Soft Light Gray
+  static const Color _textDark = Color(0xFF111827);
+  
+  // Card Accent Colors
+  static const Color _accentTotal = Color(0xFF4F46E5); // Bright Indigo
+  static const Color _accentPending = Color(0xFFE11D48); // Rose Red
+  static const Color _accentActive = Color(0xFF10B981); // Emerald
+  static const Color _accentSchools = Color(0xFF0EA5E9); // Sky Blue
 
   // Get current user's office from Firestore
   Future<String?> _getCurrentUserOffice() async {
@@ -32,7 +40,6 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
 
       if (userDoc.exists) {
         final data = userDoc.data() as Map<String, dynamic>;
-        debugPrint('User office field: ${data['office']}');
         return data['office'] as String?;
       }
       return null;
@@ -49,50 +56,21 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
 
   Future<int> _getSchoolCountForDistrict(String? office) async {
     try {
-      if (office == null || office.isEmpty) {
-        debugPrint('Office is null or empty');
-        return 0;
-      }
+      if (office == null || office.isEmpty) return 0;
       
       final normalizedOffice = _normalizeDistrict(office);
-      debugPrint('Looking for schools with district (normalized): $normalizedOffice');
+      final querySnapshot = await FirebaseFirestore.instance.collection('schools').get();
       
-      // Query all schools
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('schools')
-          .get();
-      
-      debugPrint('Total schools in database: ${querySnapshot.docs.length}');
-      
-      // Check what fields exist in the first document
-      if (querySnapshot.docs.isNotEmpty) {
-        final firstDoc = querySnapshot.docs.first;
-        debugPrint('First school document fields: ${firstDoc.data().keys}');
-        debugPrint('First school office value: ${firstDoc.data()['office']}');
-        debugPrint('First school district value: ${firstDoc.data()['district']}');
-      }
-      
-      // Try different possible field names
       final filteredSchools = querySnapshot.docs.where((doc) {
         final data = doc.data();
-        
-        // Check multiple possible field names
         final schoolDistrict = data['office'] as String? ?? 
-                             data['district'] as String? ?? 
-                             data['schoolDistrict'] as String?;
+                               data['district'] as String? ?? 
+                               data['schoolDistrict'] as String?;
         
-        if (schoolDistrict == null) {
-          debugPrint('School ${doc.id} has no district field');
-          return false;
-        }
-        
-        final normalizedSchoolDistrict = _normalizeDistrict(schoolDistrict);
-        debugPrint('School ${doc.id}: $normalizedSchoolDistrict vs User: $normalizedOffice');
-        
-        return normalizedSchoolDistrict == normalizedOffice;
+        if (schoolDistrict == null) return false;
+        return _normalizeDistrict(schoolDistrict) == normalizedOffice;
       }).length;
       
-      debugPrint('Found $filteredSchools schools for district $office');
       return filteredSchools;
     } catch (e) {
       debugPrint('Error fetching school count for district $office: $e');
@@ -105,15 +83,16 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        backgroundColor: Colors.white,
+        elevation: 1,
+        shadowColor: Colors.black.withOpacity(0.05),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           'Manage Technical Officers',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: _textDark, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
       ),
@@ -122,11 +101,10 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
           future: _getCurrentUserOffice(),
           builder: (context, officeSnapshot) {
             if (officeSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: CircularProgressIndicator(color: _primaryColor));
             }
-
             if (officeSnapshot.hasError) {
-              return Center(child: Text('Error: ${officeSnapshot.error}'));
+              return Center(child: Text('Error: ${officeSnapshot.error}', style: const TextStyle(color: Colors.red)));
             }
 
             final currentUserOffice = officeSnapshot.data;
@@ -135,7 +113,7 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
               future: _getSchoolCountForDistrict(currentUserOffice),
               builder: (context, schoolSnapshot) {
                 if (schoolSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator(color: _primaryColor));
                 }
 
                 final totalSchools = schoolSnapshot.data ?? 0;
@@ -147,49 +125,31 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
                       .snapshots(),
                   builder: (context, userSnapshot) {
                     if (userSnapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const Center(child: CircularProgressIndicator(color: _primaryColor));
                     }
-
                     if (userSnapshot.hasError) {
-                      return Center(child: Text('Error: ${userSnapshot.error}'));
+                      return Center(child: Text('Error: ${userSnapshot.error}', style: const TextStyle(color: Colors.red)));
                     }
 
                     final docs = userSnapshot.data?.docs ?? [];
                     
-                    // Filter technical officers by office (case-insensitive)
                     final districtTOs = docs.where((doc) {
                       final data = doc.data() as Map<String, dynamic>;
                       final toOffice = data['office'] as String?;
-                      
                       if (currentUserOffice == null || toOffice == null) return false;
-                      
-                      debugPrint('Technical Officer office: $toOffice, User office: $currentUserOffice');
-                      
-                      return _normalizeDistrict(toOffice) == 
-                            _normalizeDistrict(currentUserOffice);
+                      return _normalizeDistrict(toOffice) == _normalizeDistrict(currentUserOffice);
                     }).toList();
 
                     final totalTOs = districtTOs.length;
+                    final activeTOs = districtTOs.where((doc) => (doc.data() as Map<String, dynamic>)['isActive'] == true).length;
+                    final pendingTOs = districtTOs.where((doc) => (doc.data() as Map<String, dynamic>)['isActive'] == false).length;
 
-                    final activeTOs = districtTOs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      return data['isActive'] == true;
-                    }).length;
-
-                    final pendingTOs = districtTOs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      return data['isActive'] == false;
-                    }).length;
-
-                    debugPrint('Stats - Technical Officers: $totalTOs, Active: $activeTOs, Pending: $pendingTOs, Schools: $totalSchools');
-
-                    return _buildContent(
-                      context, 
-                      totalTOs, 
-                      pendingTOs, 
-                      activeTOs, 
-                      totalSchools, 
-                      currentUserOffice
+                    return Center(
+                      // ConstrainedBox prevents ultra-wide stretching on Web/Desktop
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1100),
+                        child: _buildContent(context, totalTOs, pendingTOs, activeTOs, totalSchools, currentUserOffice),
+                      ),
                     );
                   },
                 );
@@ -203,148 +163,157 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
 
   Widget _buildContent(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // District Info Header
+          // Sleek District Info Header
           if (district != null && district.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
+              padding: const EdgeInsets.only(bottom: 24.0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [_primaryColor, _secondaryColor],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: _primaryColor.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.location_on, size: 16, color: Colors.blue.shade800),
-                    const SizedBox(width: 8),
-                    Text(
-                      'District: $district',
-                      style: TextStyle(
-                        color: Colors.blue.shade800,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                      child: const Icon(Icons.location_on_rounded, size: 24, color: Colors.white),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Current Region', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text('$district District', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
           
-          _buildStatsGrid(context, total, pending, active, totalSchools, district), 
+          const Text('Overview Metrics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textDark)),
+          const SizedBox(height: 16),
+
+          // Responsive Stats Grid (2x2 on mobile, 4x1 on desktop)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth > 700;
+              final spacing = 16.0;
+              final cardWidth = isDesktop 
+                  ? (constraints.maxWidth - (spacing * 3)) / 4 
+                  : (constraints.maxWidth - spacing) / 2;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  _buildStatCard(width: cardWidth, title: 'Total TOs', count: total.toString(), icon: Icons.group_rounded, color: _accentTotal),
+                  _buildStatCard(
+                    width: cardWidth, title: 'Pending TOs', count: pending.toString(), icon: Icons.pending_actions_rounded, color: _accentPending,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingApprovalsPage())),
+                  ),
+                  _buildStatCard(
+                    width: cardWidth, title: 'Active TOs', count: active.toString(), icon: Icons.how_to_reg_rounded, color: _accentActive,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ManageTechnicalOfficersListPage(officeFilter: district))),
+                  ),
+                  _buildStatCard(
+                    width: cardWidth, title: 'Total Schools', count: totalSchools.toString(), icon: Icons.apartment_rounded, color: _accentSchools,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ManageSchoolsPage(district: district, userNic: 'ADMIN'))),
+                  ),
+                ],
+              );
+            },
+          ),
+          
+          const SizedBox(height: 40),
+          const Text('Management Tools', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textDark)),
+          const SizedBox(height: 16),
+
+          // Responsive Options Grid (1 col on mobile, 2 cols on desktop)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth > 700;
+              final spacing = 16.0;
+              final tileWidth = isDesktop ? (constraints.maxWidth - spacing) / 2 : constraints.maxWidth;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  _buildOptionTile(
+                      width: tileWidth, context: context, title: 'School Master Plan', icon: Icons.description_rounded, color: const Color(0xFF6366F1), // Indigo variant
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SchoolMasterPlanPage()))),
+                  _buildOptionTile(
+                      width: tileWidth, context: context, title: 'View Damage Details', icon: Icons.report_problem_rounded, color: const Color(0xFFF59E0B), // Amber
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ViewDamageDetailsPage(userNic: 'ADMIN')))),
+                  _buildOptionTile(
+                      width: tileWidth, context: context, title: 'Contract Details', icon: Icons.assignment_rounded, color: const Color(0xFF8B5CF6), // Purple
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContractsListPage()))),
+                  _buildOptionTile(
+                      width: tileWidth, context: context, title: 'Contractor Directory', icon: Icons.engineering_rounded, color: const Color(0xFF14B8A6), // Teal variant
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ContractorListScreen()))),
+                ],
+              );
+            }
+          ),
           const SizedBox(height: 24),
-          _buildManagementOptions(context),
         ],
       ),
     );
   }
 
-  Widget _buildStatsGrid(BuildContext context, int total, int pending, int active, int totalSchools, String? district) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildStatCard('Total TOs', total.toString(), Icons.group_outlined),
-            _buildStatCard(
-              'Pending', 
-              pending.toString(),
-              Icons.pending_actions_outlined,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PendingApprovalsPage(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildStatCard(
-              'Active TOs', 
-              active.toString(), 
-              Icons.how_to_reg_outlined,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ManageTechnicalOfficersListPage(
-                      officeFilter: district,
-                    ),
-                  ),
-                );
-              },
-            ),
-            // MODIFIED THIS CARD TO REDIRECT TO MANAGE SCHOOLS PAGE
-            _buildStatCard(
-              'Schools in District', 
-              totalSchools.toString(), 
-              Icons.apartment_outlined,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ManageSchoolsPage(
-                      district: district, // Pass the district as parameter
-                      userNic: 'ADMIN', // Required parameter
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // --- REUSABLE RESPONSIVE WIDGETS ---
 
-  Widget _buildStatCard(String title, String count, IconData icon, {VoidCallback? onTap}) {
-    return Expanded(
+  Widget _buildStatCard({required double width, required String title, required String count, required IconData icon, required Color color, VoidCallback? onTap}) {
+    return SizedBox(
+      width: width,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          padding: const EdgeInsets.all(16),
-          height: 120,
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: _cardColor,
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withOpacity(0.1), width: 1.5),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                spreadRadius: 1,
-                blurRadius: 3,
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.03), spreadRadius: 0, blurRadius: 15, offset: const Offset(0, 4)),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 14, color: Colors.black54, fontWeight: FontWeight.w500),
-              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    count,
-                    style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                    child: Icon(icon, size: 28, color: color),
                   ),
-                  Icon(icon, size: 36, color: _primaryBlue),
+                  if (onTap != null)
+                    Icon(Icons.arrow_outward_rounded, color: Colors.grey.shade400, size: 20),
                 ],
               ),
+              const SizedBox(height: 16),
+              Text(count, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: color, height: 1.0)),
+              const SizedBox(height: 8),
+              Text(title, style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -352,63 +321,39 @@ class ManageTechnicalOfficersPage extends StatelessWidget {
     );
   }
 
-  Widget _buildManagementOptions(BuildContext context) {
-    return Column(
-      children: [
-        _buildOptionTile(
-            context, 
-            'View School Master Plan', 
-            Icons.description_outlined,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SchoolMasterPlanPage())),
-        ),
-        const SizedBox(height: 16),
-        _buildOptionTile(
-            context, 
-            'View Damage Details', 
-            Icons.remove_red_eye_outlined,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ViewDamageDetailsPage(userNic: 'ADMIN'))),
-        ), 
-        const SizedBox(height: 16),
-        _buildOptionTile(
-            context, 
-            'View Contract Details', 
-            Icons.edit_note_outlined,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractsListPage())),
-        ), 
-        const SizedBox(height: 16),
-        _buildOptionTile(
-            context, 
-            'View Contractor Details', 
-            Icons.edit_note_outlined,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractorListScreen())),
-        ), 
-      ],
-    );
-  }
-
-  Widget _buildOptionTile(BuildContext context, String title, IconData icon, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap ?? () {},
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              spreadRadius: 1,
-              blurRadius: 3,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
-            Icon(icon, size: 28, color: _primaryBlue),
-          ],
+  Widget _buildOptionTile({required double width, required BuildContext context, required String title, required IconData icon, required Color color, VoidCallback? onTap}) {
+    return SizedBox(
+      width: width,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.02), spreadRadius: 0, blurRadius: 10, offset: const Offset(0, 2)),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                child: Icon(icon, size: 24, color: color),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: _textDark)),
+              ),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: _backgroundColor, shape: BoxShape.circle),
+                child: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+              ),
+            ],
+          ),
         ),
       ),
     );
