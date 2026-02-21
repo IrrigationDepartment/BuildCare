@@ -286,7 +286,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   Widget _buildContractorCard(BuildContext context) {
     return SimpleCountCard(
       title: 'Contractors',
-      collectionName: 'contractors',
+      // --- FIXED: Updated from 'contractors' to 'contractor_details' ---
+      collectionName: 'contractor_details', 
       icon: Icons.construction,
       color: Colors.teal,
       onTap: () {

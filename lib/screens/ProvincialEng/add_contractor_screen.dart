@@ -32,7 +32,6 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
   final TextEditingController _contactController = TextEditingController();
 
   bool _isEditMode = false;
-  bool _isLoading = false; // Added loading state
 
   @override
   void initState() {
@@ -65,36 +64,28 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
 
   // --- Firebase Save / Update Logic ---
   Future<void> _saveContractor() async {
-    FocusScope.of(context).unfocus(); // Close keyboard
-
     // 1. Validate the form fields
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      // Normalize NIC to uppercase to prevent duplicates like '123v' and '123V'
-      final String nic = _nicController.text.trim().toUpperCase();
-
       // 2. Prepare data
       final Map<String, dynamic> contractorData = {
         'companyName': _companyNameController.text.trim(),
         'cidaRegistrationNumber': _cidaController.text.trim(),
         'contractorName': _contractorNameController.text.trim(),
-        'nicNumber': nic,
+        'nicNumber': _nicController.text.trim(),
         'contactNumber': _contactController.text.trim(),
       };
 
       try {
-        // Reference the document directly using the NIC as the Primary Key (Document ID)
-        final docRef = FirebaseFirestore.instance.collection('contractor_details').doc(nic);
-
         if (_isEditMode) {
           // --- UPDATE Logic ---
           contractorData['lastUpdated'] = FieldValue.serverTimestamp();
-          await docRef.update(contractorData);
+          await FirebaseFirestore.instance
+              .collection('contractor_details')
+              .doc(widget.contractorId!)
+              .update(contractorData);
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                backgroundColor: Colors.green,
                 content: Text('Contractor details updated successfully!')),
           );
           // Pop twice: Close Edit screen, then close View screen
@@ -102,60 +93,24 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
           Navigator.of(context).pop();
         } else {
           // --- ADD (New) Logic ---
-          
-          // CHECK FOR DUPLICATES FIRST
-          final docSnapshot = await docRef.get();
-          if (docSnapshot.exists) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  backgroundColor: Colors.red,
-                  content: Text('Error: A contractor with NIC $nic already exists!')),
-            );
-            setState(() => _isLoading = false);
-            return; // Abort save
-          }
-
           contractorData['timestamp'] = FieldValue.serverTimestamp();
-          // Use .set() instead of .add() to force the NIC as the document ID
-          await docRef.set(contractorData);
+          await FirebaseFirestore.instance
+              .collection('contractor_details')
+              .add(contractorData);
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                backgroundColor: Colors.green,
                 content: Text('Contractor details saved successfully!')),
           );
           // Pop once: Close Add screen
           Navigator.pop(context);
         }
       } catch (e) {
-        // Show error message
+        // 5. Show error message
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.red, content: Text('Failed to save data: $e')),
+          SnackBar(content: Text('Failed to save data: $e')),
         );
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
       }
-    }
-  }
-
-  // --- Helper for Responsive Layout ---
-  Widget _buildResponsiveRow(
-      BoxConstraints constraints, Widget widget1, Widget widget2) {
-    if (constraints.maxWidth >= 600) {
-      // Desktop / Tablet layout: Side by side
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: widget1),
-          const SizedBox(width: 16),
-          Expanded(child: widget2),
-        ],
-      );
-    } else {
-      // Mobile layout: Stacked vertically
-      return Column(
-        children: [widget1, widget2],
-      );
     }
   }
 
@@ -167,7 +122,6 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
     required TextEditingController controller,
     String? Function(String?)? validator,
     TextInputType keyboardType = TextInputType.text,
-    bool readOnly = false, // Added readOnly property
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
@@ -187,15 +141,12 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
             controller: controller,
             keyboardType: keyboardType,
             validator: validator,
-            readOnly: readOnly, // Apply readOnly here
-            style: TextStyle(
-                color: readOnly ? Colors.grey.shade600 : kTextColor,
-                fontWeight: readOnly ? FontWeight.w500 : FontWeight.normal),
+            style: const TextStyle(color: kTextColor),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: const TextStyle(color: kSubTextColor),
               filled: true,
-              fillColor: readOnly ? Colors.grey.shade200 : Colors.white,
+              fillColor: Colors.white,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
@@ -204,7 +155,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
               ),
               suffixIcon: Padding(
                 padding: const EdgeInsets.only(right: 12.0),
-                child: Icon(suffixIcon, color: readOnly ? Colors.grey : kPrimaryBlue),
+                child: Icon(suffixIcon, color: kPrimaryBlue),
               ),
             ),
           ),
@@ -217,7 +168,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
-      // --- App Bar ---
+      // --- App Bar (Adjusts title for Edit/Add) ---
       appBar: AppBar(
         backgroundColor: kBackgroundColor,
         elevation: 0,
@@ -235,128 +186,108 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
         centerTitle: true,
       ),
       // --- Body with Form ---
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800), // Max width for large screens
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Form(
-                  key: _formKey,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          // Sub-header text
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 24.0),
-                            child: Text(
-                              'Manage Contractor Information',
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: kSubTextColor,
-                              ),
-                            ),
-                          ),
-
-                          // 1. Contractor Company Name (Full Width)
-                          _buildTextField(
-                            label: 'Contractor Company Name',
-                            hintText: 'Enter Company Name',
-                            suffixIcon: Icons.business,
-                            controller: _companyNameController,
-                            validator: (value) => value!.isEmpty
-                                ? 'Please enter company name'
-                                : null,
-                          ),
-
-                          // 2 & 3. Row: CIDA Reg Number & Contractor Name
-                          _buildResponsiveRow(
-                            constraints,
-                            _buildTextField(
-                              label: 'CIDA Registration Number',
-                              hintText: 'Enter Registration Number',
-                              suffixIcon: Icons.badge,
-                              controller: _cidaController,
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter CIDA number'
-                                  : null,
-                            ),
-                            _buildTextField(
-                              label: 'Contractor Name',
-                              hintText: 'Enter Name',
-                              suffixIcon: Icons.person,
-                              controller: _contractorNameController,
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter contractor name'
-                                  : null,
-                            ),
-                          ),
-
-                          // 4 & 5. Row: NIC number & Contact Number
-                          _buildResponsiveRow(
-                            constraints,
-                            _buildTextField(
-                              label: _isEditMode ? 'NIC Number (Primary Key)' : 'NIC Number',
-                              hintText: 'Enter NIC number',
-                              suffixIcon: Icons.credit_card,
-                              controller: _nicController,
-                              readOnly: _isEditMode, // Prevent changing NIC if editing
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter NIC number'
-                                  : null,
-                            ),
-                            _buildTextField(
-                              label: 'Contact Number',
-                              hintText: 'Enter Contact Number',
-                              suffixIcon: Icons.phone,
-                              controller: _contactController,
-                              keyboardType: TextInputType.phone,
-                              validator: (value) {
-                                if (value!.isEmpty) {
-                                  return 'Please enter a contact number';
-                                }
-                                if (value.length < 10) {
-                                  return 'Number must be 10 digits';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(height: 32),
-
-                          // --- Save/Update Button ---
-                          _isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _saveContractor,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: kPrimaryBlue,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      elevation: 5,
-                                    ),
-                                    child: Text(
-                                      _isEditMode ? 'Update Details' : 'Save Details',
-                                      style: const TextStyle(
-                                          fontSize: 18, fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ),
-                        ],
-                      );
-                    },
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Sub-header text
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 24.0),
+                  child: Text(
+                    'Manage Contractor Information',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: kSubTextColor,
+                    ),
                   ),
                 ),
-              ),
+
+                // 1. Contractor Company Name
+                _buildTextField(
+                  label: 'Contractor Company Name',
+                  hintText: 'Enter Company Name',
+                  suffixIcon: Icons.business,
+                  controller: _companyNameController,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter company name' : null,
+                ),
+
+                // 2. CIDA Registration Number
+                _buildTextField(
+                  label: 'CIDA Registration Number',
+                  hintText: 'Enter Registaion Number',
+                  suffixIcon: Icons.badge,
+                  controller: _cidaController,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter CIDA number' : null,
+                ),
+
+                // 3. Contractor Name
+                _buildTextField(
+                  label: 'Contractor Name',
+                  hintText: 'Enter Name',
+                  suffixIcon: Icons.person,
+                  controller: _contractorNameController,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter contractor name' : null,
+                ),
+
+                // 4. NIC number
+                _buildTextField(
+                  label: 'NIC number',
+                  hintText: 'Enter NIC number',
+                  suffixIcon: Icons.credit_card,
+                  controller: _nicController,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter NIC number' : null,
+                ),
+
+                // 5. Contact Number
+                _buildTextField(
+                  label: 'Contact Number',
+                  hintText: 'Enter Contact Number',
+                  suffixIcon: Icons.phone,
+                  controller: _contactController,
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value!.isEmpty) {
+                      return 'Please enter a contact number';
+                    }
+                    if (value.length < 10) {
+                      return 'Number must be 10 digits';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 32),
+
+                // --- Save/Update Button ---
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saveContractor,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      elevation: 5,
+                    ),
+                    child: Text(
+                      _isEditMode ? 'Update Details' : 'Save Details',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
