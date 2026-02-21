@@ -110,7 +110,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
               );
             }).toList());
 
-    // FIX 1: Added .asBroadcastStream() to solve the "Bad State: Stream already listened to" error!
+    // FIX 1: Using shareValue() from RxDart prevents the stream from being listened to twice
+    // WHILE ALSO caching the latest value so it doesn't get stuck loading when scrolled!
     _activityStream = CombineLatestStream.list<List<ActivityItem>>([
       issuesStream,
       schoolsStream,
@@ -120,7 +121,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           allLists.expand((list) => list).toList();
       combinedList.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       return combinedList.take(5).toList();
-    }).asBroadcastStream();
+    }).shareValue();
   }
 
   void _navigateToDetailPage(BuildContext context, ActivityItem item) {
