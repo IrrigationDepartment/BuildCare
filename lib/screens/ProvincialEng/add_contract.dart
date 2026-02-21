@@ -27,8 +27,10 @@ class _AddContractScreenState extends State<AddContractScreen> {
   // --- Form Controllers & State ---
   final TextEditingController _cidaController = TextEditingController();
   final TextEditingController _contractorController = TextEditingController();
+  final TextEditingController _companyController = TextEditingController(); // Added Company Name
   final TextEditingController _typeController = TextEditingController();
   final TextEditingController _valueController = TextEditingController();
+  
   // Date-picker
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
@@ -36,6 +38,8 @@ class _AddContractScreenState extends State<AddContractScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isEditMode = false;
+  bool _isFetchingContractor = false; // Loading state for DB fetch
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -51,8 +55,9 @@ class _AddContractScreenState extends State<AddContractScreen> {
   void _populateForm(Map<String, dynamic> data) {
     _cidaController.text = data['cidaRegisterNumber']?.toString() ?? '';
     _contractorController.text = data['contractorName']?.toString() ?? '';
+    _companyController.text = data['companyName']?.toString() ?? '';
     _typeController.text = data['typeOfContract']?.toString() ?? '';
-    _valueController.text = data['contractValue']?.toString() ?? '0.0';
+    _valueController.text = data['contractValue']?.toString() ?? '';
 
     _startDate = _parseTimestamp(data['startDate']);
     _endDate = _parseTimestamp(data['endDate']);
@@ -76,11 +81,67 @@ class _AddContractScreenState extends State<AddContractScreen> {
   void dispose() {
     _cidaController.dispose();
     _contractorController.dispose();
+    _companyController.dispose();
     _typeController.dispose();
     _valueController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
     super.dispose();
+  }
+
+  // --- Auto-Fill Contractor Logic ---
+  Future<void> _fetchContractorDetails() async {
+    final cida = _cidaController.text.trim();
+    if (cida.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a CIDA number first.')),
+      );
+      return;
+    }
+
+    setState(() => _isFetchingContractor = true);
+
+    try {
+      // Look for the contractor with the matching CIDA number
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('contractor_details')
+          .where('cidaRegistrationNumber', isEqualTo: cida)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data();
+        setState(() {
+          // Fill fields automatically based on Firebase data
+          _contractorController.text = data['contractorName'] ?? '';
+          _companyController.text = data['companyName'] ?? '';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.green,
+            content: Text('Contractor details found & applied!'),
+          ),
+        );
+      } else {
+        // Clear fields if not found
+        setState(() {
+          _contractorController.clear();
+          _companyController.clear();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.orange,
+            content: Text('No contractor found with this CIDA number.'),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(backgroundColor: Colors.red, content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() => _isFetchingContractor = false);
+    }
   }
 
   // --- Date Picker Function ---
@@ -115,10 +176,13 @@ class _AddContractScreenState extends State<AddContractScreen> {
         return;
       }
 
+      setState(() => _isSaving = true);
+
       // Data map to be saved/updated
       final Map<String, dynamic> contractData = {
         'cidaRegisterNumber': _cidaController.text.trim(),
         'contractorName': _contractorController.text.trim(),
+        'companyName': _companyController.text.trim(),
         'typeOfContract': _typeController.text.trim(),
         'startDate': _startDate,
         'endDate': _endDate,
@@ -127,7 +191,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
       try {
         if (_isEditMode) {
-          // --- UPDATE Logic ---
           contractData['lastUpdated'] = FieldValue.serverTimestamp();
           await FirebaseFirestore.instance
               .collection('contracts')
@@ -136,13 +199,12 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
+                backgroundColor: Colors.green,
                 content: Text('Contract details updated successfully!')),
           );
-          // Close both the 'Edit' (this) and 'View' (previous) screens to return to the list
-          Navigator.of(context).pop(); // Close Edit screen
-          Navigator.of(context).pop(); // Close View screen
+          Navigator.of(context).pop(); 
+          Navigator.of(context).pop(); 
         } else {
-          // --- ADD (New) Logic ---
           contractData['timestamp'] = FieldValue.serverTimestamp();
           await FirebaseFirestore.instance
               .collection('contracts')
@@ -150,15 +212,17 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
+                backgroundColor: Colors.green,
                 content: Text('Contract details saved successfully!')),
           );
-          // Close the 'Add' screen and return to the list
           Navigator.pop(context);
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save data: $e')),
+          SnackBar(backgroundColor: Colors.red, content: Text('Failed to save data: $e')),
         );
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
       }
     }
   }
@@ -167,7 +231,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
   Widget _buildResponsiveRow(
       BoxConstraints constraints, Widget widget1, Widget widget2) {
     if (constraints.maxWidth >= 600) {
-      // Desktop / Tablet layout: Side by side
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -177,7 +240,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
         ],
       );
     } else {
-      // Mobile layout: Stacked vertically
       return Column(
         children: [widget1, widget2],
       );
@@ -188,9 +250,12 @@ class _AddContractScreenState extends State<AddContractScreen> {
   Widget _buildTextField({
     required String label,
     required String hintText,
-    required IconData suffixIcon,
+    IconData? suffixIcon,
+    Widget? customSuffix, // Added for custom action buttons
+    String? prefixText,   // Added for LKR prefix
     required TextEditingController controller,
     bool isDate = false,
+    bool readOnly = false, // Added to lock fields
     VoidCallback? onTap,
     String? Function(String?)? validator,
     TextInputType keyboardType = TextInputType.text,
@@ -210,27 +275,33 @@ class _AddContractScreenState extends State<AddContractScreen> {
           ),
           const SizedBox(height: 8),
           TextFormField(
-            controller: controller, // Pass the respective controller
-            readOnly: isDate,
+            controller: controller,
+            readOnly: isDate || readOnly,
             onTap: isDate ? onTap : null,
             keyboardType: keyboardType,
             validator: validator,
-            style: const TextStyle(color: kTextColor),
+            style: TextStyle(
+              color: readOnly && !isDate ? Colors.grey.shade700 : kTextColor,
+              fontWeight: readOnly && !isDate ? FontWeight.bold : FontWeight.normal
+            ),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: const TextStyle(color: kSubTextColor),
+              prefixText: prefixText,
+              prefixStyle: const TextStyle(color: kTextColor, fontWeight: FontWeight.bold, fontSize: 16),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: readOnly && !isDate ? Colors.grey.shade100 : Colors.white,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              suffixIcon: Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: Icon(suffixIcon, color: kPrimaryBlue),
-              ),
+              suffixIcon: customSuffix ?? (suffixIcon != null 
+                ? Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: Icon(suffixIcon, color: readOnly && !isDate ? Colors.grey : kPrimaryBlue),
+                ) : null),
             ),
           ),
         ],
@@ -250,7 +321,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          // Change the title based on 'Edit' mode
           _isEditMode ? 'Edit Contract' : 'Add Contract Details',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
@@ -258,12 +328,11 @@ class _AddContractScreenState extends State<AddContractScreen> {
           ),
         ),
         centerTitle: true,
-        // Removed the actions[] block from here to move the button to the bottom
       ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800), // Max width for web
+            constraints: const BoxConstraints(maxWidth: 800),
             child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -274,7 +343,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          // Sub-header text
                           const Padding(
                             padding: EdgeInsets.only(bottom: 24.0),
                             child: Text(
@@ -286,26 +354,42 @@ class _AddContractScreenState extends State<AddContractScreen> {
                             ),
                           ),
 
-                          // Row 1: CIDA Reg Number & Contractor Name
+                          // 1. CIDA Registration Number (Full Width with Search Button)
+                          _buildTextField(
+                            label: 'CIDA Registration Number',
+                            hintText: 'Enter CIDA and tap search to fetch details',
+                            controller: _cidaController,
+                            customSuffix: IconButton(
+                              icon: _isFetchingContractor 
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.search, color: kPrimaryBlue, size: 28),
+                              onPressed: _isFetchingContractor ? null : _fetchContractorDetails,
+                              tooltip: 'Verify CIDA & Auto-Fill',
+                            ),
+                            validator: (value) => value!.isEmpty
+                                ? 'Please enter CIDA number'
+                                : null,
+                          ),
+
+                          // Row 1: Contractor Name & Company Name (Both Read Only)
                           _buildResponsiveRow(
                             constraints,
                             _buildTextField(
-                              label: 'CIDA Registration Number',
-                              hintText: 'Enter Registration Number',
-                              suffixIcon: Icons.badge,
-                              controller: _cidaController,
+                              label: 'Contractor Name',
+                              hintText: 'Auto-filled',
+                              suffixIcon: Icons.person,
+                              controller: _contractorController,
+                              readOnly: true, // Locked to prevent manual typing
                               validator: (value) => value!.isEmpty
-                                  ? 'Please enter CIDA number'
+                                  ? 'Please verify CIDA number first'
                                   : null,
                             ),
                             _buildTextField(
-                              label: 'Contractor Name',
-                              hintText: 'Enter Contractor Name',
-                              suffixIcon: Icons.person,
-                              controller: _contractorController,
-                              validator: (value) => value!.isEmpty
-                                  ? 'Please enter contractor name'
-                                  : null,
+                              label: 'Company Name',
+                              hintText: 'Auto-filled',
+                              suffixIcon: Icons.business,
+                              controller: _companyController,
+                              readOnly: true, // Locked
                             ),
                           ),
 
@@ -314,7 +398,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
                             constraints,
                             _buildTextField(
                               label: 'Type of Contract',
-                              hintText: 'Enter Contract Type',
+                              hintText: 'E.g. Building, Road',
                               suffixIcon: Icons.category,
                               controller: _typeController,
                               validator: (value) => value!.isEmpty
@@ -322,18 +406,14 @@ class _AddContractScreenState extends State<AddContractScreen> {
                                   : null,
                             ),
                             _buildTextField(
-                              label: 'Value',
-                              hintText: 'Value of the Project',
-                              suffixIcon: Icons.attach_money,
+                              label: 'Project Value (LKR)',
+                              hintText: 'Enter value',
+                              prefixText: 'LKR ', // Added LKR Formatting
                               controller: _valueController,
-                              keyboardType: TextInputType.number,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               validator: (value) {
-                                if (value!.isEmpty) {
-                                  return 'Please enter project value';
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return 'Enter a valid number';
-                                }
+                                if (value!.isEmpty) return 'Please enter project value';
+                                if (double.tryParse(value) == null) return 'Enter a valid number';
                                 return null;
                               },
                             ),
@@ -344,7 +424,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
                             constraints,
                             _buildTextField(
                               label: 'Start Date',
-                              hintText: 'Enter Project Start Date',
+                              hintText: 'Select Start Date',
                               suffixIcon: Icons.calendar_today,
                               controller: _startDateController,
                               isDate: true,
@@ -352,7 +432,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
                             ),
                             _buildTextField(
                               label: 'End Date',
-                              hintText: 'Enter Project End Date',
+                              hintText: 'Select End Date',
                               suffixIcon: Icons.calendar_today,
                               controller: _endDateController,
                               isDate: true,
@@ -362,8 +442,10 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
                           const SizedBox(height: 32),
 
-                          // --- Save/Update Button (Moved to Bottom) ---
-                          SizedBox(
+                          // --- Save/Update Button ---
+                          _isSaving 
+                          ? const Center(child: CircularProgressIndicator())
+                          : SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: _saveContractDetails,
