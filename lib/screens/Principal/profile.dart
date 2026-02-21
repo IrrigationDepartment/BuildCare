@@ -1,18 +1,18 @@
-import 'dart:convert'; 
-import 'dart:io'; 
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:image_picker/image_picker.dart'; 
-import 'package:http/http.dart' as http; 
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 
 // --- IMPORT YOUR FORGOT PASSWORD SCREEN HERE ---
 import '/screens/forgot_password_flow.dart';
-import 'settings_page.dart'; // Import SettingsPage
-import 'dashboard.dart'; // Import Dashboard 
+import 'settings_page.dart';
+import 'dashboard.dart';
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic> userData;
-  final String userId; 
+  final String userId;
 
   const ProfilePage({
     super.key,
@@ -33,56 +33,60 @@ class _ProfilePageState extends State<ProfilePage> {
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _mobileController;
-  late TextEditingController _officePhoneController; // Added Office Phone
+  late TextEditingController _officePhoneController;
   late TextEditingController _nicController;
 
   bool _isLoading = false;
-  bool _isUploadingImage = false; 
-  String? _profileImageUrl; 
+  bool _isUploadingImage = false;
+  String? _profileImageUrl;
 
   static const Color _primaryColor = Color(0xFF53BDFF);
 
   @override
   void initState() {
     super.initState();
-    
-    // 1. Load initial image
-    _profileImageUrl = widget.userData['profile_image']; 
+    _profileImageUrl = widget.userData['profile_image'];
+    _fetchLatestUserData();
 
-    // 2. Fetch latest data from DB
-    _fetchLatestUserData(); 
-
-    // --- DATA MAPPING ---
-    
     _principalNameController = TextEditingController(
         text: widget.userData['name'] ?? widget.userData['principalName'] ?? '');
-        
+    
+    // Initialized for the Autocomplete logic
     _schoolNameController =
         TextEditingController(text: widget.userData['schoolName'] ?? '');
-    
-    // Now editable
+
     _schoolTypeController =
         TextEditingController(text: widget.userData['schoolType'] ?? '');
-    
     _titleController =
         TextEditingController(text: widget.userData['userType'] ?? '');
-    
     _emailController =
         TextEditingController(text: widget.userData['email'] ?? '');
-    
-    // Personal Phone
     _phoneController =
         TextEditingController(text: widget.userData['phone'] ?? '');
-        
-    // Mobile
     _mobileController = TextEditingController(
         text: widget.userData['mobile'] ?? widget.userData['mobilePhone'] ?? '');
-
-    // --- NEW: Office Phone ---
-    _officePhoneController = 
+    _officePhoneController =
         TextEditingController(text: widget.userData['officePhone'] ?? '');
-        
     _nicController = TextEditingController(text: widget.userData['nic'] ?? '');
+  }
+
+  // Logic to fetch school suggestions from Firestore
+  Future<List<Map<String, dynamic>>> _getSchoolSuggestions(String query) async {
+    if (query.isEmpty) return [];
+    
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .where('schoolName', isGreaterThanOrEqualTo: query)
+          .where('schoolName', isLessThanOrEqualTo: '$query\uf8ff')
+          .limit(5)
+          .get();
+
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      debugPrint("Error fetching schools: $e");
+      return [];
+    }
   }
 
   Future<void> _fetchLatestUserData() async {
@@ -96,7 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         setState(() {
           if (data.containsKey('profile_image')) {
-             _profileImageUrl = data['profile_image'];
+            _profileImageUrl = data['profile_image'];
           }
         });
       }
@@ -114,7 +118,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _emailController.dispose();
     _phoneController.dispose();
     _mobileController.dispose();
-    _officePhoneController.dispose(); // Dispose new controller
+    _officePhoneController.dispose();
     _nicController.dispose();
     super.dispose();
   }
@@ -129,9 +133,7 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: <Widget>[
           TextButton(
             child: const Text('Okay'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
+            onPressed: () => Navigator.of(ctx).pop(),
           )
         ],
       ),
@@ -144,91 +146,50 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (image == null) return;
 
-    setState(() {
-      _isUploadingImage = true;
-    });
+    setState(() => _isUploadingImage = true);
 
     try {
       final bytes = await image.readAsBytes();
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://buildcare.atigalle.x10.mx/index.php'), 
+        Uri.parse('https://buildcare.atigalle.x10.mx/index.php'),
       );
 
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'profile_image', 
-          bytes,
-          filename: 'upload.jpg', 
-        ),
-      );
+      request.files.add(http.MultipartFile.fromBytes('profile_image', bytes, filename: 'upload.jpg'));
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        Map<String, dynamic> jsonResponse;
-        try {
-             jsonResponse = jsonDecode(response.body);
-        } catch (e) {
-             throw Exception("Invalid JSON from server: ${response.body}");
-        }
-
+        Map<String, dynamic> jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
           String newImageUrl = jsonResponse['profileImageUrl'];
-
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userId)
-              .update({'profile_image': newImageUrl});
+          await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({'profile_image': newImageUrl});
 
           if (mounted) {
-            setState(() {
-              _profileImageUrl = newImageUrl; 
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Profile Photo Updated!")),
-            );
+            setState(() => _profileImageUrl = newImageUrl);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile Photo Updated!")));
           }
-        } else {
-          throw Exception(jsonResponse['message']);
         }
-      } else {
-        throw Exception("Server error: ${response.statusCode}.");
       }
     } catch (e) {
       debugPrint("Error uploading image: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Upload failed: $e")),
-        );
-      }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isUploadingImage = false;
-        });
-      }
+      if (mounted) setState(() => _isUploadingImage = false);
     }
   }
 
   Future<void> _updateProfile() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     try {
-      // --- UPDATE LOGIC ---
-      // Added officePhone and schoolType to the update list
       final dataToUpdate = {
-        'name': _principalNameController.text.trim(), 
+        'name': _principalNameController.text.trim(),
         'principalName': _principalNameController.text.trim(),
+        'schoolName': _schoolNameController.text.trim(), // Now saving the edited school name
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
         'mobile': _mobileController.text.trim(),
         'mobilePhone': _mobileController.text.trim(),
-        
-        // NEW FIELDS ADDED TO UPDATE:
         'officePhone': _officePhoneController.text.trim(),
         'schoolType': _schoolTypeController.text.trim(),
       };
@@ -238,31 +199,20 @@ class _ProfilePageState extends State<ProfilePage> {
           .doc(widget.userId)
           .update(dataToUpdate);
 
-      _showMessage('Success', 'Your profile has been updated.');
+      _showMessage('Success', 'Your profile and school information have been updated.');
     } catch (e) {
       _showMessage('Update Failed', 'Error: ${e.toString()}');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- Helper Widgets ---
+  // --- UI Components ---
 
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
-      ),
+      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
     );
   }
 
@@ -273,53 +223,66 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 5, offset: const Offset(0, 3))],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTextField(_principalNameController, "Principal Name", readOnly: false), 
-          const SizedBox(height: 10),
+          _buildTextField(_principalNameController, "Principal Name", readOnly: false),
+          const SizedBox(height: 15),
           
-          _buildTextField(_schoolNameController, "School Name", readOnly: true), // Locked
-          const SizedBox(height: 10),
+          // --- AUTOCOMPLETE SCHOOL NAME FIELD ---
+          const Text("School Name", style: TextStyle(color: _primaryColor, fontWeight: FontWeight.w500, fontSize: 12)),
+          Autocomplete<Map<String, dynamic>>(
+            displayStringForOption: (option) => option['schoolName'] ?? '',
+            optionsBuilder: (TextEditingValue textEditingValue) async {
+              return await _getSchoolSuggestions(textEditingValue.text);
+            },
+            onSelected: (Map<String, dynamic> selection) {
+              setState(() {
+                _schoolNameController.text = selection['schoolName'] ?? '';
+                if (selection.containsKey('schoolType')) {
+                  _schoolTypeController.text = selection['schoolType'];
+                }
+              });
+            },
+            fieldViewBuilder: (context, fieldTextEditingController, focusNode, onFieldSubmitted) {
+              // Pre-fill with existing data if controller is empty
+              if (fieldTextEditingController.text.isEmpty && _schoolNameController.text.isNotEmpty) {
+                fieldTextEditingController.text = _schoolNameController.text;
+              }
+              return TextField(
+                controller: fieldTextEditingController,
+                focusNode: focusNode,
+                onChanged: (value) => _schoolNameController.text = value,
+                decoration: InputDecoration(
+                  hintText: "Search or enter new school",
+                  enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey[300]!)),
+                  focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: _primaryColor)),
+                ),
+              );
+            },
+          ),
           
-          // CHANGED: School Type is now Editable (readOnly: false)
+          const SizedBox(height: 10),
           _buildTextField(_schoolTypeController, "School Type", readOnly: false),
           const SizedBox(height: 10),
-          
-          _buildTextField(_titleController, "Title", readOnly: true), // Locked
+          _buildTextField(_titleController, "Title", readOnly: true),
           const SizedBox(height: 10),
-          
-          _buildTextField(_nicController, "NIC", readOnly: true), // Locked
+          _buildTextField(_nicController, "NIC", readOnly: true),
         ],
       ),
     );
   }
 
-  Widget _buildEditableInfoCard(
-      TextEditingController controller, String label, IconData icon,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildEditableInfoCard(TextEditingController controller, String label, IconData icon, {TextInputType keyboardType = TextInputType.text}) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 5, offset: const Offset(0, 3))],
       ),
       child: TextField(
         controller: controller,
@@ -340,51 +303,30 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 5, offset: const Offset(0, 3))],
       ),
       child: ListTile(
         title: Text(title),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: () {
           if (title == 'Change password') {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const ForgotPasswordFlow()), 
-            );
-          } else {
-            _showMessage('Not Implemented', '$title page is not ready yet.');
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordFlow()));
           }
         },
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label,
-      {bool readOnly = false}) {
-    final accentColor = readOnly ? Colors.grey[600] : _primaryColor;
+  Widget _buildTextField(TextEditingController controller, String label, {bool readOnly = false}) {
     return TextField(
       controller: controller,
       readOnly: readOnly,
       style: TextStyle(color: readOnly ? Colors.black54 : Colors.black),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(
-            color: accentColor,
-            fontWeight: FontWeight.w500),
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey[300]!),
-        ),
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: _primaryColor), 
-        ),
+        labelStyle: TextStyle(color: readOnly ? Colors.grey[600] : _primaryColor, fontWeight: FontWeight.w500),
+        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey[300]!)),
+        focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: _primaryColor)),
         fillColor: readOnly ? Colors.grey[200] : Colors.transparent,
         filled: readOnly,
       ),
@@ -396,33 +338,14 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Center(
-          child: Text(
-            'Edit Profile',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
+        title: const Center(child: Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold))),
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black,
         actions: [
-          // Settings Icon
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: IconButton(
-              icon: const Icon(Icons.settings, color: Colors.black, size: 28),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SettingsPage(
-                      userData: widget.userData,
-                      userId: widget.userId,
-                    ),
-                  ),
-                );
-              },
-            ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.black, size: 28),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage(userData: widget.userData, userId: widget.userId))),
           ),
         ],
       ),
@@ -431,22 +354,16 @@ class _ProfilePageState extends State<ProfilePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            
-            // --- AVATAR SECTION ---
             Center(
               child: Stack(
                 children: [
                   Container(
-                    width: 120,
-                    height: 120,
+                    width: 120, height: 120,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.grey[300],
                       image: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty)
-                          ? DecorationImage(
-                              image: NetworkImage(_profileImageUrl!),
-                              fit: BoxFit.cover,
-                            )
+                          ? DecorationImage(image: NetworkImage(_profileImageUrl!), fit: BoxFit.cover)
                           : null,
                       border: Border.all(color: _primaryColor, width: 2),
                     ),
@@ -457,48 +374,26 @@ class _ProfilePageState extends State<ProfilePage> {
                             : null,
                   ),
                   Positioned(
-                    bottom: 0,
-                    right: 0,
+                    bottom: 0, right: 0,
                     child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: _primaryColor, 
-                      child: IconButton(
-                        icon: const Icon(Icons.camera_alt,
-                            color: Colors.white, size: 20),
-                        onPressed: _pickAndUploadImage, 
-                      ),
+                      radius: 20, backgroundColor: _primaryColor,
+                      child: IconButton(icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20), onPressed: _pickAndUploadImage),
                     ),
                   ),
                 ],
               ),
             ),
-            
             _buildSectionTitle('Personal Information'),
             _buildPersonalInfoCard(),
-            
             _buildSectionTitle('Contact Information'),
-            // --- EDITABLE FIELDS ---
-            _buildEditableInfoCard(
-                _emailController, 'Work Email', Icons.email_outlined),
-            _buildEditableInfoCard(
-                _phoneController, 'Personal Phone', Icons.phone_outlined,
-                keyboardType: TextInputType.phone),
-            _buildEditableInfoCard(
-                _mobileController, 'Mobile', Icons.smartphone_outlined,
-                keyboardType: TextInputType.phone),
-            
-            // --- NEW FIELD: OFFICE PHONE ---
-            _buildEditableInfoCard(
-                _officePhoneController, 'Office Phone', Icons.business_outlined,
-                keyboardType: TextInputType.phone),
-                
+            _buildEditableInfoCard(_emailController, 'Work Email', Icons.email_outlined),
+            _buildEditableInfoCard(_phoneController, 'Personal Phone', Icons.phone_outlined, keyboardType: TextInputType.phone),
+            _buildEditableInfoCard(_mobileController, 'Mobile', Icons.smartphone_outlined, keyboardType: TextInputType.phone),
+            _buildEditableInfoCard(_officePhoneController, 'Office Phone', Icons.business_outlined, keyboardType: TextInputType.phone),
             _buildSectionTitle('Account Setting'),
             _buildSettingItem('Change password'),
             _buildSettingItem('Manage Notifications'),
-            
             const SizedBox(height: 40),
-            
-            // --- UPDATE BUTTON ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30),
               child: _isLoading
@@ -508,16 +403,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: ElevatedButton(
                         onPressed: _updateProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor, 
+                          backgroundColor: _primaryColor,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         ),
-                        child: const Text(
-                          'Update Profile',
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
+                        child: const Text('Update Profile', style: TextStyle(fontSize: 18, color: Colors.white)),
                       ),
                     ),
             ),
@@ -526,51 +416,20 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, 
-        selectedItemColor: _primaryColor, 
-        unselectedItemColor: Colors.grey[600], 
+        currentIndex: 1,
+        selectedItemColor: _primaryColor,
+        unselectedItemColor: Colors.grey[600],
         showSelectedLabels: false,
         showUnselectedLabels: false,
-        type: BottomNavigationBarType.fixed, 
+        type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined, size: 30),
-            activeIcon: Icon(Icons.home, size: 30), 
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, size: 30), 
-            activeIcon: Icon(Icons.person, size: 30), 
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined, size: 30),
-            activeIcon: Icon(Icons.settings, size: 30), 
-            label: 'Settings',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined, size: 30), activeIcon: Icon(Icons.home, size: 30), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline, size: 30), activeIcon: Icon(Icons.person, size: 30), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined, size: 30), activeIcon: Icon(Icons.settings, size: 30), label: 'Settings'),
         ],
         onTap: (index) {
-          if (index == 0) {
-            // Navigate to Dashboard
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PrincipalDashboard(userData: widget.userData),
-              ),
-            );
-          } else if (index == 2) {
-            // Navigate to Settings
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SettingsPage(
-                  userData: widget.userData,
-                  userId: widget.userId,
-                ),
-              ),
-            );
-          }
-          // Index 1 is Profile (current page)
+          if (index == 0) Navigator.push(context, MaterialPageRoute(builder: (context) => PrincipalDashboard(userData: widget.userData)));
+          if (index == 2) Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage(userData: widget.userData, userId: widget.userId)));
         },
       ),
     );
