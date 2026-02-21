@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart'; // Added for formatting dates and currency
 // --- 1. 'add_contractor_screen.dart' IMPORT ---
 import 'add_contractor_screen.dart';
 
@@ -11,6 +12,24 @@ class ViewContractorScreen extends StatelessWidget {
   // --- Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
+
+  // --- Formatters ---
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    if (timestamp is Timestamp) {
+      return DateFormat('MMM dd, yyyy').format(timestamp.toDate());
+    } else if (timestamp is String) {
+      return timestamp; // Just in case it's saved as a string
+    }
+    return 'N/A';
+  }
+
+  String _formatCurrency(dynamic value) {
+    if (value is num) {
+      return NumberFormat.currency(locale: 'en_US', symbol: 'LKR ').format(value);
+    }
+    return 'LKR 0.00';
+  }
 
   // --- Widget for a single detail item ---
   Widget _buildDetailRow(String label, String value, {IconData? icon}) {
@@ -52,7 +71,6 @@ class ViewContractorScreen extends StatelessWidget {
 
   // --- Delete Contractor Logic ---
   Future<void> _deleteContractor(BuildContext context) async {
-    // Show confirmation dialog
     bool? confirmDelete = await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -78,12 +96,13 @@ class ViewContractorScreen extends StatelessWidget {
             .collection('contractor_details')
             .doc(contractorId)
             .delete();
-        // Pop back to the list screen
-        Navigator.of(context).pop();
+        if (context.mounted) Navigator.of(context).pop();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete contractor: $e')),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete contractor: $e')),
+          );
+        }
       }
     }
   }
@@ -148,24 +167,22 @@ class ViewContractorScreen extends StatelessWidget {
               ),
 
               const SizedBox(height: 20),
-              // --- 2. EDIT BUTTON ACTION ---
+              // EDIT BUTTON ACTION
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Navigate to the Add/Edit screen in 'Edit' mode
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => AddContractorScreen(
-                          contractorId: contractorId, // Pass the Document ID
-                          initialData: data,         // Pass the current data
+                          contractorId: contractorId,
+                          initialData: data,
                         ),
                       ),
                     );
                   },
                   icon: const Icon(Icons.edit, size: 20),
-                  label:
-                      const Text('Edit Details', style: TextStyle(fontSize: 16)),
+                  label: const Text('Edit Details', style: TextStyle(fontSize: 16)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryBlue,
                     foregroundColor: Colors.white,
@@ -178,14 +195,13 @@ class ViewContractorScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              // --- 3. DELETE BUTTON ---
+              // DELETE BUTTON
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () => _deleteContractor(context),
                   icon: const Icon(Icons.delete_outline, size: 20),
-                  label: const Text('Delete Contractor',
-                      style: TextStyle(fontSize: 16)),
+                  label: const Text('Delete Contractor', style: TextStyle(fontSize: 16)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
@@ -199,6 +215,136 @@ class ViewContractorScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // --- Widget for Contract History ---
+  Widget _buildContractHistory(String cidaRegNo) {
+    if (cidaRegNo.isEmpty || cidaRegNo == 'N/A') {
+      return const SizedBox.shrink(); // Hide if no CIDA number to search by
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 8.0, bottom: 12.0),
+            child: Text(
+              'Contract History',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333333),
+              ),
+            ),
+          ),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('contracts')
+                .where('cidaRegisterNumber', isEqualTo: cidaRegNo) // Matching the fields from your DB images
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Center(
+                      child: Text(
+                        'No contracts found for this contractor.',
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final contracts = snapshot.data!.docs;
+
+              return ListView.builder(
+                shrinkWrap: true, // Required because it's inside a SingleChildScrollView
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: contracts.length,
+                itemBuilder: (context, index) {
+                  final contractData = contracts[index].data() as Map<String, dynamic>;
+                  
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12.0),
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                contractData['typeOfContract']?.toString().toUpperCase() ?? 'CONTRACT',
+                                style: TextStyle(
+                                  color: Colors.indigo.shade700,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                _formatCurrency(contractData['contractValue']),
+                                style: const TextStyle(
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Project: ${contractData['companyName'] ?? 'N/A'}',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const Divider(),
+                          Row(
+                            children: [
+                              const Icon(Icons.date_range, size: 14, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Start: ${_formatDate(contractData['startDate'])}',
+                                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.event_busy, size: 14, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Text(
+                                'End: ${_formatDate(contractData['endDate'])}',
+                                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          const SizedBox(height: 30), // Bottom padding
+        ],
       ),
     );
   }
@@ -234,8 +380,7 @@ class ViewContractorScreen extends StatelessWidget {
           }
 
           if (snapshot.hasError) {
-            return Center(
-                child: Text('Error loading details: ${snapshot.error}'));
+            return Center(child: Text('Error loading details: ${snapshot.error}'));
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
@@ -243,12 +388,19 @@ class ViewContractorScreen extends StatelessWidget {
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
+          final cidaRegNumber = data['cidaRegistrationNumber']?.toString() ?? '';
 
           return SingleChildScrollView(
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 600),
-                child: _buildDetailsCard(context, data),
+                child: Column(
+                  children: [
+                    _buildDetailsCard(context, data),
+                    // Add the contract history below the details card
+                    _buildContractHistory(cidaRegNumber), 
+                  ],
+                ),
               ),
             ),
           );
