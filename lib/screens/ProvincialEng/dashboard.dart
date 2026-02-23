@@ -990,14 +990,14 @@ class IssueCountBuilder extends StatelessWidget {
                 Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => const ViewIssuesPage()));
+                        builder: (context) => ViewIssuesPage(currentUserNic: FirebaseAuth.instance.currentUser?.uid ?? '')));
               },
               child: Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                           color: Colors.red.shade100, shape: BoxShape.circle),
                       child: Icon(Icons.warning_amber_rounded,

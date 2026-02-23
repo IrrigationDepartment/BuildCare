@@ -25,10 +25,9 @@ class IssueDetailScreen extends StatefulWidget {
 class _IssueDetailScreenState extends State<IssueDetailScreen> {
   static const Color _primaryColor = Color(0xFF53BDFF);
   bool _isDeleting = false;
-  List<String> _imageUrlsState = []; // holds current image urls for display
-  static const int _maxImagesToDisplay = 10; // Image limit: Only display first 10
+  List<String> _imageUrlsState = []; 
+  static const int _maxImagesToDisplay = 10; 
   
-  // New: Controller for the image carousel
   late PageController _pageController; 
   int _currentPage = 0;
 
@@ -39,7 +38,11 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     return DateFormat('yyyy-MM-dd').format(timestamp.toDate());
   }
 
-  // Function to move to the next image
+  String _formatReviewTime(Timestamp? timestamp) {
+    if (timestamp == null) return 'Just now';
+    return DateFormat.yMMMd().add_jm().format(timestamp.toDate());
+  }
+
   void _nextImage() {
     if (_currentPage < _imageUrlsState.length - 1) {
       _pageController.nextPage(
@@ -49,7 +52,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     }
   }
 
-  // Function to move to the previous image
   void _previousImage() {
     if (_currentPage > 0) {
       _pageController.previousPage(
@@ -59,7 +61,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     }
   }
 
-  // Fetch latest imageUrls from Firestore for this issue (useful after upload)
   Future<void> _refreshImages() async {
     try {
       final doc = await FirebaseFirestore.instance.collection('issues').doc(widget.issueId).get();
@@ -75,7 +76,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
               }
             }
           } else if (data['imageUrls'] is String) {
-            // comma separated
             final raw = (data['imageUrls'] as String).split(',');
             for (var s in raw) {
               final t = s.trim();
@@ -85,10 +85,8 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
           final single = data['imageUrl'] ?? '';
           if (single is String && single.isNotEmpty && !fresh.contains(single)) fresh.insert(0, single);
 
-          // Apply the 10-image limit here
           setState(() {
             _imageUrlsState = fresh.take(_maxImagesToDisplay).toList();
-            // Reset page index if the list changed significantly
             if (_pageController.hasClients) {
               _currentPage = 0; 
               _pageController.jumpToPage(0);
@@ -102,8 +100,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
       }
     }
   }
-
-  // --- DELETE FUNCTION ---
 
   Future<void> _deleteIssue() async {
     setState(() {
@@ -123,7 +119,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        // Navigate back to the dashboard after successful deletion
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -141,8 +136,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     }
   }
 
-  // --- Confirmation Dialog ---
-
   void _showDeleteConfirmationDialog() {
     showDialog(
       context: context,
@@ -157,7 +150,7 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); 
                 _deleteIssue();
               },
               child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -168,7 +161,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     );
   }
 
-  // --- Image viewer ---
   void _openImageViewer(String imageUrl) {
     showDialog(
       context: context,
@@ -200,13 +192,10 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     );
   }
 
-  // --- Widget Build ---
-
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-    // initialize local image list from passed issueData
     final List<String> initial = [];
     final raw = widget.issueData['imageUrls'];
     if (raw is List) {
@@ -225,7 +214,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     final single = widget.issueData['imageUrl'] ?? '';
     if (single is String && single.isNotEmpty && !initial.contains(single)) initial.insert(0, single);
     
-    // Apply the 10-image limit during initialization as well
     _imageUrlsState = initial.take(_maxImagesToDisplay).toList();
   }
 
@@ -235,17 +223,14 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
-    // Safely extract data from the map
     final String title = widget.issueData['issueTitle'] ?? 'No Title';
     final String schoolName = widget.issueData['schoolName'] ?? 'N/A';
     final String building = widget.issueData['buildingName'] ?? 'N/A';
     final String description = widget.issueData['description'] ?? 'No description provided.';
     final String status = widget.issueData['status'] ?? 'Pending';
     final String date = _formatDate(widget.issueData['dateOfOccurance'] as Timestamp?);
-
 
     return Scaffold(
       appBar: AppBar(
@@ -266,14 +251,12 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Image Carousel Implementation ---
             if (_imageUrlsState.isNotEmpty) ...[
               SizedBox(
-                height: 250, // Height for the image carousel
+                height: 250, 
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    // 1. PageView (The Carousel itself)
                     PageView.builder(
                       controller: _pageController,
                       onPageChanged: (index) {
@@ -311,7 +294,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                       },
                     ),
                     
-                    // 2. Navigation Chevrons (Left)
                     if (_imageUrlsState.length > 1) 
                       Align(
                         alignment: Alignment.centerLeft,
@@ -322,7 +304,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                         ),
                       ),
 
-                    // 3. Navigation Chevrons (Right)
                     if (_imageUrlsState.length > 1) 
                       Align(
                         alignment: Alignment.centerRight,
@@ -336,7 +317,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                 ),
               ),
 
-              // 4. Image Counter (e.g., 1/3)
               const SizedBox(height: 10),
               Center(
                 child: Text(
@@ -346,9 +326,7 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
               ),
               const Divider(height: 30), 
             ],
-            // --- End Image Carousel Implementation ---
 
-            // Title and Status
             Text(
               title,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -370,7 +348,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
             ),
             const Divider(height: 30),
 
-            // Details Section
             _buildDetailRow(Icons.date_range, "Date Reported:", date),
             _buildDetailRow(Icons.school, "School:", schoolName),
             _buildDetailRow(Icons.location_city, "Building:", building),
@@ -382,43 +359,39 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
 
             const Divider(height: 40),
 
-            // Action Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-            // EDIT Button
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddBuildingIssuesPage(
-                      userNic: widget.userNic,
-                      issueId: widget.issueId,
-                    ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddBuildingIssuesPage(
+                          userNic: widget.userNic,
+                          issueId: widget.issueId,
+                        ),
+                      ),
+                    ).then((result) {
+                      if (result == true) {
+                        _refreshImages();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Issue updated — images refreshed')),
+                          );
+                        }
+                      }
+                    });
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text("Edit Issue"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
-                ).then((result) {
-                  // If editing changed the document, re-fetch images so user can see uploads immediately
-                  if (result == true) {
-                    _refreshImages();
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Issue updated — images refreshed')),
-                      );
-                    }
-                  }
-                });
-              },
-              icon: const Icon(Icons.edit),
-              label: const Text("Edit Issue"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-            ),
+                ),
 
-                // DELETE Button
                 _isDeleting
                     ? const CircularProgressIndicator()
                     : ElevatedButton.icon(
@@ -433,13 +406,162 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
                       ),
               ],
             ),
+
+            const Divider(height: 40),
+
+            // --- REVIEWS SECTION START ---
+            const Text(
+              "Reviews & Feedback", 
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+            ),
+            const SizedBox(height: 15),
+
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('issues')
+                  .doc(widget.issueId)
+                  .collection('reviews') 
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        "No reviews available yet.",
+                        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(), 
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    var reviewDoc = snapshot.data!.docs[index];
+                    var reviewData = reviewDoc.data() as Map<String, dynamic>;
+
+                    String reviewText = reviewData['reviewText'] ?? 'No feedback text provided.';
+                    // This is actually the user's document ID based on your database screenshot
+                    String reviewerUid = reviewData['reviewerNic'] ?? ''; 
+                    String timestampStr = _formatReviewTime(reviewData['timestamp'] as Timestamp?);
+
+                    // NEW: Fetch the specific user's data using their UID
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance.collection('users').doc(reviewerUid).get(),
+                      builder: (context, userSnapshot) {
+                        String reviewerName = "Loading...";
+                        String reviewerType = "Admin";
+                        String? profileImage;
+
+                        // Once the user's info loads, extract their real name, type, and image
+                        if (userSnapshot.connectionState == ConnectionState.done) {
+                          if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                            var userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                            reviewerName = userData['name'] ?? 'Unknown Admin';
+                            reviewerType = userData['userType'] ?? 'Admin';
+                            profileImage = userData['profile_image'];
+                          } else {
+                            reviewerName = "Unknown User";
+                          }
+                        }
+
+                        return Card(
+                          elevation: 0,
+                          color: Colors.blue.shade50, 
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.blue.shade100),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    // Circular Profile Image
+                                    CircleAvatar(
+                                      radius: 20,
+                                      backgroundColor: Colors.blue.shade200,
+                                      backgroundImage: (profileImage != null && profileImage.isNotEmpty)
+                                          ? NetworkImage(profileImage)
+                                          : null,
+                                      child: (profileImage == null || profileImage.isEmpty)
+                                          ? Icon(Icons.person, size: 20, color: Colors.blue.shade800)
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    
+                                    // Name and User Type Stacked
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            reviewerName,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue.shade900,
+                                              fontSize: 15,
+                                            ),
+                                          ),
+                                          Text(
+                                            reviewerType,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.blue.shade700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    
+                                    // Timestamp
+                                    Text(
+                                      timestampStr,
+                                      style: TextStyle(fontSize: 12, color: Colors.blue.shade400),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                
+                                // Review Description
+                                Text(
+                                  reviewText,
+                                  style: const TextStyle(fontSize: 15, color: Colors.black87),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+            // --- REVIEWS SECTION END ---
+            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
   
-  // Helper for consistent detail display
   Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),

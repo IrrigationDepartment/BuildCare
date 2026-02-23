@@ -1,6 +1,9 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Your existing imports
+import 'package:flutter/services.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+
+// Your existing imports
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
 import 'add_school_master_plan_page.dart';
@@ -20,7 +23,7 @@ class PrincipalDashboard extends StatefulWidget {
 class _PrincipalDashboardState extends State<PrincipalDashboard> {
   static const Color _primaryColor = Color(0xFF53BDFF);
   static const Color _accentCyan = Color(0xFF00E5FF); // Eye-catching accent
-  int _previousUnreadCount = -1;
+  int _previousUnreadCount = -1; 
 
   // --- Helper for Time-Based Greeting ---
   String _getGreeting() {
@@ -34,7 +37,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     }
   }
 
-  void _triggerNewNotificationAlert(String message, String userNic) {
+  void _triggerNewNotificationAlert(String message) {
     SystemSound.play(SystemSoundType.click);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -52,11 +55,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           label: 'VIEW',
           textColor: _accentCyan,
           onPressed: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        NotificationScreen(currentUserNic: userNic)));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationScreen(loggedNic: widget.userData!['nic'])));
           },
         ),
       ),
@@ -64,31 +63,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   }
 
   void _onItemTapped(BuildContext context, int index) {
-    if (index == 1) {
-      // Profile
-      final String principalId =
-          widget.userData!['uid'] ?? 'principal_doc_id_123';
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => ProfilePage(
-                  userData: widget.userData!, userId: principalId)));
-    } else if (index == 2) {
-      // Settings
-      final String principalId =
-          widget.userData!['uid'] ?? 'principal_doc_id_123';
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => SettingsPage(
-                  userData: widget.userData!, userId: principalId)));
+    if (index == 1) { // Profile
+      final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
+      Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(userData: widget.userData!, userId: principalId)));
+    } else if (index == 2) { // Settings
+      final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
+      Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage(userData: widget.userData!, userId: principalId)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.userData == null)
-      return const Scaffold(body: Center(child: Text("Error loading data")));
+    if (widget.userData == null) return const Scaffold(body: Center(child: Text("Error loading data")));
 
     final String userNic = widget.userData!['nic'];
     final String principalName = widget.userData!['name'];
@@ -104,8 +90,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
             return Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                    maxWidth: isLargeScreen ? 1000 : double.infinity),
+                constraints: BoxConstraints(maxWidth: isLargeScreen ? 1000 : double.infinity),
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -113,8 +98,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     children: [
                       const SizedBox(height: 10),
                       // Updated Header call (schoolName is used elsewhere, greeting used here)
-                      _buildWelcomeHeader(
-                          context, principalName, profileImageUrl, userNic),
+                      _buildWelcomeHeader(context, principalName, profileImageUrl, userNic),
                       const SizedBox(height: 30),
 
                       GridView.count(
@@ -128,30 +112,17 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                           _buildActionButton(
                             icon: Icons.add,
                             text: 'School Details',
-                            onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => AddSchoolDetailsPage(
-                                        userNic: userNic))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AddSchoolDetailsPage(userNic: userNic))),
                           ),
                           _buildActionButton(
                             icon: Icons.build_outlined,
                             text: 'Building Issues',
-                            onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => AddBuildingIssuesPage(
-                                        userNic: userNic))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AddBuildingIssuesPage(userNic: userNic))),
                           ),
                           _buildActionButton(
                             icon: Icons.map_outlined,
                             text: 'Master Plans',
-                            onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => AddMasterPlanScreen(
-                                        schoolName: schoolName,
-                                        userNic: userNic))),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AddMasterPlanScreen(schoolName: schoolName, userNic: userNic))),
                           ),
                         ],
                       ),
@@ -171,55 +142,43 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         selectedItemColor: _primaryColor,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profile'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined), label: 'Settings'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
         onTap: (index) => _onItemTapped(context, index),
       ),
     );
   }
 
-  Widget _buildWelcomeHeader(
-      BuildContext context, String fullName, String? imageUrl, String userNic) {
+  Widget _buildWelcomeHeader(BuildContext context, String fullName, String? imageUrl, String userNic) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)
-          ]),
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(20), 
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
+      ),
       child: Row(
         children: [
           CircleAvatar(
-              radius: 30,
-              backgroundColor: _primaryColor,
-              backgroundImage: (imageUrl != null && imageUrl.isNotEmpty)
-                  ? NetworkImage(imageUrl)
-                  : null,
-              child: (imageUrl == null || imageUrl.isEmpty)
-                  ? const Icon(Icons.person, color: Colors.white)
-                  : null),
+            radius: 30, 
+            backgroundColor: _primaryColor, 
+            backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null, 
+            child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Colors.white) : null
+          ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start, 
               children: [
-                Text('Welcome, ${fullName.split(' ')[0]}!',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Welcome, ${fullName.split(' ')[0]}!', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 // UPDATED: School name removed, Dynamic Greeting added
-                Text(_getGreeting(),
-                    style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.blueGrey[600],
-                        fontWeight: FontWeight.w500)),
+                Text(_getGreeting(), style: TextStyle(fontSize: 14, color: Colors.blueGrey[600], fontWeight: FontWeight.w500)),
               ],
             ),
           ),
+          
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('notifications')
@@ -229,14 +188,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
             builder: (context, snapshot) {
               if (snapshot.hasData) {
                 int unreadCount = snapshot.data!.docs.length;
-
-                if (_previousUnreadCount != -1 &&
-                    unreadCount > _previousUnreadCount) {
+                
+                if (_previousUnreadCount != -1 && unreadCount > _previousUnreadCount) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _triggerNewNotificationAlert(
-                        snapshot.data!.docs.first['message'] ??
-                            "New update received",
-                        userNic);
+                    _triggerNewNotificationAlert(snapshot.data!.docs.first['message'] ?? "New update received");
                   });
                 }
                 _previousUnreadCount = unreadCount;
@@ -244,22 +199,18 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 return Stack(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.notifications_none, size: 28),
-                      onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  NotificationScreen(currentUserNic: userNic))),
+                      icon: const Icon(Icons.notifications_none, size: 28), 
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationScreen(loggedNic: userNic)))
                     ),
                     if (unreadCount > 0)
                       Positioned(
-                        right: 12,
+                        right: 12, 
                         top: 12,
                         child: Container(
                           width: 10,
                           height: 10,
                           decoration: const BoxDecoration(
-                            color: Colors.red,
+                            color: Colors.red, 
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -280,25 +231,17 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   }
 
   // --- REMAINDER OF HELPER WIDGETS ---
-  Widget _buildActionButton(
-      {required IconData icon,
-      required String text,
-      required VoidCallback onTap}) {
+  Widget _buildActionButton({required IconData icon, required String text, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.grey.withOpacity(0.1))),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.withOpacity(0.1))),
         child: Row(
           children: [
             Icon(icon, color: _primaryColor, size: 28),
             const SizedBox(width: 15),
-            Text(text,
-                style:
-                    const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -309,32 +252,24 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Reported Issues',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('Reported Issues', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 15),
         StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('issues')
-              .where('addedByNic', isEqualTo: userNic)
-              .snapshots(),
+          stream: FirebaseFirestore.instance.collection('issues').where('addedByNic', isEqualTo: userNic).snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const LinearProgressIndicator();
             var issues = snapshot.data!.docs;
-            return isLargeScreen
-                ? Wrap(
-                    spacing: 20,
-                    runSpacing: 20,
-                    children: issues
-                        .map((doc) =>
-                            SizedBox(width: 450, child: _issueItem(doc)))
-                        .toList(),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: issues.length,
-                    itemBuilder: (context, index) => _issueItem(issues[index]),
-                  );
+            return isLargeScreen 
+              ? Wrap(
+                  spacing: 20, runSpacing: 20,
+                  children: issues.map((doc) => SizedBox(width: 450, child: _issueItem(doc))).toList(),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: issues.length,
+                  itemBuilder: (context, index) => _issueItem(issues[index]),
+                );
           },
         ),
       ],
@@ -347,17 +282,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        title: Text(data['issueTitle'] ?? 'No Title',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(data['issueTitle'] ?? 'No Title', style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text("${data['buildingName']} • ${data['status']}"),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (ctx) => IssueDetailScreen(
-                    issueData: data,
-                    issueId: doc.id,
-                    userNic: widget.userData!['nic']))),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => IssueDetailScreen(issueData: data, issueId: doc.id, userNic: widget.userData!['nic']))),
       ),
     );
   }

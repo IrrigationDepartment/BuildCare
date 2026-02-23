@@ -62,7 +62,9 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
 // MAIN VIEW ISSUES PAGE
 // ============================================================================
 class ViewIssuesPage extends StatelessWidget {
-  const ViewIssuesPage({super.key});
+  final String currentUserNic; // Current logged-in user NIC
+
+  const ViewIssuesPage({super.key, required this.currentUserNic});
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -146,7 +148,10 @@ class ViewIssuesPage extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => IssueDetailPage(issueId: issueId),
+                            builder: (context) => IssueDetailPage(
+                              issueId: issueId,
+                              currentUserNic: currentUserNic, // Pass the NIC
+                            ),
                           ),
                         );
                       },
@@ -220,12 +225,24 @@ class ViewIssuesPage extends StatelessWidget {
 // ============================================================================
 // ISSUE DETAIL PAGE
 // ============================================================================
-class IssueDetailPage extends StatelessWidget {
+class IssueDetailPage extends StatefulWidget {
   final String issueId;
+  final String currentUserNic; // Current logged-in user NIC
 
-  const IssueDetailPage({super.key, required this.issueId});
+  const IssueDetailPage({
+    super.key, 
+    required this.issueId, 
+    required this.currentUserNic
+  });
 
-  Future<QuerySnapshot> _fetchReporterDetails(String nic) {
+  @override
+  State<IssueDetailPage> createState() => _IssueDetailPageState();
+}
+
+class _IssueDetailPageState extends State<IssueDetailPage> {
+  final TextEditingController _reviewController = TextEditingController();
+
+  Future<QuerySnapshot> _fetchUserDetails(String nic) {
     return FirebaseFirestore.instance
         .collection('users')
         .where('nic', isEqualTo: nic)
@@ -233,23 +250,70 @@ class IssueDetailPage extends StatelessWidget {
         .get();
   }
 
-  Future<void> _updateStatus(BuildContext context, String newStatus) async {
+  Future<void> _updateStatus(String newStatus) async {
     try {
       await FirebaseFirestore.instance
           .collection('issues')
-          .doc(issueId)
+          .doc(widget.issueId)
           .update({'status': newStatus});
 
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Status updated to $newStatus'), backgroundColor: Colors.green),
         );
         Navigator.pop(context); // Close dialog
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // --- Fixed Submit Review Function ---
+  Future<void> _submitReview(String? principalNic, String? issueTitle) async {
+    String reviewText = _reviewController.text.trim();
+    if (reviewText.isEmpty) return;
+
+    try {
+      // 1. Add review to a subcollection in the issue document
+      await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(widget.issueId)
+          .collection('reviews')
+          .add({
+        'reviewText': reviewText,
+        'reviewerNic': widget.currentUserNic,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Trigger notification to the Principal (Only if principalNic is valid)
+      if (principalNic != null && principalNic.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'title': 'New Review Added',
+          'subtitle': 'An official reviewed your issue: ${issueTitle ?? "No Title"}',
+          'type': 'review',
+          'issueId': widget.issueId,
+          'targetNic': principalNic, 
+          'addedByNic': widget.currentUserNic, 
+          'timestamp': FieldValue.serverTimestamp(),
+          'isRead': false,
+        });
+      }
+
+      if (mounted) {
+        _reviewController.clear();
+        Navigator.pop(context); // Close Review Dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Review added successfully!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add review: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -283,7 +347,7 @@ class IssueDetailPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('issues').doc(issueId).snapshots(),
+        stream: FirebaseFirestore.instance.collection('issues').doc(widget.issueId).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -296,13 +360,13 @@ class IssueDetailPage extends StatelessWidget {
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
-          final issueTitle = data['issueTitle'] ?? 'N/A';
-          final issueType = data['issueType'] ?? 'N/A';
-          final description = data['description'] ?? 'No description provided.';
-          final status = data['status'] ?? 'Pending';
-          final schoolName = data['schoolName'] ?? 'N/A';
-          final schoolId = data['schoolId'] ?? 'N/A';
-          final addedByNic = data['addedByNic'] ?? ''; 
+          final String? issueTitle = data['issueTitle']; 
+          final String issueType = data['issueType'] ?? 'N/A';
+          final String description = data['description'] ?? 'No description provided.';
+          final String status = data['status'] ?? 'Pending';
+          final String schoolName = data['schoolName'] ?? 'N/A';
+          final String schoolId = data['schoolId'] ?? 'N/A';
+          final String? addedByNic = data['addedByNic']; 
 
           final List<String> imageUrls =
               (data['imageUrls'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
@@ -316,7 +380,7 @@ class IssueDetailPage extends StatelessWidget {
 
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900), // Keeps details readable on wide screens
+              constraints: const BoxConstraints(maxWidth: 900), 
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -339,7 +403,7 @@ class IssueDetailPage extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    issueTitle,
+                                    issueTitle ?? 'N/A',
                                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
                                   ),
                                   const SizedBox(height: 12),
@@ -368,9 +432,9 @@ class IssueDetailPage extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // ---------------- Reporter Info Section ----------------
-                    if (addedByNic.isNotEmpty)
+                    if (addedByNic != null && addedByNic.isNotEmpty)
                       FutureBuilder<QuerySnapshot>(
-                        future: _fetchReporterDetails(addedByNic),
+                        future: _fetchUserDetails(addedByNic),
                         builder: (context, userSnapshot) {
                           if (userSnapshot.connectionState == ConnectionState.waiting) {
                             return const Center(child: CircularProgressIndicator());
@@ -384,7 +448,7 @@ class IssueDetailPage extends StatelessWidget {
                           final reporterRole = userData['userType'] ?? 'Staff';
 
                           return InkWell(
-                            onTap: () => _showUserPopup(context, userData),
+                            onTap: () => _showUserPopup(userData),
                             borderRadius: BorderRadius.circular(12),
                             child: Card(
                               elevation: 0,
@@ -432,14 +496,13 @@ class IssueDetailPage extends StatelessWidget {
 
                     // ---------------- Description ----------------
                     _buildDetailSection(
-                      context,
                       title: 'Description',
                       value: description,
                       icon: Icons.notes,
                       isLongText: true,
                     ),
 
-                    // ---------------- Photos Section (Web/Responsive) ----------------
+                    // ---------------- Photos Section ----------------
                     if (imageUrls.isNotEmpty) ...[
                       const Text(
                         "Attached Photos",
@@ -494,7 +557,7 @@ class IssueDetailPage extends StatelessWidget {
                       const SizedBox(height: 24),
                     ],
 
-                    // ---------------- Details Grid (Responsive Side-by-Side) ----------------
+                    // ---------------- Details Grid ----------------
                     const Text(
                       "Details",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
@@ -502,28 +565,49 @@ class IssueDetailPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     LayoutBuilder(
                       builder: (context, constraints) {
-                        // On wide screens, put cards side-by-side. On narrow screens, stack them.
                         final cardWidth = constraints.maxWidth > 600 ? (constraints.maxWidth / 2) - 8 : constraints.maxWidth;
                         return Wrap(
                           spacing: 16,
                           runSpacing: 0,
                           children: [
-                            SizedBox(width: cardWidth, child: _buildDetailSection(context, title: 'Issue Type', value: issueType, icon: Icons.category_outlined)),
-                            SizedBox(width: cardWidth, child: _buildDetailSection(context, title: 'Reported On', value: dateReported, icon: Icons.access_time_outlined)),
-                            SizedBox(width: cardWidth, child: _buildDetailSection(context, title: 'School Name', value: schoolName, icon: Icons.school_outlined)),
-                            SizedBox(width: cardWidth, child: _buildDetailSection(context, title: 'School ID', value: schoolId, icon: Icons.vpn_key_outlined)),
+                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Issue Type', value: issueType, icon: Icons.category_outlined)),
+                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Reported On', value: dateReported, icon: Icons.access_time_outlined)),
+                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'School Name', value: schoolName, icon: Icons.school_outlined)),
+                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'School ID', value: schoolId, icon: Icons.vpn_key_outlined)),
                           ],
                         );
                       },
                     ),
+                    const SizedBox(height: 30),
 
+                    // ---------------- REVIEWS SECTION ----------------
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Engineer Reviews",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () => _showAddReviewDialog(addedByNic, issueTitle),
+                          icon: const Icon(Icons.add_comment, size: 18),
+                          label: const Text("Add Review"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal.shade600,
+                            foregroundColor: Colors.white,
+                          ),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildReviewsList(), 
                     const SizedBox(height: 30),
 
                     // ---------------- Update Status Button ----------------
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => _showStatusChangeDialog(context, status),
+                        onPressed: () => _showStatusChangeDialog(status),
                         icon: const Icon(Icons.edit, size: 20),
                         label: const Text('Update Status', style: TextStyle(fontSize: 16)),
                         style: ElevatedButton.styleFrom(
@@ -545,9 +629,98 @@ class IssueDetailPage extends StatelessWidget {
     );
   }
 
+  // --- Helper: Build Reviews List ---
+  Widget _buildReviewsList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('issues')
+          .doc(widget.issueId)
+          .collection('reviews')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Text(
+            "No reviews added yet.",
+            style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+          );
+        }
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            var reviewData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+            String reviewerNic = reviewData['reviewerNic'] ?? 'Unknown';
+            String reviewText = reviewData['reviewText'] ?? '';
+            Timestamp? timestamp = reviewData['timestamp'] as Timestamp?;
+            String timeString = timestamp != null 
+                ? DateFormat('MMM dd, yyyy @ hh:mm a').format(timestamp.toDate()) 
+                : 'Just now';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.teal.shade200),
+              ),
+              color: Colors.teal.shade50,
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.person_pin, color: Colors.teal.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FutureBuilder<QuerySnapshot>(
+                            future: _fetchUserDetails(reviewerNic),
+                            builder: (context, userSnap) {
+                              if (userSnap.hasData && userSnap.data!.docs.isNotEmpty) {
+                                var usr = userSnap.data!.docs.first.data() as Map<String, dynamic>;
+                                return Text(
+                                  "${usr['name'] ?? 'Vihanga Manodhya'} (${usr['userType'] ?? 'Provincial Engineer'})",
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade900),
+                                );
+                              }
+                              // --- CHANGED FALLBACK TEXT HERE ---
+                              return Text(
+                                "Vihanga Manodhya (Provincial Engineer)", 
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade900)
+                              );
+                            }
+                          ),
+                        ),
+                        Text(
+                          timeString,
+                          style: TextStyle(fontSize: 12, color: Colors.teal.shade700),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    Text(
+                      reviewText,
+                      style: const TextStyle(fontSize: 15, color: Colors.black87),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // --- Helper: Detail Section Builder ---
-  Widget _buildDetailSection(
-    BuildContext context, {
+  Widget _buildDetailSection({
     required String title,
     required String value,
     required IconData icon,
@@ -593,8 +766,43 @@ class IssueDetailPage extends StatelessWidget {
     );
   }
 
+  // --- Helper: Add Review Dialog ---
+  void _showAddReviewDialog(String? principalNic, String? issueTitle) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add Review'),
+          content: TextField(
+            controller: _reviewController,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: 'Type your review or remarks here...',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _reviewController.clear();
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              onPressed: () => _submitReview(principalNic, issueTitle),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              child: const Text('Submit Review', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // --- Helper: Status Change Dialog ---
-  void _showStatusChangeDialog(BuildContext context, String currentStatus) {
+  void _showStatusChangeDialog(String currentStatus) {
     showDialog(
       context: context,
       builder: (context) {
@@ -604,9 +812,9 @@ class IssueDetailPage extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _statusOption(context, 'Pending', Colors.orange, currentStatus),
-              _statusOption(context, 'Processing', Colors.blue, currentStatus),
-              _statusOption(context, 'Processed', Colors.green, currentStatus),
+              _statusOption('Pending', Colors.orange, currentStatus),
+              _statusOption('Processing', Colors.blue, currentStatus),
+              _statusOption('Processed', Colors.green, currentStatus),
             ],
           ),
           actions: [
@@ -620,7 +828,7 @@ class IssueDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _statusOption(BuildContext context, String status, Color color, String currentStatus) {
+  Widget _statusOption(String status, Color color, String currentStatus) {
     bool isSelected = status == currentStatus;
     return Card(
       elevation: 0,
@@ -634,7 +842,7 @@ class IssueDetailPage extends StatelessWidget {
         title: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
         onTap: () {
           if (!isSelected) {
-            _updateStatus(context, status);
+            _updateStatus(status);
           } else {
             Navigator.pop(context);
           }
@@ -645,7 +853,7 @@ class IssueDetailPage extends StatelessWidget {
   }
 
   // --- Helper: User Details Popup ---
-  void _showUserPopup(BuildContext context, Map<String, dynamic> userData) {
+  void _showUserPopup(Map<String, dynamic> userData) {
     showDialog(
       context: context,
       builder: (context) {
