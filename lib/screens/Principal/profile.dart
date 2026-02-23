@@ -29,10 +29,8 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _profileImageUrl;
 
   List<Map<String, dynamic>> _availableSchools = [];
-  String? _selectedSchoolId;
 
   static const Color _primaryColor = Color(0xFF53BDFF);
-  static const Color _secondaryColor = Color(0xFF0077FF);
 
   // Controllers
   late TextEditingController _nameController;
@@ -40,13 +38,14 @@ class _ProfilePageState extends State<ProfilePage> {
   late TextEditingController _schoolNameController;
   late TextEditingController _schoolPhoneController;
   
-  // Captures the Autocomplete's internal controller
   TextEditingController? _autoCompleteController; 
 
   @override
   void initState() {
     super.initState();
+    // Initialize image from the passed userData
     _profileImageUrl = widget.userData['profile_image'];
+    
     _nameController = TextEditingController(text: widget.userData['name'] ?? '');
     _phoneController = TextEditingController(text: widget.userData['mobilePhone'] ?? widget.userData['phone'] ?? '');
     _schoolNameController = TextEditingController(text: widget.userData['schoolName'] ?? '');
@@ -108,7 +107,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- IMAGE UPLOAD (YOUR CUSTOM BACKEND LOGIC + WEB COMPATIBILITY) ---
+  // --- IMAGE UPLOAD LOGIC ---
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
@@ -118,46 +117,63 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isUploadingImage = true);
 
     try {
-      // Use your requested endpoint
       var request = http.MultipartRequest(
         'POST', 
         Uri.parse('https://buildcare.atigalle.x10.mx/index.php') 
       );
       
-      // Read as bytes (Works on Web, iOS, Android)
       final bytes = await pickedFile.readAsBytes();
       
       request.files.add(
         http.MultipartFile.fromBytes(
           'profile_image', 
           bytes,
-          filename: 'upload.jpg', // Forced filename as requested
+          filename: 'upload.jpg',
         ),
       );
       
-      // Optional: Pass userId if your index.php requires it to map to the correct user directory
       request.fields['userId'] = widget.userId; 
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
       
       if (response.statusCode == 200) {
-        Map<String, dynamic> jsonResponse;
-        try {
-          jsonResponse = jsonDecode(response.body);
-        } catch (e) {
-          throw Exception("Invalid JSON from server: ${response.body}");
-        }
+        Map<String, dynamic> jsonResponse = jsonDecode(response.body);
 
-        // Checking your custom 'status' flag
         if (jsonResponse['status'] == 'success') {
           String newImageUrl = jsonResponse['profileImageUrl'];
 
-          // Update Firestore
-          await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
+          // FIX: Batch update to save the image to the main doc AND any duplicates
+          WriteBatch batch = FirebaseFirestore.instance.batch();
+          
+          // 1. Update the main user document in the 'users' collection
+          DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
+          batch.set(userRef, {
             'profile_image': newImageUrl,
             'updatedAt': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
+
+          // 2. Update any other duplicate Principal records with the same NIC
+          String userNic = widget.userData['nic']?.toString() ?? "";
+          if (userNic.isNotEmpty) {
+            QuerySnapshot userQuery = await FirebaseFirestore.instance
+                .collection('users')
+                .where('nic', isEqualTo: userNic)
+                .where('userType', isEqualTo: 'Principal')
+                .get();
+
+            for (var doc in userQuery.docs) {
+              if (doc.id != widget.userId) { 
+                batch.set(doc.reference, {
+                  'profile_image': newImageUrl,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+              }
+            }
+          }
+
+          // Commit all changes to Firestore
+          await batch.commit();
 
           setState(() {
             _profileImageUrl = newImageUrl;
@@ -167,13 +183,13 @@ class _ProfilePageState extends State<ProfilePage> {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile Photo Updated!"), backgroundColor: Colors.green));
           }
         } else {
-           throw Exception(jsonResponse['message'] ?? "Unknown server error");
+           throw Exception(jsonResponse['message'] ?? "Server reported failure");
         }
       } else {
-        throw Exception('Server returned status code: ${response.statusCode}');
+        throw Exception('Server Error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint("Error uploading image: $e");
+      debugPrint("Image upload error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed: $e"), backgroundColor: Colors.red));
       }
@@ -182,12 +198,12 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // --- UPDATING DATA ---
+  // --- DATA UPDATE LOGIC ---
   Future<void> _updateProfileData() async {
     String typedSchoolName = (_autoCompleteController?.text ?? _schoolNameController.text).trim();
 
     if (_nameController.text.trim().isEmpty || typedSchoolName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name and School cannot be empty.")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Required fields are empty.")));
       return;
     }
 
@@ -199,56 +215,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
       WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      // 1. School Collection Update logic
-      DocumentReference schoolRef;
-      bool isNewSchool = true;
-      
-      for (var school in _availableSchools) {
-        if (school['schoolName'].toString().toLowerCase() == typedSchoolName.toLowerCase()) {
-          isNewSchool = false;
-          _selectedSchoolId = school['id'];
-          break;
-        }
-      }
-
-      if (isNewSchool) {
-        schoolRef = FirebaseFirestore.instance.collection('schools').doc();
-        batch.set(schoolRef, {
-          'addedAt': FieldValue.serverTimestamp(),
-          'addedByNic': userNic,
-          'schoolName': typedSchoolName,
-          'schoolPhone': typedSchoolPhone,
-          'isActive': false, 
-          'educationalZone': null,
-          'schoolAddress': null,
-          'schoolEmail': null,
-          'schoolType': null,
-          'numStudents': null,
-          'numTeachers': null,
-          'numNonAcademic': null,
-          'infrastructure': {
-            'communication': false,
-            'electricity': false,
-            'sanitation': false,
-            'waterSupply': false,
-          }
-        });
-      } else {
-        schoolRef = FirebaseFirestore.instance.collection('schools').doc(_selectedSchoolId);
-        batch.update(schoolRef, {'schoolPhone': typedSchoolPhone, 'schoolName': typedSchoolName});
-      }
-
-      // 2. EXPLICITLY UPDATE THE USER COLLECTION
+      // Update the main user document
       DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
       batch.update(userRef, {
         'name': _nameController.text.trim(),
         'mobilePhone': _phoneController.text.trim(),
         'schoolName': typedSchoolName,
         'officePhone': typedSchoolPhone,
+        'profile_image': _profileImageUrl, // Ensure latest URL is saved
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update other matching records if they exist
+      // Update any other duplicate Principal records with the same NIC
       QuerySnapshot userQuery = await FirebaseFirestore.instance
           .collection('users')
           .where('nic', isEqualTo: userNic)
@@ -262,6 +240,7 @@ class _ProfilePageState extends State<ProfilePage> {
             'mobilePhone': _phoneController.text.trim(),
             'schoolName': typedSchoolName,
             'officePhone': typedSchoolPhone,
+            'profile_image': _profileImageUrl,
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
@@ -271,33 +250,14 @@ class _ProfilePageState extends State<ProfilePage> {
       await _fetchLatestUserData();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Updated successfully!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile updated successfully!"), backgroundColor: Colors.green));
       }
     } catch (e) {
       debugPrint("Update error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isUpdatingData = false);
     }
-  }
-
-  // --- RESPONSIVE UI ---
-
-  Widget _buildLockedCard(String label, String value, IconData icon) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      color: Colors.grey[100],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.grey[600]),
-        title: Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        subtitle: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-        trailing: const Icon(Icons.lock_outline, size: 16, color: Colors.grey),
-      ),
-    );
   }
 
   @override
@@ -305,123 +265,84 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Profile Settings", style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text("Edit Profile", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
-        elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+        elevation: 0,
       ),
       body: _isLoadingData 
         ? const Center(child: CircularProgressIndicator()) 
-        : SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                bool isLargeScreen = constraints.maxWidth > 800;
-
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: isLargeScreen ? 1000 : 600),
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isLargeScreen ? 40 : 24, 
-                        vertical: 24
+        : SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                // Responsive Profile Image Section
+                Center(
+                  child: Stack(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _primaryColor, width: 3),
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
+                        ),
+                        child: CircleAvatar(
+                          radius: 70,
+                          backgroundColor: Colors.grey[100],
+                          backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) 
+                              ? NetworkImage(_profileImageUrl!) 
+                              : null,
+                          child: (_profileImageUrl == null || _profileImageUrl!.isEmpty)
+                              ? const Icon(Icons.person, size: 70, color: Colors.grey)
+                              : null,
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          Stack(
-                            alignment: Alignment.bottomRight,
-                            children: [
-                              CircleAvatar(
-                                radius: 65,
-                                backgroundColor: Colors.grey[200],
-                                backgroundImage: _profileImageUrl != null ? NetworkImage(_profileImageUrl!) : null,
-                                child: _profileImageUrl == null 
-                                    ? const Icon(Icons.person, size: 60, color: Colors.grey) 
-                                    : null,
-                              ),
-                              if (_isUploadingImage)
-                                const Positioned.fill(
-                                  child: CircularProgressIndicator(color: _primaryColor, strokeWidth: 6),
-                                ),
-                              Positioned(
-                                right: 0,
-                                bottom: 0,
-                                child: InkWell(
-                                  onTap: _isUploadingImage ? null : _pickAndUploadImage,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: _primaryColor,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
-                                    ),
-                                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                                  ),
-                                ),
-                              ),
-                            ],
+                      if (_isUploadingImage)
+                        const Positioned.fill(child: CircularProgressIndicator(strokeWidth: 4)),
+                      Positioned(
+                        bottom: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: _isUploadingImage ? null : _pickAndUploadImage,
+                          child: const CircleAvatar(
+                            radius: 22,
+                            backgroundColor: _primaryColor,
+                            child: Icon(Icons.camera_alt, color: Colors.white, size: 20),
                           ),
-                          const SizedBox(height: 40),
-
-                          isLargeScreen 
-                            ? Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(child: _buildSystemInfoSection()),
-                                  const SizedBox(width: 48),
-                                  Expanded(child: _buildEditableSection()),
-                                ],
-                              )
-                            : Column(
-                                children: [
-                                  _buildEditableSection(),
-                                  const SizedBox(height: 30),
-                                  const Divider(height: 40),
-                                  _buildSystemInfoSection(),
-                                ],
-                              ),
-                          
-                          const SizedBox(height: 40),
-                          
-                          SizedBox(
-                            width: isLargeScreen ? 400 : double.infinity,
-                            height: 55,
-                            child: ElevatedButton(
-                              onPressed: _isUpdatingData ? null : _updateProfileData,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _primaryColor,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                elevation: 0,
-                              ),
-                              child: _isUpdatingData 
-                                  ? const CircularProgressIndicator(color: Colors.white) 
-                                  : const Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                );
-              }
+                ),
+                const SizedBox(height: 32),
+                
+                // Form Section
+                _buildEditableSection(),
+                const SizedBox(height: 24),
+                _buildSystemInfoSection(),
+                
+                const SizedBox(height: 40),
+                
+                // Action Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: _isUpdatingData ? null : _updateProfileData,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primaryColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      elevation: 0,
+                    ),
+                    child: _isUpdatingData 
+                        ? const CircularProgressIndicator(color: Colors.white) 
+                        : const Text("SAVE CHANGES", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  ),
+                ),
+              ],
             ),
           ),
-    );
-  }
-
-  Widget _buildSystemInfoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("System Records", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-        const SizedBox(height: 4),
-        const Text("These details cannot be changed.", style: TextStyle(fontSize: 13, color: Colors.grey)),
-        const SizedBox(height: 16),
-        _buildLockedCard("Email Address", widget.userData['email']?.toString() ?? 'N/A', Icons.email_outlined),
-        _buildLockedCard("Account Type", widget.userData['userType']?.toString() ?? 'N/A', Icons.admin_panel_settings_outlined),
-        _buildLockedCard("National Identity Card (NIC)", widget.userData['nic']?.toString() ?? 'N/A', Icons.badge_outlined),
-      ],
     );
   }
 
@@ -429,71 +350,87 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Editable Details", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
-        const SizedBox(height: 4),
-        const Text("Update your personal and school details.", style: TextStyle(fontSize: 13, color: Colors.grey)),
+        const Text("PERSONAL DETAILS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 1.1)),
         const SizedBox(height: 16),
         _buildTextField("Full Name", _nameController, Icons.person_outline),
-        _buildTextField("Personal Mobile", _phoneController, Icons.phone_android),
+        _buildTextField("Mobile Number", _phoneController, Icons.phone_android),
         
-        Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: Autocomplete<Map<String, dynamic>>(
-            initialValue: TextEditingValue(text: _schoolNameController.text),
-            optionsBuilder: (textValue) {
-              if (textValue.text.isEmpty) return const Iterable.empty();
-              return _availableSchools.where((s) => s['schoolName'].toString().toLowerCase().contains(textValue.text.toLowerCase()));
-            },
-            displayStringForOption: (option) => option['schoolName'],
-            onSelected: (selection) {
-              _schoolPhoneController.text = selection['schoolPhone'] ?? '';
-              _schoolNameController.text = selection['schoolName'];
-              if (_autoCompleteController != null) {
-                _autoCompleteController!.text = selection['schoolName'];
-              }
-            },
-            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-              if (_autoCompleteController != controller) {
-                _autoCompleteController = controller;
-              }
-
-              return TextFormField(
-                controller: controller,
-                focusNode: focusNode,
-                decoration: InputDecoration(
-                  labelText: "School Name",
-                  hintText: "Search or type a new school",
-                  prefixIcon: const Icon(Icons.school_outlined, color: _primaryColor),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _primaryColor, width: 2)),
-                ),
-              );
-            },
-          ),
+        const SizedBox(height: 12),
+        const Text("SCHOOL DETAILS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 1.1)),
+        const SizedBox(height: 16),
+        
+        // Autocomplete
+        Autocomplete<Map<String, dynamic>>(
+          initialValue: TextEditingValue(text: _schoolNameController.text),
+          optionsBuilder: (textValue) => _availableSchools.where((s) => s['schoolName'].toString().toLowerCase().contains(textValue.text.toLowerCase())),
+          displayStringForOption: (option) => option['schoolName'],
+          onSelected: (selection) {
+            _schoolPhoneController.text = selection['schoolPhone'] ?? '';
+            _schoolNameController.text = selection['schoolName'];
+          },
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            _autoCompleteController = controller;
+            return _buildTextField("School Name", controller, Icons.school_outlined, focusNode: focusNode);
+          },
         ),
-
-        _buildTextField("School Phone (Office)", _schoolPhoneController, Icons.phone),
+        _buildTextField("Office Phone", _schoolPhoneController, Icons.business_outlined),
       ],
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon) {
+  Widget _buildSystemInfoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("SYSTEM RECORDS (LOCKED)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 1.1)),
+        const SizedBox(height: 12),
+        _buildLockedCard("Email", widget.userData['email'] ?? 'N/A', Icons.alternate_email),
+        _buildLockedCard("NIC Number", widget.userData['nic'] ?? 'N/A', Icons.badge_outlined),
+      ],
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {FocusNode? focusNode}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: controller,
+        focusNode: focusNode,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: _primaryColor),
           filled: true,
           fillColor: Colors.grey[50],
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _primaryColor, width: 2)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLockedCard(String label, String value, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey, size: 20),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+              Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+            ],
+          ),
+          const Spacer(),
+          const Icon(Icons.lock_outline, size: 16, color: Colors.grey),
+        ],
       ),
     );
   }

@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart';
 
 class AddBuildingIssuesPage extends StatefulWidget {
   final String userNic;
@@ -33,21 +32,19 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   String? _selectedDamageType;
   DateTime? _selectedDate;
 
-  // Logic flags
   bool get _isEditMode => widget.issueId != null;
   bool _isLoading = false;
   bool _isPageLoading = false;
 
-  // Image Management
   final List<XFile> _selectedImages = [];
   List<String> _existingImageUrls = [];
   final ImagePicker _picker = ImagePicker();
 
   // Color Palette
   static const Color _primaryColor = Color(0xFF53BDFF);
-  static const Color _textFieldBackgroundColor = Color(0xFFF3F3F3);
+  static const Color _bgColor = Color(0xFFF8FAFC);
+  static const Color _cardBg = Colors.white;
 
-  // Dropdown Options
   final List<String> _buildingTypes = [
     'Academic Classroom', 'Office', 'Science Lab', 'Technology Lab', 'Library',
     'Hostel', 'Computer Lab', 'Dahampasala Lab', 'Store Room', 'Auditorium',
@@ -68,22 +65,16 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   Future<void> _initializeData() async {
     setState(() => _isPageLoading = true);
-
     if (_isEditMode) {
       await _loadIssueData();
     } else {
       await _fetchSchoolFromUserNic();
     }
-
-    if (mounted) {
-      setState(() => _isPageLoading = false);
-    }
+    if (mounted) setState(() => _isPageLoading = false);
   }
 
-  // --- Fetch School based on User NIC ---
   Future<void> _fetchSchoolFromUserNic() async {
     try {
-      // Find the user document using the NIC
       QuerySnapshot userQuery = await FirebaseFirestore.instance
           .collection('users')
           .where('nic', isEqualTo: widget.userNic)
@@ -92,21 +83,13 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
       if (userQuery.docs.isNotEmpty) {
         var userData = userQuery.docs.first.data() as Map<String, dynamic>;
-        // Extract the school name associated with this user
-        String? linkedSchool = userData['schoolName'];
-        
-        if (linkedSchool != null && linkedSchool.isNotEmpty) {
-          _schoolNameController.text = linkedSchool;
-        } else {
-          _schoolNameController.text = 'School Not Found in Profile';
-        }
+        _schoolNameController.text = userData['schoolName'] ?? 'Not Found';
       }
     } catch (e) {
-      debugPrint("Error fetching user school details: $e");
+      debugPrint("Error: $e");
     }
   }
 
-  // --- Fetch existing data if in Edit Mode ---
   Future<void> _loadIssueData() async {
     try {
       final doc = await FirebaseFirestore.instance.collection('issues').doc(widget.issueId!).get();
@@ -123,19 +106,10 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         _existingImageUrls = List<String>.from(data['imageUrls'] ?? []);
       }
     } catch (e) {
-      debugPrint('Error loading data: $e');
+      debugPrint('Error: $e');
     }
   }
 
-  @override
-  void dispose() {
-    _schoolNameController.dispose();
-    _descriptionController.dispose();
-    _dateController.dispose();
-    super.dispose();
-  }
-
-  // --- Image Handling Logic ---
   Future<void> _pickImages() async {
     final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 70);
     if (pickedFiles.isNotEmpty) {
@@ -143,10 +117,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  void _removeNewImage(int index) => setState(() => _selectedImages.removeAt(index));
-  void _removeExistingImage(int index) => setState(() => _existingImageUrls.removeAt(index));
-
-  // --- Upload images to External PHP Hosting ---
   Future<List<String>> _uploadImages() async {
     if (_selectedImages.isEmpty) return [];
     var uri = Uri.parse("https://buildcare.atigalle.x10.mx/index.php");
@@ -169,17 +139,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  // --- Form Submission Logic ---
   Future<void> _handleSubmit() async {
-    if (_isEditMode) {
-      await _updateIssue();
-    } else {
-      await _addNewIssue();
-    }
-  }
-
-  // Create New Record
-  Future<void> _addNewIssue() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a date.')));
@@ -188,6 +148,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     setState(() => _isLoading = true);
     try {
       List<String> uploadedImageUrls = await _uploadImages();
+      List<String> finalUrls = [..._existingImageUrls, ...uploadedImageUrls];
+      
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding,
@@ -195,28 +157,22 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         'issueTitle': '$_selectedBuilding - $_selectedDamageType',
         'description': _descriptionController.text.trim(),
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
-        'imageUrls': uploadedImageUrls,
-        'status': 'Pending',
+        'imageUrls': finalUrls,
+        'status': _isEditMode ? null : 'Pending',
         'addedByNic': widget.userNic,
-        'timestamp': FieldValue.serverTimestamp(),
+        if (!_isEditMode) 'timestamp': FieldValue.serverTimestamp(),
+        if (_isEditMode) 'lastUpdated': FieldValue.serverTimestamp(),
       };
 
-      DocumentReference issueRef = await FirebaseFirestore.instance.collection('issues').add(issueData);
-
-      // Trigger Cloud Notification for Admins
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'title': 'New Building Issue Reported',
-        'subtitle': '${_schoolNameController.text.trim()}: $_selectedDamageType',
-        'timestamp': FieldValue.serverTimestamp(),
-        'isRead': false,
-        'type': 'issue',
-        'issueId': issueRef.id,
-        'addedByNic': widget.userNic,
-      });
+      if (_isEditMode) {
+        await FirebaseFirestore.instance.collection('issues').doc(widget.issueId!).update(issueData);
+      } else {
+        await FirebaseFirestore.instance.collection('issues').add(issueData);
+      }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reported Successfully!'), backgroundColor: Colors.green));
-        Navigator.of(context).pop(true); // Return true to trigger refresh
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Success!'), backgroundColor: Colors.green));
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -225,38 +181,220 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  // Update Existing Record
-  Future<void> _updateIssue() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
-    try {
-      List<String> newlyUploadedImageUrls = await _uploadImages();
-      List<String> finalImageUrls = [..._existingImageUrls, ...newlyUploadedImageUrls];
-
-      final issueData = {
-        'schoolName': _schoolNameController.text.trim(),
-        'buildingName': _selectedBuilding,
-        'damageType': _selectedDamageType,
-        'issueTitle': '$_selectedBuilding - $_selectedDamageType',
-        'description': _descriptionController.text.trim(),
-        'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
-        'imageUrls': finalImageUrls,
-        'lastUpdatedTimestamp': FieldValue.serverTimestamp(),
-      };
-
-      await FirebaseFirestore.instance.collection('issues').doc(widget.issueId!).update(issueData);
-      if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
-      debugPrint('Update Error: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bgColor,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)),
+        title: Text(_isEditMode ? "Update Issue" : "Report Building Issue", 
+          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
+      ),
+      body: _isPageLoading 
+        ? const Center(child: CircularProgressIndicator()) 
+        : LayoutBuilder(
+            builder: (context, constraints) {
+              bool isWide = constraints.maxWidth > 800;
+              return SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isWide ? constraints.maxWidth * 0.1 : 16,
+                  vertical: 24,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      _buildFormCard(
+                        title: "General Information",
+                        children: [
+                          _buildResponsiveRow(
+                            isWide: isWide,
+                            child1: _buildTextField("School Name", _schoolNameController, readOnly: true, icon: Icons.school),
+                            child2: _buildDateField("Occurance Date", _dateController, () => _selectDate(context)),
+                          ),
+                          _buildResponsiveRow(
+                            isWide: isWide,
+                            child1: _buildDropdown("Building Name", _buildingTypes, _selectedBuilding, (v) => setState(() => _selectedBuilding = v)),
+                            child2: _buildDropdown("Damage Category", _damageTypes, _selectedDamageType, (v) => setState(() => _selectedDamageType = v)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _buildFormCard(
+                        title: "Issue Details & Evidence",
+                        children: [
+                          _buildTextField("Detailed Description", _descriptionController, maxLines: 4, icon: Icons.description),
+                          const SizedBox(height: 16),
+                          _buildImageSection(constraints.maxWidth),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      _buildSubmitButton(isWide),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+    );
   }
 
-  Future<void> _selectDate() async {
+  Widget _buildFormCard({required String title, required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _primaryColor)),
+          const Divider(height: 32),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponsiveRow({required bool isWide, required Widget child1, required Widget child2}) {
+    if (!isWide) return Column(children: [child1, child2]);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: child1),
+        const SizedBox(width: 20),
+        Expanded(child: child2),
+      ],
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller, {bool readOnly = false, int maxLines = 1, IconData? icon}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: TextFormField(
+        controller: controller,
+        readOnly: readOnly,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, size: 20, color: _primaryColor),
+          filled: true,
+          fillColor: readOnly ? Colors.grey[50] : Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
+        ),
+        validator: (v) => v!.isEmpty ? 'Required' : null,
+      ),
+    );
+  }
+
+  Widget _buildDropdown(String label, List<String> items, String? val, Function(String?) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: DropdownButtonFormField<String>(
+        value: val,
+        items: items.map((i) => DropdownMenuItem(value: i, child: Text(i, style: const TextStyle(fontSize: 14)))).toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: const Icon(Icons.apartment, size: 20, color: _primaryColor),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        validator: (v) => v == null ? 'Required' : null,
+      ),
+    );
+  }
+
+  Widget _buildImageSection(double width) {
+    int crossAxisCount = width > 1000 ? 6 : (width > 600 ? 4 : 3);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Evidence Photos", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        const SizedBox(height: 12),
+        if (_existingImageUrls.isNotEmpty || _selectedImages.isNotEmpty)
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount, crossAxisSpacing: 10, mainAxisSpacing: 10),
+            itemCount: _existingImageUrls.length + _selectedImages.length,
+            itemBuilder: (context, index) {
+              if (index < _existingImageUrls.length) {
+                return _buildPreviewItem(Image.network(_existingImageUrls[index], fit: BoxFit.cover), () => setState(() => _existingImageUrls.removeAt(index)));
+              }
+              int newIdx = index - _existingImageUrls.length;
+              return _buildPreviewItem(
+                FutureBuilder<Uint8List>(
+                  future: _selectedImages[newIdx].readAsBytes(),
+                  builder: (context, snap) => snap.hasData ? Image.memory(snap.data!, fit: BoxFit.cover) : const Center(child: CircularProgressIndicator()),
+                ),
+                () => setState(() => _selectedImages.removeAt(newIdx)),
+              );
+            },
+          ),
+        const SizedBox(height: 12),
+        InkWell(
+          onTap: _pickImages,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 30),
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _primaryColor.withOpacity(0.2), style: BorderStyle.solid),
+            ),
+            child: const Column(
+              children: [
+                Icon(Icons.add_a_photo, color: _primaryColor, size: 32),
+                SizedBox(height: 8),
+                Text("Add Damage Photos", style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreviewItem(Widget child, VoidCallback onRemove) {
+    return Stack(
+      children: [
+        Positioned.fill(child: ClipRRect(borderRadius: BorderRadius.circular(8), child: child)),
+        Positioned(top: 4, right: 4, child: GestureDetector(onTap: onRemove, child: const CircleAvatar(radius: 12, backgroundColor: Colors.red, child: Icon(Icons.close, size: 14, color: Colors.white)))),
+      ],
+    );
+  }
+
+  Widget _buildSubmitButton(bool isWide) {
+    return SizedBox(
+      width: isWide ? 300 : double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _handleSubmit,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primaryColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+        ),
+        child: _isLoading 
+          ? const CircularProgressIndicator(color: Colors.white) 
+          : Text(_isEditMode ? "UPDATE REPORT" : "SUBMIT REPORT", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+      ),
+    );
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
-      context: context, initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2000), lastDate: DateTime.now(),
+      context: context, 
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020), 
+      lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
@@ -266,168 +404,20 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)),
-        title: Text(_isEditMode ? "Edit Building Issue" : "Add School Building Issues", 
-            style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 18)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
-            child: _isLoading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : OutlinedButton(
-              onPressed: _handleSubmit,
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: _primaryColor)),
-              child: Text(_isEditMode ? "Update" : "Save", style: const TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ],
+  Widget _buildDateField(String label, TextEditingController controller, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: TextFormField(
+        controller: controller,
+        readOnly: true,
+        onTap: onTap,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: const Icon(Icons.calendar_today, size: 20, color: _primaryColor),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        validator: (v) => v!.isEmpty ? 'Required' : null,
       ),
-      body: SafeArea(
-        child: _isPageLoading ? const Center(child: CircularProgressIndicator()) : SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTextField("School Name", "School Name", _schoolNameController, readOnly: true), // Made Read-Only
-                _buildDropdown("Select Damage Building", "Select Type of Damage Building", _buildingTypes, _selectedBuilding, (val) => setState(() => _selectedBuilding = val)),
-                _buildDropdown("Type Of Damage", "Select Type of Damage", _damageTypes, _selectedDamageType, (val) => setState(() => _selectedDamageType = val)),
-                _buildDescriptionField("Description of Issue", "Describe the School building Issue", _descriptionController),
-                _buildUploadImagesSection(),
-                _buildDateField("Date Of Damage Occurance", "Enter Date Of Damage Occurance", _dateController, _selectDate),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- Helper Widgets to keep UI clean ---
-
-  Widget _buildTextField(String label, String hint, TextEditingController controller, {bool readOnly = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          readOnly: readOnly,
-          decoration: InputDecoration(
-            hintText: hint, 
-            filled: true, 
-            fillColor: readOnly ? Colors.grey[300] : _textFieldBackgroundColor, // Visual cue that it's read-only
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), 
-            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12)
-          ),
-          validator: (v) => v!.isEmpty ? 'Required' : null,
-        ),
-      ]),
-    );
-  }
-
-  Widget _buildDropdown(String label, String hint, List<String> items, String? val, Function(String?) onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: val, items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
-          onChanged: onChanged, decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14)),
-          validator: (v) => v == null ? 'Required' : null,
-        ),
-      ]),
-    );
-  }
-
-  Widget _buildDescriptionField(String label, String hint, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-        const SizedBox(height: 8),
-        TextFormField(controller: controller, maxLines: 4, decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), contentPadding: const EdgeInsets.all(12))),
-      ]),
-    );
-  }
-
-  Widget _buildUploadImagesSection() {
-    bool hasImages = _existingImageUrls.isNotEmpty || _selectedImages.isNotEmpty;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Upload Images (JPG/PNG)', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-        const SizedBox(height: 8),
-        if (hasImages)
-          SizedBox(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _existingImageUrls.length + _selectedImages.length,
-              itemBuilder: (context, index) {
-                // Display images already stored in Cloud
-                if (index < _existingImageUrls.length) {
-                  return _buildImagePreview(onRemove: () => _removeExistingImage(index), child: Image.network(_existingImageUrls[index], width: 100, height: 100, fit: BoxFit.cover));
-                }
-                // Display images newly picked from Device
-                final newIdx = index - _existingImageUrls.length;
-                return _buildImagePreview(
-                  onRemove: () => _removeNewImage(newIdx),
-                  child: FutureBuilder<Uint8List>(
-                    future: _selectedImages[newIdx].readAsBytes(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) return Image.memory(snapshot.data!, width: 100, height: 100, fit: BoxFit.cover);
-                      return const SizedBox(width: 100, child: Center(child: CircularProgressIndicator()));
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: _pickImages,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(color: _textFieldBackgroundColor, borderRadius: BorderRadius.circular(10), border: Border.all(color: hasImages ? _primaryColor : Colors.transparent)),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.cloud_upload_outlined, color: Colors.grey), SizedBox(width: 10), Text('Tap to Upload Building Damage Photos', style: TextStyle(color: Colors.grey))]),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  Widget _buildImagePreview({required Widget child, required VoidCallback onRemove}) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10),
-      child: Stack(children: [
-        ClipRRect(borderRadius: BorderRadius.circular(8), child: child),
-        Positioned(right: 0, child: GestureDetector(onTap: onRemove, child: Container(decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle), child: const Icon(Icons.close, size: 18, color: Colors.white)))),
-      ]),
-    );
-  }
-
-  Widget _buildDateField(String label, String hint, TextEditingController controller, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller, 
-          readOnly: true, 
-          onTap: onTap, 
-          decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none), suffixIcon: const Icon(Icons.calendar_today_outlined, color: Colors.grey), contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12)),
-          validator: (v) => v!.isEmpty ? 'Required' : null,
-        ),
-      ]),
     );
   }
 }
