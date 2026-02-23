@@ -72,7 +72,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
         title: const Text(
-          'My Issue Reviews',
+          'Notifications',
           style: TextStyle(color: kTextColor, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
@@ -102,56 +102,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
               itemBuilder: (context, index) {
                 var data = reviews[index];
                 
-                String reviewText = data['reviewText'] ?? 'No text provided';
-                String issueTitle = data['issueTitle'] ?? '';
-                
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                  ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: kPrimaryBlue.withOpacity(0.1),
-                      child: const Icon(Icons.rate_review_rounded, color: kPrimaryBlue),
-                    ),
-                    title: Text(
-                      'Re: $issueTitle', // Shows the title of the issue being reviewed
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: kTextColor),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          reviewText,
-                          style: const TextStyle(fontSize: 14, color: kSubTextColor),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _formatTimestamp(data['timestamp']),
-                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                    onTap: () {
-                      // Navigate directly to the Issue Details Screen using the attached parent data
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => IssueDetailScreen(
-                            issueData: data['parentIssueData'],
-                            issueId: data['issueId'],
-                            userNic: widget.loggedNic,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                // Use the new optimized tile!
+                return ReviewNotificationTile(
+                  reviewData: data,
+                  loggedNic: widget.loggedNic,
                 );
               },
             ),
@@ -161,27 +115,183 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  String _formatTimestamp(dynamic timestamp) {
-    if (timestamp == null) return 'Just now'; 
-    if (timestamp is Timestamp) {
-      DateTime date = timestamp.toDate();
-      return DateFormat.yMMMd().add_jm().format(date);
-    }
-    return '';
-  }
-
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.rate_review_outlined, size: 80, color: Colors.grey[300]),
+          Icon(Icons.notifications_none_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           const Text(
-            'No reviews on your issues yet',
+            'No new notifications',
             style: TextStyle(fontSize: 18, color: Colors.grey),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// --- OPTIMIZED FACEBOOK-STYLE NOTIFICATION TILE ---
+class ReviewNotificationTile extends StatefulWidget {
+  final Map<String, dynamic> reviewData;
+  final String loggedNic;
+
+  const ReviewNotificationTile({
+    Key? key,
+    required this.reviewData,
+    required this.loggedNic,
+  }) : super(key: key);
+
+  @override
+  State<ReviewNotificationTile> createState() => _ReviewNotificationTileState();
+}
+
+class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
+  // Global cache to prevent lag when scrolling
+  static final Map<String, Map<String, dynamic>> _userCache = {};
+  
+  String reviewerName = "Someone";
+  String? profileImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    String reviewerUid = widget.reviewData['reviewerNic'] ?? '';
+    if (reviewerUid.isEmpty) return;
+
+    // Load from cache instantly if we already downloaded this user's data
+    if (_userCache.containsKey(reviewerUid)) {
+      _applyUserData(_userCache[reviewerUid]!);
+      return;
+    }
+
+    // Otherwise, fetch from Firebase
+    try {
+      var doc = await FirebaseFirestore.instance.collection('users').doc(reviewerUid).get();
+      if (doc.exists && doc.data() != null) {
+        _userCache[reviewerUid] = doc.data() as Map<String, dynamic>;
+        if (mounted) _applyUserData(_userCache[reviewerUid]!);
+      }
+    } catch (e) {
+      debugPrint("Error fetching user for notification: $e");
+    }
+  }
+
+  void _applyUserData(Map<String, dynamic> data) {
+    setState(() {
+      reviewerName = data['name'] ?? 'Someone';
+      profileImage = data['profile_image'];
+    });
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'Just now'; 
+    if (timestamp is Timestamp) {
+      DateTime date = timestamp.toDate();
+      // Returns a clean format like "Feb 23, 1:26 PM"
+      return DateFormat.yMMMd().add_jm().format(date);
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String reviewText = widget.reviewData['reviewText'] ?? 'No text provided';
+    String issueTitle = widget.reviewData['issueTitle'] ?? 'an issue';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            // Navigate directly to the Issue Details Screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => IssueDetailScreen(
+                  issueData: widget.reviewData['parentIssueData'],
+                  issueId: widget.reviewData['issueId'],
+                  userNic: widget.loggedNic,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // User Profile Image (or default icon)
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.blue.shade100,
+                  backgroundImage: (profileImage != null && profileImage!.isNotEmpty)
+                      ? NetworkImage(profileImage!)
+                      : null,
+                  child: (profileImage == null || profileImage!.isEmpty)
+                      ? Icon(Icons.person, size: 28, color: Colors.blue.shade800)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                
+                // Notification Content
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Facebook-style RichText (Bold name, normal text, bold issue)
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 15, color: Color(0xFF333333)),
+                          children: [
+                            TextSpan(
+                              text: "$reviewerName ",
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const TextSpan(text: "reviewed your issue: "),
+                            TextSpan(
+                              text: issueTitle,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      
+                      // The actual review preview
+                      Text(
+                        '"$reviewText"',
+                        style: TextStyle(
+                          fontSize: 14, 
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      
+                      // Timestamp
+                      Text(
+                        _formatTimestamp(widget.reviewData['timestamp']),
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade400, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
