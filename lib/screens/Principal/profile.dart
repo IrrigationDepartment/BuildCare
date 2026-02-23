@@ -39,6 +39,9 @@ class _ProfilePageState extends State<ProfilePage> {
   late TextEditingController _phoneController;
   late TextEditingController _schoolNameController;
   late TextEditingController _schoolPhoneController;
+  
+  // Captures the Autocomplete's internal controller
+  TextEditingController? _autoCompleteController; 
 
   @override
   void initState() {
@@ -64,6 +67,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _phoneController.dispose();
     _schoolNameController.dispose();
     _schoolPhoneController.dispose();
+    _autoCompleteController?.dispose();
     super.dispose();
   }
 
@@ -82,7 +86,7 @@ class _ProfilePageState extends State<ProfilePage> {
         }).toList();
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error fetching schools: $e");
     }
   }
 
@@ -100,29 +104,105 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error fetching user data: $e");
     }
   }
 
-  // --- UPDATING ---
+  // --- IMAGE UPLOAD (YOUR CUSTOM BACKEND LOGIC + WEB COMPATIBILITY) ---
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    
+    if (pickedFile == null) return;
+
+    setState(() => _isUploadingImage = true);
+
+    try {
+      // Use your requested endpoint
+      var request = http.MultipartRequest(
+        'POST', 
+        Uri.parse('https://buildcare.atigalle.x10.mx/index.php') 
+      );
+      
+      // Read as bytes (Works on Web, iOS, Android)
+      final bytes = await pickedFile.readAsBytes();
+      
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'profile_image', 
+          bytes,
+          filename: 'upload.jpg', // Forced filename as requested
+        ),
+      );
+      
+      // Optional: Pass userId if your index.php requires it to map to the correct user directory
+      request.fields['userId'] = widget.userId; 
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        Map<String, dynamic> jsonResponse;
+        try {
+          jsonResponse = jsonDecode(response.body);
+        } catch (e) {
+          throw Exception("Invalid JSON from server: ${response.body}");
+        }
+
+        // Checking your custom 'status' flag
+        if (jsonResponse['status'] == 'success') {
+          String newImageUrl = jsonResponse['profileImageUrl'];
+
+          // Update Firestore
+          await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
+            'profile_image': newImageUrl,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          setState(() {
+            _profileImageUrl = newImageUrl;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile Photo Updated!"), backgroundColor: Colors.green));
+          }
+        } else {
+           throw Exception(jsonResponse['message'] ?? "Unknown server error");
+        }
+      } else {
+        throw Exception('Server returned status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint("Error uploading image: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed: $e"), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
+
+  // --- UPDATING DATA ---
   Future<void> _updateProfileData() async {
-    if (_nameController.text.trim().isEmpty || _schoolNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fields cannot be empty.")));
+    String typedSchoolName = (_autoCompleteController?.text ?? _schoolNameController.text).trim();
+
+    if (_nameController.text.trim().isEmpty || typedSchoolName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Name and School cannot be empty.")));
       return;
     }
 
     setState(() => _isUpdatingData = true);
 
     try {
-      String typedSchoolName = _schoolNameController.text.trim();
       String typedSchoolPhone = _schoolPhoneController.text.trim();
-      String userNic = widget.userData['nic'] ?? "";
+      String userNic = widget.userData['nic']?.toString() ?? "";
 
       WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      // 1. School Update
+      // 1. School Collection Update logic
       DocumentReference schoolRef;
       bool isNewSchool = true;
+      
       for (var school in _availableSchools) {
         if (school['schoolName'].toString().toLowerCase() == typedSchoolName.toLowerCase()) {
           isNewSchool = false;
@@ -138,28 +218,56 @@ class _ProfilePageState extends State<ProfilePage> {
           'addedByNic': userNic,
           'schoolName': typedSchoolName,
           'schoolPhone': typedSchoolPhone,
-          'isActive': true,
+          'isActive': false, 
+          'educationalZone': null,
+          'schoolAddress': null,
+          'schoolEmail': null,
+          'schoolType': null,
+          'numStudents': null,
+          'numTeachers': null,
+          'numNonAcademic': null,
+          'infrastructure': {
+            'communication': false,
+            'electricity': false,
+            'sanitation': false,
+            'waterSupply': false,
+          }
         });
       } else {
         schoolRef = FirebaseFirestore.instance.collection('schools').doc(_selectedSchoolId);
         batch.update(schoolRef, {'schoolPhone': typedSchoolPhone, 'schoolName': typedSchoolName});
       }
 
-      // 2. User Profiles Sync
-      QuerySnapshot userQuery = await FirebaseFirestore.instance.collection('users').where('nic', isEqualTo: userNic).get();
+      // 2. EXPLICITLY UPDATE THE USER COLLECTION
+      DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
+      batch.update(userRef, {
+        'name': _nameController.text.trim(),
+        'mobilePhone': _phoneController.text.trim(),
+        'schoolName': typedSchoolName,
+        'officePhone': typedSchoolPhone,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update other matching records if they exist
+      QuerySnapshot userQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('nic', isEqualTo: userNic)
+          .where('userType', isEqualTo: 'Principal')
+          .get();
+
       for (var doc in userQuery.docs) {
-        batch.update(doc.reference, {
-          'name': _nameController.text.trim(),
-          'mobilePhone': _phoneController.text.trim(),
-          'schoolName': typedSchoolName,
-          'officePhone': typedSchoolPhone,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        if (doc.id != widget.userId) { 
+          batch.update(doc.reference, {
+            'name': _nameController.text.trim(),
+            'mobilePhone': _phoneController.text.trim(),
+            'schoolName': typedSchoolName,
+            'officePhone': typedSchoolPhone,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
       }
 
       await batch.commit();
-
-      // FIX: Force Re-fetch to show new data immediately
       await _fetchLatestUserData();
 
       if (mounted) {
@@ -167,6 +275,9 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       debugPrint("Update error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      }
     } finally {
       if (mounted) setState(() => _isUpdatingData = false);
     }
@@ -177,6 +288,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildLockedCard(String label, String value, IconData icon) {
     return Card(
       elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
       color: Colors.grey[100],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
@@ -190,65 +302,109 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine screen width for responsiveness
-    double screenWidth = MediaQuery.of(context).size.width;
-    bool isLargeScreen = screenWidth > 800;
-
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("Profile"), centerTitle: true, elevation: 0, backgroundColor: Colors.white, foregroundColor: Colors.black),
+      appBar: AppBar(
+        title: const Text("Profile Settings", style: TextStyle(fontWeight: FontWeight.w600)),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
       body: _isLoadingData 
         ? const Center(child: CircularProgressIndicator()) 
-        : Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: isLargeScreen ? 800 : double.infinity),
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: isLargeScreen ? 40 : 20, vertical: 20),
-                child: Column(
-                  children: [
-                    // Profile Photo
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundImage: _profileImageUrl != null ? NetworkImage(_profileImageUrl!) : null,
-                      child: _profileImageUrl == null ? const Icon(Icons.person, size: 50) : null,
-                    ),
-                    const SizedBox(height: 30),
+        : SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                bool isLargeScreen = constraints.maxWidth > 800;
 
-                    // Layout based on screen size
-                    isLargeScreen 
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _buildSystemInfoSection()),
-                            const SizedBox(width: 40),
-                            Expanded(child: _buildEditableSection()),
-                          ],
-                        )
-                      : Column(
-                          children: [
-                            _buildSystemInfoSection(),
-                            const Divider(height: 40),
-                            _buildEditableSection(),
-                          ],
-                        ),
-                    
-                    const SizedBox(height: 40),
-                    // Large Save Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: _isUpdatingData ? null : _updateProfileData,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))
-                        ),
-                        child: _isUpdatingData ? const CircularProgressIndicator(color: Colors.white) : const Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 18)),
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isLargeScreen ? 1000 : 600),
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isLargeScreen ? 40 : 24, 
+                        vertical: 24
+                      ),
+                      child: Column(
+                        children: [
+                          Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              CircleAvatar(
+                                radius: 65,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage: _profileImageUrl != null ? NetworkImage(_profileImageUrl!) : null,
+                                child: _profileImageUrl == null 
+                                    ? const Icon(Icons.person, size: 60, color: Colors.grey) 
+                                    : null,
+                              ),
+                              if (_isUploadingImage)
+                                const Positioned.fill(
+                                  child: CircularProgressIndicator(color: _primaryColor, strokeWidth: 6),
+                                ),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: InkWell(
+                                  onTap: _isUploadingImage ? null : _pickAndUploadImage,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: _primaryColor,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                    ),
+                                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+
+                          isLargeScreen 
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: _buildSystemInfoSection()),
+                                  const SizedBox(width: 48),
+                                  Expanded(child: _buildEditableSection()),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  _buildEditableSection(),
+                                  const SizedBox(height: 30),
+                                  const Divider(height: 40),
+                                  _buildSystemInfoSection(),
+                                ],
+                              ),
+                          
+                          const SizedBox(height: 40),
+                          
+                          SizedBox(
+                            width: isLargeScreen ? 400 : double.infinity,
+                            height: 55,
+                            child: ElevatedButton(
+                              onPressed: _isUpdatingData ? null : _updateProfileData,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryColor,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              child: _isUpdatingData 
+                                  ? const CircularProgressIndicator(color: Colors.white) 
+                                  : const Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              }
             ),
           ),
     );
@@ -258,11 +414,13 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("System Records (Locked)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-        const SizedBox(height: 10),
-        _buildLockedCard("Email", widget.userData['email'] ?? 'N/A', Icons.email),
-        _buildLockedCard("User Type", widget.userData['userType'] ?? 'N/A', Icons.person_pin),
-        _buildLockedCard("NIC", widget.userData['nic'] ?? 'N/A', Icons.badge),
+        const Text("System Records", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+        const SizedBox(height: 4),
+        const Text("These details cannot be changed.", style: TextStyle(fontSize: 13, color: Colors.grey)),
+        const SizedBox(height: 16),
+        _buildLockedCard("Email Address", widget.userData['email']?.toString() ?? 'N/A', Icons.email_outlined),
+        _buildLockedCard("Account Type", widget.userData['userType']?.toString() ?? 'N/A', Icons.admin_panel_settings_outlined),
+        _buildLockedCard("National Identity Card (NIC)", widget.userData['nic']?.toString() ?? 'N/A', Icons.badge_outlined),
       ],
     );
   }
@@ -271,42 +429,70 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Editable Details", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-        const SizedBox(height: 10),
+        const Text("Editable Details", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+        const SizedBox(height: 4),
+        const Text("Update your personal and school details.", style: TextStyle(fontSize: 13, color: Colors.grey)),
+        const SizedBox(height: 16),
         _buildTextField("Full Name", _nameController, Icons.person_outline),
-        _buildTextField("Personal Phone", _phoneController, Icons.phone_android),
+        _buildTextField("Personal Mobile", _phoneController, Icons.phone_android),
         
-        // Autocomplete for Schools
-        Autocomplete<Map<String, dynamic>>(
-          initialValue: TextEditingValue(text: _schoolNameController.text),
-          optionsBuilder: (textValue) => _availableSchools.where((s) => s['schoolName'].toLowerCase().contains(textValue.text.toLowerCase())),
-          displayStringForOption: (option) => option['schoolName'],
-          onSelected: (selection) {
-            _schoolNameController.text = selection['schoolName'];
-            _schoolPhoneController.text = selection['schoolPhone'] ?? '';
-          },
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-            return _buildTextField("School Name", controller, Icons.school, focusNode: focusNode);
-          },
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Autocomplete<Map<String, dynamic>>(
+            initialValue: TextEditingValue(text: _schoolNameController.text),
+            optionsBuilder: (textValue) {
+              if (textValue.text.isEmpty) return const Iterable.empty();
+              return _availableSchools.where((s) => s['schoolName'].toString().toLowerCase().contains(textValue.text.toLowerCase()));
+            },
+            displayStringForOption: (option) => option['schoolName'],
+            onSelected: (selection) {
+              _schoolPhoneController.text = selection['schoolPhone'] ?? '';
+              _schoolNameController.text = selection['schoolName'];
+              if (_autoCompleteController != null) {
+                _autoCompleteController!.text = selection['schoolName'];
+              }
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              if (_autoCompleteController != controller) {
+                _autoCompleteController = controller;
+              }
+
+              return TextFormField(
+                controller: controller,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  labelText: "School Name",
+                  hintText: "Search or type a new school",
+                  prefixIcon: const Icon(Icons.school_outlined, color: _primaryColor),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _primaryColor, width: 2)),
+                ),
+              );
+            },
+          ),
         ),
 
-        _buildTextField("School Phone", _schoolPhoneController, Icons.phone),
+        _buildTextField("School Phone (Office)", _schoolPhoneController, Icons.phone),
       ],
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {FocusNode? focusNode}) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
         controller: controller,
-        focusNode: focusNode,
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, color: _primaryColor),
           filled: true,
           fillColor: Colors.grey[50],
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _primaryColor, width: 2)),
         ),
       ),
     );
