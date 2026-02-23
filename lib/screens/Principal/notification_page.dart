@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 // Import destination screens
 import 'add_school_details_page.dart';
 import 'IssueDetailScreen.dart';
-
+ 
 class NotificationScreen extends StatelessWidget {
   const NotificationScreen({super.key});
 
