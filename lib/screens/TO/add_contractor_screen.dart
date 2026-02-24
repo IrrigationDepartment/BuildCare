@@ -16,10 +16,14 @@ class AddContractorScreen extends StatefulWidget {
 }
 
 class _AddContractorScreenState extends State<AddContractorScreen> {
-  // --- Constants ---
-  static const Color kPrimaryBlue = Color(0xFF42A5F5);
-  static const Color kBackgroundColor = Color(0xFFF5F7FA);
-  static const Color kTextColor = Color(0xFF333333);
+  // --- EYE-CATCHING MODERN COLOR PALETTE ---
+  static const Color kPrimaryColor = Color(0xFF4F46E5); // Indigo 600
+  static const Color kPrimaryDark = Color(0xFF312E81); // Indigo 900
+  static const Color kBackgroundColor = Color(0xFFF8FAFC); // Slate 50
+  static const Color kCardColor = Colors.white;
+  static const Color kTextColor = Color(0xFF1E293B); // Slate 800
+  static const Color kSubTextColor = Color(0xFF64748B); // Slate 500
+
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // --- Form Controllers & State ---
@@ -101,8 +105,13 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEditMode ? 'Contractor updated!' : 'Contractor registered successfully!'),
-            backgroundColor: Colors.green,
+            content: Text(
+              _isEditMode ? 'Contractor updated successfully!' : 'Contractor registered successfully!',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
         Navigator.of(context).pop();
@@ -110,7 +119,11 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e'), 
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -123,86 +136,139 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: kBackgroundColor,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kTextColor),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kPrimaryColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           _isEditMode ? 'Edit Contractor' : 'Register Contractor',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: kTextColor),
+          style: const TextStyle(fontWeight: FontWeight.w800, color: kTextColor, fontSize: 20),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              _buildTextField(
-                label: 'Company Name',
-                hintText: 'Enter Registered Company Name',
-                controller: _companyNameController,
-                icon: Icons.business,
-              ),
-              _buildTextField(
-                label: 'CIDA Registration No',
-                hintText: 'Enter CIDA Number',
-                controller: _cidaController,
-                icon: Icons.assignment_ind,
-              ),
-              _buildTextField(
-                label: 'Contractor Full Name',
-                hintText: 'Enter Name of Proprietor',
-                controller: _contractorNameController,
-                icon: Icons.person,
-              ),
-              _buildTextField(
-                label: 'NIC Number',
-                hintText: 'Enter NIC',
-                controller: _nicController,
-                icon: Icons.badge,
-              ),
-              _buildTextField(
-                label: 'Contact Number',
-                hintText: '07X XXXXXXX',
-                controller: _contactController,
-                icon: Icons.phone,
-                keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Required';
-                  if (value.length < 10) return 'Enter a valid phone number';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveContractor,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryBlue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 2,
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          _isEditMode ? 'Update Contractor' : 'Register Contractor',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          // RESPONSIVE WRAPPER: Centers the content on large screens
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Company Details',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: kTextColor,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildTextField(
+                      label: 'Company Name',
+                      hintText: 'Enter Registered Company Name',
+                      controller: _companyNameController,
+                      icon: Icons.business_rounded,
+                    ),
+                    _buildTextField(
+                      label: 'CIDA Registration No',
+                      hintText: 'Enter CIDA Number',
+                      controller: _cidaController,
+                      icon: Icons.assignment_ind_rounded,
+                    ),
+                    const SizedBox(height: 8),
+                    const Divider(color: Colors.black12),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Personal Details',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: kTextColor,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildTextField(
+                      label: 'Contractor Full Name',
+                      hintText: 'Enter Name of Proprietor',
+                      controller: _contractorNameController,
+                      icon: Icons.person_rounded,
+                    ),
+                    _buildTextField(
+                      label: 'NIC Number',
+                      hintText: 'Enter National Identity Card Number',
+                      controller: _nicController,
+                      icon: Icons.badge_rounded,
+                    ),
+                    _buildTextField(
+                      label: 'Contact Number',
+                      hintText: 'e.g., 071 234 5678',
+                      controller: _contactController,
+                      icon: Icons.phone_rounded,
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'This field is required';
+                        if (value.length < 10) return 'Enter a valid phone number';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // --- PRIMARY ACTION BUTTON ---
+                    Container(
+                      width: double.infinity,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: kPrimaryColor.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          )
+                        ]
+                      ),
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveContractor,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimaryColor,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: kPrimaryColor.withOpacity(0.6),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                         ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24, 
+                                height: 24, 
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
+                              )
+                            : Text(
+                                _isEditMode ? 'Update Contractor Details' : 'Register New Contractor',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  // --- MODERN GLASS/TINTED TEXT FIELD ---
   Widget _buildTextField({
     required String label,
     required String hintText,
@@ -212,24 +278,48 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
     String? Function(String?)? validator,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
+      padding: const EdgeInsets.only(bottom: 24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: kTextColor)),
+          Text(
+            label, 
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kTextColor)
+          ),
           const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              hintText: hintText,
-              prefixIcon: Icon(icon, color: kPrimaryBlue, size: 20),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: kCardColor,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03), 
+                  blurRadius: 15, 
+                  offset: const Offset(0, 5)
+                )
+              ]
             ),
-            validator: validator ?? (value) => (value == null || value.isEmpty) ? 'This field is required' : null,
+            child: TextFormField(
+              controller: controller,
+              keyboardType: keyboardType,
+              style: const TextStyle(fontWeight: FontWeight.w600, color: kTextColor),
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle: const TextStyle(color: kSubTextColor, fontWeight: FontWeight.normal),
+                filled: true,
+                fillColor: kCardColor,
+                prefixIcon: Container(
+                  margin: const EdgeInsets.only(left: 8, right: 12),
+                  child: Icon(icon, color: kPrimaryColor.withOpacity(0.8), size: 22)
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16), 
+                  borderSide: BorderSide.none
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              ),
+              validator: validator ?? (value) => (value == null || value.isEmpty) ? 'This field is required' : null,
+            ),
           ),
         ],
       ),
