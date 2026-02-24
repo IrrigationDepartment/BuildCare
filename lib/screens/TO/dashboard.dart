@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // --- Screen Imports ---
 import 'manage_schools_screen.dart';
@@ -85,7 +86,7 @@ class _DashboardScreenState extends State<TODashboard> {
   }
 
   // ====================================================================
-  // DATA FETCHING (Unchanged Logic)
+  // DATA FETCHING 
   // ====================================================================
   Future<List<RecentActivityItem>> _fetchRecentActivities() async {
     final String userNic = widget.userData['nic'] ?? '';
@@ -336,7 +337,7 @@ class _DashboardScreenState extends State<TODashboard> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(3), // Border width
+            padding: const EdgeInsets.all(3),
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
@@ -371,50 +372,71 @@ class _DashboardScreenState extends State<TODashboard> {
               ],
             ),
           ),
+          
+          // --- NOTIFICATION BELL WITH RED DOT WIDGET ---
           Stack(
             clipBehavior: Clip.none,
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.notifications_outlined,
-                      size: 26, color: Colors.white),
+                  icon: const Icon(Icons.notifications_none_rounded, size: 28, color: Colors.white),
                   onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
                           builder: (context) => const NotificationScreen())),
                 ),
               ),
+              
+              // Safe in-memory stream filter to avoid Firestore composite index crashes
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('notifications')
-                    .where('isRead', isEqualTo: false)
-                    .where('userId', isEqualTo: widget.userData['nic'] ?? '')
+                    .where('isRead', isEqualTo: false) // Fetch all unread docs
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const SizedBox();
                   }
+
+                  // Compare timestamps safely inside Dart
+                  final userCreationTime = FirebaseAuth.instance.currentUser?.metadata.creationTime;
+                  int newNotificationsCount = 0;
+
+                  for (var doc in snapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final timestamp = data['timestamp'] as Timestamp?;
+                    
+                    if (timestamp != null && userCreationTime != null) {
+                      if (timestamp.toDate().isAfter(userCreationTime)) {
+                        newNotificationsCount++;
+                      }
+                    } else if (timestamp != null) {
+                      // Fallback if user creation time isn't available
+                      newNotificationsCount++;
+                    }
+                  }
+
+                  // If no notifications are new, hide the red dot
+                  if (newNotificationsCount == 0) {
+                    return const SizedBox();
+                  }
+
+                  // Show simple elegant red dot if there are new notifications
                   return Positioned(
-                    right: -2,
-                    top: -2,
+                    right: 8,
+                    top: 8,
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      width: 12,
+                      height: 12,
                       decoration: BoxDecoration(
-                          color: kAccentColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: kPrimaryDark, width: 2)),
-                      constraints:
-                          const BoxConstraints(minWidth: 20, minHeight: 20),
-                      child: Text('${snapshot.data!.docs.length}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center),
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: kPrimaryDark, width: 2.5), // Makes it pop off the background
+                      ),
                     ),
                   );
                 },
@@ -479,8 +501,8 @@ class _DashboardScreenState extends State<TODashboard> {
     }
 
     return GridView.extent(
-      maxCrossAxisExtent: 180, // slightly narrower to look better on mobile
-      childAspectRatio: 1.0, // perfect squares
+      maxCrossAxisExtent: 180, 
+      childAspectRatio: 1.0, 
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,

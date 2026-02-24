@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ADDED: Firebase Auth
 import 'package:intl/intl.dart';
 
 // --- Destination Imports ---
@@ -21,6 +22,21 @@ class NotificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. GET THE CURRENT USER's REGISTRATION DATE
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
+
+    // 2. BUILD THE QUERY DYNAMICALLY
+    Query notificationsQuery = FirebaseFirestore.instance
+        .collection('notifications')
+        .orderBy('timestamp', descending: true);
+
+    // 3. APPLY THE FILTER: Only show notifications created AFTER the user registered
+    if (userCreationTime != null) {
+      notificationsQuery = notificationsQuery.where('timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    }
+
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
@@ -50,10 +66,7 @@ class NotificationScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('notifications')
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
+        stream: notificationsQuery.snapshots(), // Using the filtered query here
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -302,12 +315,23 @@ class NotificationScreen extends StatelessWidget {
 
   Future<void> _markAllAsRead() async {
     final batch = FirebaseFirestore.instance.batch();
-    final query = await FirebaseFirestore.instance
+    
+    // We also should only mark notifications as read if they are newer than the user's creation date
+    // to match the stream query, otherwise we might fetch too many docs in the background.
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
+    
+    Query query = FirebaseFirestore.instance
         .collection('notifications')
-        .where('isRead', isEqualTo: false)
-        .get();
+        .where('isRead', isEqualTo: false);
+        
+    if (userCreationTime != null) {
+      query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    }
 
-    for (var doc in query.docs) {
+    final querySnapshot = await query.get();
+
+    for (var doc in querySnapshot.docs) {
       batch.update(doc.reference, {'isRead': true});
     }
     await batch.commit();
