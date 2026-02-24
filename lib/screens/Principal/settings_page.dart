@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase
 import '../forgot_password_flow.dart'; // Import your ForgotPasswordFlow
 import 'profile.dart'; // Import ProfilePage
 import 'dashboard.dart'; // Import Dashboard
+import 'team_page.dart'; // <-- ADDED: Import the Developer Team Page
 
 class SettingsPage extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -201,39 +202,52 @@ class SettingsPage extends StatelessWidget {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle('Account'),
-            // --- Linked to ForgotPasswordFlow ---
-            _buildSettingItem(
-              context,
-              'Change Password',
-              () => _navigateToChangePassword(context),
-            ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800), // Limits width on desktop/web
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('Account'),
+                // --- Linked to ForgotPasswordFlow ---
+                _buildSettingItem(
+                  context,
+                  'Change Password',
+                  () => _navigateToChangePassword(context),
+                ),
 
-            _buildSectionTitle('Support'),
-            _buildSettingItem(
-              context,
-              'Developer Team',
-              () => _showMessage(context, 'Action', 'Navigating to Team info.'),
-            ),
-            _buildSettingItem(
-              context,
-              'Report a Problem',
-              () => _showMessage(context, 'Action', 'Opening Report Form.'),
-            ),
-            _buildSettingItem(
-              context,
-              'Privacy Policy',
-              () => _showMessage(context, 'Action', 'Viewing Privacy Policy.'),
-            ),
+                _buildSectionTitle('Support'),
+                _buildSettingItem(
+                  context,
+                  'Developer Team', 
+                  () {
+                    // --- CHANGED: Now navigates to the DeveloperTeamPage ---
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DeveloperTeamPage(),
+                      ),
+                    );
+                  },
+                ),
+                _buildSettingItem(
+                  context,
+                  'Report a Problem',
+                  () => _showMessage(context, 'Action', 'Opening Report Form.'),
+                ),
+                _buildSettingItem(
+                  context,
+                  'Privacy Policy',
+                  () => _showMessage(context, 'Action', 'Viewing Privacy Policy.'),
+                ),
 
-            _buildLogoutButton(context),
-            const SizedBox(height: 20),
-          ],
+                _buildLogoutButton(context),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(

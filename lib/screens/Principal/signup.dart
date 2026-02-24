@@ -33,6 +33,9 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   String? _selectedDistrict;
   final List<String> _districts = ['Galle', 'Matara', 'Hambantota']; 
 
+  // Autocomplete Data
+  List<String> _availableSchools = [];
+
   // State for UI
   bool _isLoading = false;
   bool _isPasswordVisible = false;
@@ -50,8 +53,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   @override
   void initState() {
     super.initState();
-    // Add listener to check NIC when the user clicks out of the NIC field
     _nicFocusNode.addListener(_onNicFocusChange);
+    _fetchSchoolsForAutocomplete();
   }
 
   @override
@@ -70,10 +73,26 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     super.dispose();
   }
 
+  // --- FETCH SCHOOLS FOR AUTOCOMPLETE ---
+  Future<void> _fetchSchoolsForAutocomplete() async {
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('schools').get();
+      if (mounted) {
+        setState(() {
+          _availableSchools = snapshot.docs
+              .map((doc) => (doc.data() as Map<String, dynamic>)['schoolName']?.toString() ?? '')
+              .where((name) => name.isNotEmpty)
+              .toList();
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching schools: $e");
+    }
+  }
+
   // --- NIC CHECK LOGIC ---
   void _onNicFocusChange() {
     if (!_nicFocusNode.hasFocus) {
-      // User left the NIC field, run the check
       _checkNicDuplication();
     }
   }
@@ -83,7 +102,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
     if (nic.isEmpty) return;
     final nicRegex = RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
-    if (!nicRegex.hasMatch(nic)) return; // Don't check invalid formats
+    if (!nicRegex.hasMatch(nic)) return; 
 
     setState(() {
       _isCheckingNic = true;
@@ -103,7 +122,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
         });
       }
     } catch (e) {
-      print("Error checking NIC: $e");
+      debugPrint("Error checking NIC: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -115,13 +134,12 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
   // --- REGISTRATION LOGIC ---
   Future<void> _registerUser() async {
-    FocusScope.of(context).unfocus(); // Dismiss keyboard
+    FocusScope.of(context).unfocus(); 
     
     if (!_formKey.currentState!.validate()) {
       return; 
     }
 
-    // Double check NIC duplication right before submitting just to be safe
     await _checkNicDuplication();
     if (_isNicDuplicate) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -200,7 +218,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100, // Matching light background
+      backgroundColor: Colors.grey.shade100, 
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -211,7 +229,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 550), // Responsive constraints
+              constraints: const BoxConstraints(maxWidth: 600), // Slightly wider for tablet/web
               child: Container(
                 padding: const EdgeInsets.all(40.0),
                 decoration: BoxDecoration(
@@ -255,15 +273,10 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                       _buildSchoolTypeDropdown(), 
                       _buildDistrictDropdown(), 
 
-                      _buildTextFormField(
-                        controller: _schoolNameController,
-                        labelText: 'School Name',
-                        icon: Icons.account_balance_outlined,
-                        validator: (value) =>
-                            value!.isEmpty ? 'Please enter the school name' : null,
-                      ),
+                      // --- AUTOCOMPLETE SCHOOL NAME ---
+                      _buildSchoolAutocompleteField(),
                       
-                      // --- NIC FIELD WITH CHECK LOGIC ---
+                      // --- NIC FIELD ---
                       _buildTextFormField(
                         controller: _nicController,
                         labelText: 'Principal NIC Number',
@@ -407,6 +420,83 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   }
 
   // --- HELPER WIDGETS ---
+
+  Widget _buildSchoolAutocompleteField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('School Name', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          const SizedBox(height: 8),
+          Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<String>.empty();
+              }
+              return _availableSchools.where((String option) {
+                return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              });
+            },
+            onSelected: (String selection) {
+              _schoolNameController.text = selection;
+            },
+            fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
+              // Sync the local controller with the Autocomplete controller so validation works
+              fieldTextEditingController.addListener(() {
+                _schoolNameController.text = fieldTextEditingController.text;
+              });
+              
+              return TextFormField(
+                controller: fieldTextEditingController,
+                focusNode: fieldFocusNode,
+                style: const TextStyle(color: Colors.black87),
+                decoration: _inputDecoration(
+                  icon: Icons.account_balance_outlined,
+                  suffixIcon: const Tooltip(
+                    message: "Select from list or type custom name",
+                    child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
+                  )
+                ),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Please enter the school name' : null,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  borderRadius: BorderRadius.circular(12),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 200, maxWidth: 450), 
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final String option = options.elementAt(index);
+                        return InkWell(
+                          onTap: () {
+                            onSelected(option);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(option, style: const TextStyle(color: Colors.black87)),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildTextFormField({
     required TextEditingController controller,
