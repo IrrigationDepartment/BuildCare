@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:intl/intl.dart'; // Added for Date Formatting
+import 'package:intl/intl.dart'; 
 
 class AddMasterPlanScreen extends StatefulWidget {
   final String schoolName;
@@ -18,7 +18,7 @@ class AddMasterPlanScreen extends StatefulWidget {
     Key? key,
     required this.schoolName,
     required this.userNic,
-    this.masterPlanId, // Make the ID optional
+    this.masterPlanId, 
   }) : super(key: key);
 
   @override
@@ -32,12 +32,14 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
 
   XFile? _pickedFile;
   bool _isLoading = false;
-  String _currentImageUrl = ''; // To show existing image when editing
+  String _currentImageUrl = ''; 
+  
+  // Cache for reviewer details to optimize the reviews dialog
+  static final Map<String, Map<String, dynamic>> _userCache = {};
 
   @override
   void initState() {
     super.initState();
-    // Use WidgetsBinding to ensure context is available before async call
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.masterPlanId != null) {
         _loadMasterPlanForEdit(widget.masterPlanId!);
@@ -45,7 +47,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     });
   }
 
-  // Function to fetch existing data for editing
   Future<void> _loadMasterPlanForEdit(String id) async {
     setState(() {
       _isLoading = true;
@@ -75,27 +76,21 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     }
   }
 
-  // 1. Method to pick an image
   Future<void> _pickImage() async {
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
-
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _pickedFile = pickedFile;
-        _currentImageUrl = ''; // Clear current image URL if a new image is picked
+        _currentImageUrl = ''; 
       });
     }
   }
 
-  // 2. Main method to upload and save/update data
   Future<void> _uploadAndSave() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    if (widget.masterPlanId == null &&
-        _pickedFile == null &&
-        _currentImageUrl.isEmpty) {
+    if (widget.masterPlanId == null && _pickedFile == null && _currentImageUrl.isEmpty) {
       _showErrorSnackBar("Please select an image to upload.");
       return;
     }
@@ -108,14 +103,12 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
 
     try {
       if (_pickedFile != null) {
-        // --- STEP A: Upload NEW Image to your PHP Server ---
         var uri = Uri.parse("http://buildcare.atigalle.x10.mx/index.php");
         var request = http.MultipartRequest("POST", uri);
 
         request.fields['description'] = _descriptionController.text;
         request.fields['schoolName'] = widget.schoolName;
 
-        // Cross-platform file upload logic
         if (kIsWeb) {
           var bytes = await _pickedFile!.readAsBytes();
           var multipartFile = http.MultipartFile.fromBytes(
@@ -138,8 +131,7 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
           if (decodedResponse['status'] == 'success') {
             finalImageUrl = decodedResponse['masterPlanUrl'];
           } else {
-            _showErrorSnackBar(
-                "Server upload error: ${decodedResponse['message']}");
+            _showErrorSnackBar("Server upload error: ${decodedResponse['message']}");
             return;
           }
         } else {
@@ -147,39 +139,29 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
           return;
         }
       }
-      // If we are editing AND no new file was picked, finalImageUrl remains _currentImageUrl
 
-      // --- GET CURRENT DATE AND TIME ---
       DateTime now = DateTime.now();
-      // Format: YYYY-MM-DD
       String dateString = "${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}";
-      // Format: HH:MM
       String timeString = "${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}";
 
-      // --- STEP B: Save/Update URL to Firestore ---
       Map<String, dynamic> firestoreData = {
-        'schoolName': widget.schoolName,    // What School
+        'schoolName': widget.schoolName,    
         'description': _descriptionController.text,
         'masterPlanUrl': finalImageUrl,
-        'addedByNic': widget.userNic,       // Who Uploaded (NIC)
+        'addedByNic': widget.userNic,       
       };
 
       if (widget.masterPlanId == null) {
-        // CREATE NEW RECORD
         firestoreData['createdAt'] = Timestamp.now();
-        
-        // --- NEW: Save specific Date and Time strings ---
-        firestoreData['uploadDate'] = dateString; // Upload Date
-        firestoreData['uploadTime'] = timeString; // Upload Time
+        firestoreData['uploadDate'] = dateString; 
+        firestoreData['uploadTime'] = timeString; 
         
         await FirebaseFirestore.instance
             .collection('schoolMasterPlans')
             .add(firestoreData);
         _showSuccessSnackBar("Master plan added successfully!");
       } else {
-        // UPDATE EXISTING RECORD
         firestoreData['updatedAt'] = Timestamp.now();
-        // Optional: Update edit timestamps
         firestoreData['lastEditDate'] = dateString;
         firestoreData['lastEditTime'] = timeString;
 
@@ -190,14 +172,12 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
         _showSuccessSnackBar("Master plan updated successfully!");
       }
 
-      // Clear form/navigate after successful submission/update
       _descriptionController.clear();
       setState(() {
         _pickedFile = null;
         _currentImageUrl = '';
       });
       if (mounted) {
-        // Send true back to indicate a possible refresh is needed on the previous page
         Navigator.pop(context, true); 
       }
     } catch (e) {
@@ -211,13 +191,11 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     }
   }
 
-  // --- DELETE FUNCTIONALITY ---
   Future<void> _deleteMasterPlan(String docId) async {
     setState(() {
       _isLoading = true;
     });
     try {
-      // Step A: Delete the document from Firestore
       await FirebaseFirestore.instance
           .collection('schoolMasterPlans')
           .doc(docId)
@@ -225,7 +203,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
 
       _showSuccessSnackBar("Master plan deleted successfully!");
       
-      // Navigate back after deletion
       if (mounted) {
         Navigator.pop(context, true);
       }
@@ -241,11 +218,10 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     }
   }
 
-  // New utility function for confirmation dialog
   Future<void> _showDeleteConfirmationDialog(String docId) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, // User must tap a button
+      barrierDismissible: false, 
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirm Deletion'),
@@ -276,7 +252,7 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     );
   }
 
-  // --- SHOW REVIEWS DIALOG (NEW FEATURE) ---
+  // --- OPTIMIZED REVIEWS DIALOG ---
   void _showReviewsDialog(String masterPlanId) {
     showDialog(
       context: context,
@@ -310,27 +286,38 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                     var data = doc.data() as Map<String, dynamic>;
                     
                     String note = data['note'] ?? 'No Note';
-                    String reviewer = data['reviewerName'] ?? 'Unknown';
+                    String reviewerNicOrId = data['reviewerName'] ?? ''; // Assuming this holds the User ID or NIC based on your DB setup
                     Timestamp? ts = data['reviewedAt'];
                     String dateStr = ts != null 
                       ? DateFormat('yyyy-MM-dd hh:mm a').format(ts.toDate()) 
                       : 'Unknown Date';
 
-                    return Card(
-                      color: Colors.grey[50],
-                      margin: const EdgeInsets.symmetric(vertical: 5),
-                      child: ListTile(
-                        leading: const Icon(Icons.comment, color: Colors.blueAccent),
-                        title: Text(note, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text("By: $reviewer"),
-                            Text(dateStr, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                          ],
-                        ),
-                      ),
+                    // Using FutureBuilder to dynamically fetch the real user name
+                    return FutureBuilder<void>(
+                      future: _fetchReviewerName(reviewerNicOrId),
+                      builder: (context, nameSnapshot) {
+                        String realName = "Loading...";
+                        if (nameSnapshot.connectionState == ConnectionState.done) {
+                           realName = _userCache[reviewerNicOrId]?['name'] ?? 'Unknown User';
+                        }
+
+                        return Card(
+                          color: Colors.grey[50],
+                          margin: const EdgeInsets.symmetric(vertical: 5),
+                          child: ListTile(
+                            leading: const Icon(Icons.comment, color: Colors.blueAccent),
+                            title: Text(note, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text("By: $realName"),
+                                Text(dateStr, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
                     );
                   },
                 );
@@ -348,14 +335,28 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     );
   }
 
-  // --- Helper snackbar methods ---
+  // Helper to fetch reviewer names into a cache to avoid lag
+  Future<void> _fetchReviewerName(String identifier) async {
+    if (identifier.isEmpty || _userCache.containsKey(identifier)) return;
+    try {
+      var doc = await FirebaseFirestore.instance.collection('users').doc(identifier).get();
+      if (doc.exists && doc.data() != null) {
+        _userCache[identifier] = doc.data()!;
+      } else {
+        var query = await FirebaseFirestore.instance.collection('users').where('nic', isEqualTo: identifier).limit(1).get();
+        if (query.docs.isNotEmpty) {
+           _userCache[identifier] = query.docs.first.data();
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching reviewer: $e");
+    }
+  }
+
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
     }
   }
@@ -363,10 +364,7 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
   void _showSuccessSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
       );
     }
   }
@@ -380,7 +378,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
   // Widget to display the record list using StreamBuilder
   Widget _buildRecordsList() {
     return StreamBuilder<QuerySnapshot>(
-      // Use where clause to filter by current user's NIC
       stream: FirebaseFirestore.instance
           .collection('schoolMasterPlans')
           .where('addedByNic', isEqualTo: widget.userNic)
@@ -453,9 +450,9 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                     
                     // --- ACTION BUTTONS ---
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Changed for better spacing
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween, 
                       children: [
-                        // 1. VIEW REVIEWS BUTTON (NEW)
+                        // 1. VIEW REVIEWS BUTTON 
                         TextButton.icon(
                           icon: const Icon(Icons.visibility, size: 20, color: Colors.orange),
                           label: const Text("Reviews", style: TextStyle(color: Colors.orange)),
@@ -502,11 +499,10 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
     );
   }
 
-  // 3. Build the UI
+  // BUILD THE RESPONSIVE UI
   @override
   Widget build(BuildContext context) {
-    String titleText =
-        widget.masterPlanId == null ? "Add New Master Plan" : "Edit Master Plan";
+    String titleText = widget.masterPlanId == null ? "Add New Master Plan" : "Edit Master Plan";
     String buttonText = widget.masterPlanId == null ? "Save" : "Update";
 
     return Scaffold(
@@ -523,7 +519,6 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
           onPressed: () => Navigator.pop(context, true),
         ),
         actions: [
-          // Save/Update Button
           _isLoading
               ? const Padding(
                   padding: EdgeInsets.all(16.0),
@@ -538,136 +533,181 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
                     onPressed: _uploadAndSave,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.blue,
-                      side: const BorderSide(color: Colors.blue, width: 2), // Blue outline
+                      side: const BorderSide(color: Colors.blue, width: 2), 
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     child: Text(
                       buttonText,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- Record Submission Form ---
-            const Text(
-              "Master Plan Details",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-            Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Master Plan Image",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 10),
-                  // Image Upload/Display Box
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Container(
-                      height: 200,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: _pickedFile != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: kIsWeb
-                                  ? Image.network(_pickedFile!.path,
-                                      fit: BoxFit.cover)
-                                  : Image.file(File(_pickedFile!.path),
-                                      fit: BoxFit.cover),
-                            )
-                          : _currentImageUrl.isNotEmpty
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(_currentImageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (c, o, s) => const Icon(
-                                          Icons.broken_image,
-                                          size: 60,
-                                          color: Colors.red)),
-                                )
-                              : Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.image_search,
-                                          size: 60, color: Colors.grey[400]),
-                                      const SizedBox(height: 8),
-                                      Text("Tap to upload master plan",
-                                          style: TextStyle(
-                                              color: Colors.grey[600])),
-                                    ],
-                                  ),
-                                ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Determine if the screen is wide enough for a two-column layout
+            bool isDesktop = constraints.maxWidth >= 800;
 
-                  // Description Box
-                  const Text(
-                    "Description",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _descriptionController,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      hintText: "describe about school master plan",
-                      fillColor: Colors.white,
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+            if (isDesktop) {
+              // --- DESKTOP / WEB LAYOUT (Two Columns) ---
+              return Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Column 1: The Form
+                    Expanded(
+                      flex: 4,
+                      child: SingleChildScrollView(
+                        child: _buildFormSection(),
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Please enter a description";
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-
-            // --- Record Display Section ---
-            const Text(
-              "Your Submitted Master Plans",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-
-            // Display the records added by the current NIC
-            _buildRecordsList(),
-          ],
+                    const SizedBox(width: 40),
+                    // Column 2: Existing Records List
+                    Expanded(
+                      flex: 5,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Your Submitted Master Plans",
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 15),
+                            _buildRecordsList(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              // --- MOBILE LAYOUT (Stacked) ---
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFormSection(),
+                    const SizedBox(height: 30),
+                    const Text(
+                      "Your Submitted Master Plans",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 15),
+                    _buildRecordsList(),
+                  ],
+                ),
+              );
+            }
+          },
         ),
       ),
+    );
+  }
+
+  // Extracted the form into its own widget builder for cleaner layout management
+  Widget _buildFormSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Master Plan Details",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 15),
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Master Plan Image",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 10),
+              // Image Upload/Display Box
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 250, // Slightly taller for better viewing
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: _pickedFile != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: kIsWeb
+                              ? Image.network(_pickedFile!.path, fit: BoxFit.cover)
+                              : Image.file(File(_pickedFile!.path), fit: BoxFit.cover),
+                        )
+                      : _currentImageUrl.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(_currentImageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (c, o, s) => const Icon(
+                                      Icons.broken_image,
+                                      size: 60,
+                                      color: Colors.red)),
+                            )
+                          : Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.image_search, size: 60, color: Colors.grey[400]),
+                                  const SizedBox(height: 8),
+                                  Text("Tap to upload master plan",
+                                      style: TextStyle(color: Colors.grey[600])),
+                                ],
+                              ),
+                            ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Description Box
+              const Text(
+                "Description",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: "Describe the school master plan...",
+                  fillColor: Colors.white,
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Please enter a description";
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
