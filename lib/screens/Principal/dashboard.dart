@@ -8,7 +8,7 @@ import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
 import 'add_school_master_plan_page.dart';
 import 'profile.dart';
-import 'settings_page.dart';
+import 'settings_page.dart'; // Make sure this points to the file where SettingsScreen is saved
 import 'IssueDetailScreen.dart';
 import 'notification_page.dart';
 
@@ -67,8 +67,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
       Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(userData: widget.userData!, userId: principalId)));
     } else if (index == 2) { // Settings
-      final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
-      Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage(userData: widget.userData!, userId: principalId)));
+      // FIX: Correctly calls SettingsScreen without the unnecessary arguments
+      Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
     }
   }
 

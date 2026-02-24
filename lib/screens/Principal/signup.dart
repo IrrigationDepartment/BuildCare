@@ -348,7 +348,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
                       _buildTextFormField(
                         controller: _schoolEmailController,
-                        labelText: 'School Email Address (Login ID)',
+                        labelText: 'Email Address (Login ID)',
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
