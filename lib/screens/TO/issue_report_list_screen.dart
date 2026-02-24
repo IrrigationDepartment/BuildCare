@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'issue_report_details_screen.dart';
 import 'add_issue_screen.dart';
+// ignore: unused_import
 import 'package:firebase_auth/firebase_auth.dart'; // Add this for getting current user data
 
 class IssueReportListScreen extends StatefulWidget {
@@ -13,16 +14,19 @@ class IssueReportListScreen extends StatefulWidget {
 }
 
 class _IssueReportListScreenState extends State<IssueReportListScreen> {
-  // --- Style Constants ---
-  static const Color kPrimaryBlue = Color(0xFF42A5F5);
-  static const Color kBackgroundColor = Color(0xFFF5F7FA);
+  // --- EYE-CATCHING MODERN COLOR PALETTE ---
+  static const Color kPrimaryColor = Color(0xFF4F46E5); // Indigo 600
+  static const Color kPrimaryDark = Color(0xFF312E81); // Indigo 900
+  static const Color kBackgroundColor = Color(0xFFF8FAFC); // Slate 50
   static const Color kCardColor = Colors.white;
-  static const Color kTextColor = Color(0xFF333333);
-  static const Color kSubTextColor = Color(0xFF757575);
+  static const Color kTextColor = Color(0xFF1E293B); // Slate 800
+  static const Color kSubTextColor = Color(0xFF64748B); // Slate 500
+  static const Color kAccentColor = Color(0xFFEC4899); // Pink 500
 
   // User data variables
   String _userRole = '';
   String _userOffice = '';
+  // ignore: unused_field
   String _userName = '';
   late Stream<QuerySnapshot> _issuesStream;
 
@@ -64,6 +68,7 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     if (_userRole == 'District Engineer') {
       // District Engineer: Filter by office district
       // First, get all schools in the district
+      // ignore: unused_local_variable
       final schoolsQuery = FirebaseFirestore.instance
           .collection('schools')
           .where('educationalZone', isEqualTo: _userOffice)
@@ -114,21 +119,32 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
       appBar: AppBar(
         title: Text(
           _getAppBarTitle(),
-          style: const TextStyle(color: kTextColor),
+          style: const TextStyle(color: kTextColor, fontWeight: FontWeight.w800, fontSize: 20),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: kTextColor),
+        backgroundColor: kBackgroundColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: kPrimaryColor),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           if (_userRole == 'District Engineer')
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
-              child: Chip(
-                label: Text(
-                  _userOffice,
-                  style: const TextStyle(color: Colors.white),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: kPrimaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12)
+                  ),
+                  child: Text(
+                    _userOffice,
+                    style: const TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
-                backgroundColor: kPrimaryBlue,
               ),
             ),
         ],
@@ -144,11 +160,15 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                   ),
                 );
               },
-              label: const Text('Add Issue'),
-              icon: const Icon(Icons.add),
-              backgroundColor: kPrimaryBlue,
+              label: const Text('Add Issue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              icon: const Icon(Icons.add_rounded, size: 24),
+              backgroundColor: kPrimaryColor,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             )
           : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: _buildBody(),
     );
   }
@@ -166,7 +186,7 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
   Widget _buildBody() {
     // If user data is still loading
     if (_userRole.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
     }
 
     // For District Engineers, we need special handling
@@ -179,22 +199,30 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
       stream: _issuesStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return _buildEmptyState();
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemCount: snapshot.data!.docs.length,
-          itemBuilder: (context, index) {
-            final issueDoc = snapshot.data!.docs[index];
-            return _buildIssueCard(issueDoc);
-          },
+        // --- RESPONSIVE GRID FOR CARDS ---
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: GridView.extent(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100), // Bottom padding for FAB
+              maxCrossAxisExtent: 400, // Cards will be max 400px wide
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 1.6, // Adjust this ratio based on card height needs
+              children: snapshot.data!.docs.map((issueDoc) {
+                return _buildIssueCard(issueDoc);
+              }).toList(),
+            ),
+          ),
         );
       },
     );
@@ -205,11 +233,11 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
       future: _getSchoolNamesInDistrict(),
       builder: (context, schoolsSnapshot) {
         if (schoolsSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
         }
         
         if (schoolsSnapshot.hasError || !schoolsSnapshot.hasData) {
-          return Center(child: Text('Error loading schools: ${schoolsSnapshot.error}'));
+          return Center(child: Text('Error loading schools: ${schoolsSnapshot.error}', style: const TextStyle(color: Colors.red)));
         }
         
         final schoolNames = schoolsSnapshot.data!;
@@ -218,11 +246,19 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.school, size: 60, color: Colors.grey),
-                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))]
+                  ),
+                  child: Icon(Icons.school_rounded, size: 60, color: Colors.grey.shade300),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   'No schools found in $_userOffice district',
-                  style: const TextStyle(color: kSubTextColor),
+                  style: const TextStyle(color: kSubTextColor, fontSize: 16, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -236,10 +272,10 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
             }
             if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
+              return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
             }
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return _buildEmptyState();
@@ -257,24 +293,40 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.report_problem, size: 60, color: Colors.grey),
-                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))]
+                      ),
+                      child: Icon(Icons.report_problem_rounded, size: 60, color: Colors.grey.shade300),
+                    ),
+                    const SizedBox(height: 24),
                     Text(
                       'No issues found in $_userOffice district',
-                      style: const TextStyle(color: kSubTextColor),
+                      style: const TextStyle(color: kSubTextColor, fontSize: 16, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
               );
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: filteredIssues.length,
-              itemBuilder: (context, index) {
-                final issueDoc = filteredIssues[index];
-                return _buildIssueCard(issueDoc);
-              },
+            // --- RESPONSIVE GRID FOR CARDS ---
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
+                child: GridView.extent(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                  maxCrossAxisExtent: 400, 
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 1.6, 
+                  children: filteredIssues.map((issueDoc) {
+                    return _buildIssueCard(issueDoc);
+                  }).toList(),
+                ),
+              ),
             );
           },
         );
@@ -284,25 +336,35 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
 
   Widget _buildEmptyState() {
     String message = 'No issues found';
-    IconData icon = Icons.report_problem;
+    IconData icon = Icons.check_circle_outline_rounded;
     
     if (_userRole == 'Principal') {
       message = 'You haven\'t reported any issues yet';
-      icon = Icons.add_circle_outline;
+      icon = Icons.add_circle_outline_rounded;
     } else if (_userRole == 'District Engineer') {
       message = 'No issues in your district';
-      icon = Icons.location_city;
+      icon = Icons.location_city_rounded;
     }
     
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 60, color: Colors.grey),
-          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))]
+            ),
+            child: Icon(icon, size: 60, color: Colors.grey.shade300),
+          ),
+          const SizedBox(height: 24),
+          const Text('All Clear!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kTextColor)),
+          const SizedBox(height: 8),
           Text(
             message,
-            style: const TextStyle(color: kSubTextColor, fontSize: 16),
+            style: const TextStyle(color: kSubTextColor, fontSize: 15),
           ),
         ],
       ),
@@ -310,18 +372,18 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
   }
 
   // --- Helper to get color for the status chip ---
-  Color _getStatusColor(String? status) {
+  Color _getStatusBgColor(String? status) {
     switch (status?.toLowerCase()) {
       case 'in progress':
       case 'processing':
-        return Colors.blue.shade100;
+        return Colors.blue.shade50;
       case 'pending':
-        return Colors.amber.shade100;
+        return Colors.amber.shade50;
       case 'resolved':
       case 'completed':
-        return Colors.green.shade100;
+        return Colors.green.shade50;
       default:
-        return Colors.grey.shade200;
+        return Colors.grey.shade100;
     }
   }
 
@@ -330,14 +392,14 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     switch (status?.toLowerCase()) {
       case 'in progress':
       case 'processing':
-        return Colors.blue.shade800;
+        return Colors.blue.shade700;
       case 'pending':
-        return Colors.amber.shade800;
+        return Colors.amber.shade700;
       case 'resolved':
       case 'completed':
-        return Colors.green.shade800;
+        return Colors.green.shade700;
       default:
-        return Colors.grey.shade800;
+        return Colors.grey.shade700;
     }
   }
 
@@ -359,153 +421,202 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
       dateStr = '${date.day}/${date.month}/${date.year}';
     }
 
-    return Card(
-      elevation: 2,
-      color: kCardColor,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Container(
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            offset: const Offset(0, 6)
+          )
+        ]
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => IssueReportDetailsScreen(
+                  issueId: issueId,
+                  userNic: widget.userNic,
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: kTextColor,
-                        ),
-                      ),
-                      if (location != null && location.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Text(
-                            'Location: $location',
+                // Top Row: Title & Status
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
                             style: const TextStyle(
-                              color: kSubTextColor,
-                              fontSize: 12,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: kTextColor,
+                              letterSpacing: -0.5
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-                // --- Status Chip ---
-                Chip(
-                  label: Text(
-                    status,
-                    style: TextStyle(
-                      color: _getStatusTextColor(status),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                          if (location != null && location.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6.0),
+                              child: Text(
+                                location,
+                                style: const TextStyle(
+                                  color: kSubTextColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  backgroundColor: _getStatusColor(status),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.school, size: 14, color: kSubTextColor),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    school,
-                    style: const TextStyle(color: kSubTextColor, fontSize: 14),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            if (dateStr.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today, size: 14, color: kSubTextColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    dateStr,
-                    style: const TextStyle(color: kSubTextColor, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-            if (reporterNic != null && _userRole == 'District Engineer') ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.person, size: 14, color: kSubTextColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Reported by: $reporterNic',
-                    style: const TextStyle(color: kSubTextColor, fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 16),
-            // --- View and Edit Buttons ---
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => IssueReportDetailsScreen(
-                          issueId: issueId,
-                          userNic: widget.userNic,
+                    const SizedBox(width: 12),
+                    // --- Status Chip ---
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _getStatusBgColor(status),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        status.toUpperCase(),
+                        style: TextStyle(
+                          color: _getStatusTextColor(status),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                          letterSpacing: 0.5
                         ),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.visibility, size: 18),
-                  label: const Text('View'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryBlue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                // Show edit button only for the reporter or admin roles
-                if (_canEditIssue(reporterNic))
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddIssueScreen(
-                            userNic: widget.userNic,
-                            issueId: issueId, // Pass the ID to enable edit mode
+                
+                // Middle Row: Meta Data (School, Date, etc)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.school_rounded, size: 16, color: Colors.grey.shade400),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            school,
+                            style: const TextStyle(color: kSubTextColor, fontSize: 14, fontWeight: FontWeight.w500),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                      ],
                     ),
-                  ),
+                    if (dateStr.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 16, color: Colors.grey.shade400),
+                          const SizedBox(width: 8),
+                          Text(
+                            dateStr,
+                            style: const TextStyle(color: kSubTextColor, fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (reporterNic != null && _userRole == 'District Engineer') ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.person_rounded, size: 16, color: Colors.grey.shade400),
+                          const SizedBox(width: 8),
+                          Text(
+                            'NIC: $reporterNic',
+                            style: const TextStyle(color: kSubTextColor, fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+
+                // Bottom Row: Action Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Edit Button (If allowed)
+                    if (_canEditIssue(reporterNic)) ...[
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AddIssueScreen(
+                                userNic: widget.userNic,
+                                issueId: issueId, // Pass the ID to enable edit mode
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: const Text('Edit', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: kAccentColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    // View Details Button
+                    Container(
+                      decoration: BoxDecoration(
+                        color: kPrimaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => IssueReportDetailsScreen(
+                                issueId: issueId,
+                                userNic: widget.userNic,
+                              ),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: kPrimaryColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+                        ),
+                        child: const Text('Details', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
