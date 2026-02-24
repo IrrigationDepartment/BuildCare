@@ -8,7 +8,8 @@ import 'view_issues.dart';
 import 'contractors_list.dart';
 import 'contract_list.dart';
 import 'notifications.dart'; 
-import 'school_analysis.dart'; // <-- ADDED: Import for the school analysis page
+import 'school_analysis.dart'; 
+import 'schools_directory.dart'; // <-- ADDED: Import for the all schools/directory page
 
 // --- REGISTRATION PAGE IMPORTS ---
 import 'add_ce.dart';
@@ -136,6 +137,9 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 builder: (context) => IssueDetailPage(issueId: docId)));
         break;
       case 'school':
+        // Note: You can replace this basic SchoolDetailPage with the new one
+        // from schools_directory.dart if you want consistent UI. 
+        // For now, it uses the local one defined at the bottom.
         Navigator.push(
             context,
             MaterialPageRoute(
@@ -248,6 +252,9 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                                 _buildContractorCard(context),
                                 const SizedBox(height: 16),
                                 _buildContractCard(context),
+                                const SizedBox(height: 16),
+                                // --- ADDED: Schools Directory Card ---
+                                _buildSchoolsDirectoryCard(context), 
                               ],
                             );
                           }
@@ -255,7 +262,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                       ),
                       
                       const SizedBox(height: 32),
-                      // --- ADDED: Analytics Section ---
+                      // --- Analytics Section ---
                       _buildSectionTitle('Analytics & Reports'),
                       const SizedBox(height: 16),
                       _buildAnalyticsCard(context),
@@ -281,7 +288,69 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     );
   }
 
-  // --- ADDED: Custom Card specifically for routing to School Analysis ---
+  // --- ADDED: Card specifically for routing to All Schools Page ---
+  Widget _buildSchoolsDirectoryCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AllSchoolsPage()), 
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16)),
+                  child: const Icon(Icons.account_balance, color: Colors.blue, size: 32),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('School Directory',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B))),
+                      const SizedBox(height: 4),
+                      Text('View all schools, profiles, and master plans',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildAnalyticsCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
@@ -303,7 +372,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  // Ensure this matches the exact class name inside your school_analysis.dart file!
                   builder: (context) => const SchoolAnalysisPage()), 
             );
           },
@@ -563,7 +631,6 @@ class DashboardHeader extends StatelessWidget {
             ),
           ),
           
-          // --- UPDATED NOTIFICATION ICON WITH RED BADGE ---
           Container(
             decoration: BoxDecoration(
                 color: Colors.white, borderRadius: BorderRadius.circular(16)),
@@ -594,7 +661,6 @@ class DashboardHeader extends StatelessWidget {
                       tooltip: 'Notifications',
                     ),
                     
-                    // The Red Dot / Badge Alert
                     if (unreadCount > 0)
                       Positioned(
                         right: 8,
@@ -604,7 +670,7 @@ class DashboardHeader extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white, width: 1.5), // White border for contrast
+                            border: Border.all(color: Colors.white, width: 1.5), 
                           ),
                           constraints: const BoxConstraints(
                             minWidth: 16,
@@ -633,7 +699,7 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- UserCountBuilder (Updated for Overflow Safety) ---
+// --- UserCountBuilder ---
 // -----------------------------------------------------------------------------
 class UserCountBuilder extends StatelessWidget {
   final String userType;
@@ -1013,10 +1079,8 @@ class ActivityItemCard extends StatelessWidget {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
 
-    if (difference.inDays > 365)
-      return '${(difference.inDays / 365).floor()}y ago';
-    if (difference.inDays > 30)
-      return '${(difference.inDays / 30).floor()}mo ago';
+    if (difference.inDays > 365) return '${(difference.inDays / 365).floor()}y ago';
+    if (difference.inDays > 30) return '${(difference.inDays / 30).floor()}mo ago';
     if (difference.inDays > 0) return '${difference.inDays}d ago';
     if (difference.inHours > 0) return '${difference.inHours}h ago';
     if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
@@ -1194,7 +1258,7 @@ class CustomBottomNavBar extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- IssueDetailPage ---
+// --- LOCAL DETAIL PAGES FOR ACTIVITY FEED FALLBACK ---
 // -----------------------------------------------------------------------------
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
@@ -1209,10 +1273,8 @@ class IssueDetailPage extends StatelessWidget {
             .doc(issueId)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
-            return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || !snapshot.data!.exists)
-            return const Center(child: Text('Issue not found'));
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData || !snapshot.data!.exists) return const Center(child: Text('Issue not found'));
           final data = snapshot.data!.data() as Map<String, dynamic>;
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -1243,9 +1305,6 @@ class IssueDetailPage extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- SchoolDetailPage ---
-// -----------------------------------------------------------------------------
 class SchoolDetailPage extends StatelessWidget {
   final String schoolId;
   final Map<String, dynamic> schoolData;
@@ -1299,9 +1358,6 @@ class SchoolDetailPage extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// --- UserDetailPage ---
-// -----------------------------------------------------------------------------
 class UserDetailPage extends StatelessWidget {
   final String userId;
   final Map<String, dynamic> userData;

@@ -217,14 +217,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // Update the main user document
       DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
-      batch.update(userRef, {
+      
+      // FIXED: Using batch.set with merge: true instead of batch.update
+      batch.set(userRef, {
         'name': _nameController.text.trim(),
         'mobilePhone': _phoneController.text.trim(),
         'schoolName': typedSchoolName,
         'officePhone': typedSchoolPhone,
         'profile_image': _profileImageUrl, // Ensure latest URL is saved
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
       // Update any other duplicate Principal records with the same NIC
       QuerySnapshot userQuery = await FirebaseFirestore.instance
@@ -235,14 +237,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
       for (var doc in userQuery.docs) {
         if (doc.id != widget.userId) { 
-          batch.update(doc.reference, {
+          // FIXED: Using batch.set with merge: true instead of batch.update
+          batch.set(doc.reference, {
             'name': _nameController.text.trim(),
             'mobilePhone': _phoneController.text.trim(),
             'schoolName': typedSchoolName,
             'officePhone': typedSchoolPhone,
             'profile_image': _profileImageUrl,
             'updatedAt': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
         }
       }
 
