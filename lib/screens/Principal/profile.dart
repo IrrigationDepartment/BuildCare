@@ -273,76 +273,130 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       body: _isLoadingData 
         ? const Center(child: CircularProgressIndicator()) 
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                // Responsive Profile Image Section
-                Center(
-                  child: Stack(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: _primaryColor, width: 3),
-                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
-                        ),
-                        child: CircleAvatar(
-                          radius: 70,
-                          backgroundColor: Colors.grey[100],
-                          backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) 
-                              ? NetworkImage(_profileImageUrl!) 
-                              : null,
-                          child: (_profileImageUrl == null || _profileImageUrl!.isEmpty)
-                              ? const Icon(Icons.person, size: 70, color: Colors.grey)
-                              : null,
+        : SafeArea(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Determine layout based on width
+                bool isWideScreen = constraints.maxWidth > 800;
+
+                if (isWideScreen) {
+                  // --- DESKTOP / TABLET LAYOUT ---
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1000),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(32),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left Column (Image & System Info)
+                            Expanded(
+                              flex: 1,
+                              child: Column(
+                                children: [
+                                  _buildProfileImage(),
+                                  const SizedBox(height: 32),
+                                  _buildSystemInfoSection(),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 48),
+                            // Right Column (Editable Form)
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildEditableSection(),
+                                  const SizedBox(height: 40),
+                                  _buildSaveButton(),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (_isUploadingImage)
-                        const Positioned.fill(child: CircularProgressIndicator(strokeWidth: 4)),
-                      Positioned(
-                        bottom: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: _isUploadingImage ? null : _pickAndUploadImage,
-                          child: const CircleAvatar(
-                            radius: 22,
-                            backgroundColor: _primaryColor,
-                            child: Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-                
-                // Form Section
-                _buildEditableSection(),
-                const SizedBox(height: 24),
-                _buildSystemInfoSection(),
-                
-                const SizedBox(height: 40),
-                
-                // Action Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    onPressed: _isUpdatingData ? null : _updateProfileData,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      elevation: 0,
                     ),
-                    child: _isUpdatingData 
-                        ? const CircularProgressIndicator(color: Colors.white) 
-                        : const Text("SAVE CHANGES", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                  ),
-                ),
-              ],
+                  );
+                } else {
+                  // --- MOBILE LAYOUT ---
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        _buildProfileImage(),
+                        const SizedBox(height: 32),
+                        _buildEditableSection(),
+                        const SizedBox(height: 24),
+                        _buildSystemInfoSection(),
+                        const SizedBox(height: 40),
+                        _buildSaveButton(),
+                      ],
+                    ),
+                  );
+                }
+              },
             ),
           ),
+    );
+  }
+
+  // Extracted Widgets for cleaner LayoutBuilder
+  Widget _buildProfileImage() {
+    return Center(
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: _primaryColor, width: 3),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
+            ),
+            child: CircleAvatar(
+              radius: 70,
+              backgroundColor: Colors.grey[100],
+              backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) 
+                  ? NetworkImage(_profileImageUrl!) 
+                  : null,
+              child: (_profileImageUrl == null || _profileImageUrl!.isEmpty)
+                  ? const Icon(Icons.person, size: 70, color: Colors.grey)
+                  : null,
+            ),
+          ),
+          if (_isUploadingImage)
+            const Positioned.fill(child: CircularProgressIndicator(strokeWidth: 4)),
+          Positioned(
+            bottom: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: _isUploadingImage ? null : _pickAndUploadImage,
+              child: const CircleAvatar(
+                radius: 22,
+                backgroundColor: _primaryColor,
+                child: Icon(Icons.camera_alt, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        onPressed: _isUpdatingData ? null : _updateProfileData,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primaryColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 0,
+        ),
+        child: _isUpdatingData 
+            ? const CircularProgressIndicator(color: Colors.white) 
+            : const Text("SAVE CHANGES", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+      ),
     );
   }
 

@@ -80,37 +80,54 @@ class _NotificationScreenState extends State<NotificationScreen> {
         iconTheme: const IconThemeData(color: kTextColor),
       ),
       // Use FutureBuilder to run the 2-step fetch
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _fetchMyReviews(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Determine if the screen is wide enough for the centered desktop layout
+            bool isWideScreen = constraints.maxWidth > 800;
 
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return _buildEmptyState();
-          }
+            return Center(
+              child: ConstrainedBox(
+                // Max width prevents the list from stretching awkwardly on ultra-wide monitors
+                constraints: BoxConstraints(maxWidth: isWideScreen ? 800 : double.infinity),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _fetchMyReviews(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-          List<Map<String, dynamic>> reviews = snapshot.data!;
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return _buildEmptyState();
+                    }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {}); // Pull to refresh the reviews list
-            },
-            child: ListView.builder(
-              itemCount: reviews.length,
-              itemBuilder: (context, index) {
-                var data = reviews[index];
-                
-                // Use the new optimized tile!
-                return ReviewNotificationTile(
-                  reviewData: data,
-                  loggedNic: widget.loggedNic,
-                );
-              },
-            ),
-          );
-        },
+                    List<Map<String, dynamic>> reviews = snapshot.data!;
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        setState(() {}); // Pull to refresh the reviews list
+                      },
+                      child: ListView.builder(
+                        // Add some padding to the top and bottom of the list for visual breathing room
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        itemCount: reviews.length,
+                        itemBuilder: (context, index) {
+                          var data = reviews[index];
+                          
+                          // Use the new optimized tile!
+                          return ReviewNotificationTile(
+                            reviewData: data,
+                            loggedNic: widget.loggedNic,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -205,13 +222,26 @@ class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
     String issueTitle = widget.reviewData['issueTitle'] ?? 'an issue';
 
     return Container(
+      // Add margin to make it look like separate cards on desktop, but full width on mobile
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), 
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        borderRadius: BorderRadius.circular(12), // Rounded corners for a modern feel
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2), // Subtle shadow
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Material(
         color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             // Navigate directly to the Issue Details Screen
             Navigator.push(
@@ -226,22 +256,22 @@ class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
             );
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // User Profile Image (or default icon)
                 CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.blue.shade100,
+                  radius: 26, // Slightly larger for better visibility
+                  backgroundColor: Colors.blue.shade50,
                   backgroundImage: (profileImage != null && profileImage!.isNotEmpty)
                       ? NetworkImage(profileImage!)
                       : null,
                   child: (profileImage == null || profileImage!.isEmpty)
-                      ? Icon(Icons.person, size: 28, color: Colors.blue.shade800)
+                      ? Icon(Icons.person, size: 30, color: Colors.blue.shade400)
                       : null,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
                 
                 // Notification Content
                 Expanded(
@@ -251,39 +281,54 @@ class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
                       // Facebook-style RichText (Bold name, normal text, bold issue)
                       RichText(
                         text: TextSpan(
-                          style: const TextStyle(fontSize: 15, color: Color(0xFF333333)),
+                          style: const TextStyle(fontSize: 15, color: Color(0xFF2C3E50), height: 1.4),
                           children: [
                             TextSpan(
                               text: "$reviewerName ",
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
                             ),
-                            const TextSpan(text: "reviewed your issue: "),
+                            const TextSpan(text: "reviewed your issue:\n"),
                             TextSpan(
                               text: issueTitle,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       
-                      // The actual review preview
-                      Text(
-                        '"$reviewText"',
-                        style: TextStyle(
-                          fontSize: 14, 
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
+                      // The actual review preview inside a tinted container
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade200)
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        child: Text(
+                          '"$reviewText"',
+                          style: TextStyle(
+                            fontSize: 14, 
+                            color: Colors.grey.shade700,
+                            fontStyle: FontStyle.italic,
+                            height: 1.3
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 10),
                       
                       // Timestamp
-                      Text(
-                        _formatTimestamp(widget.reviewData['timestamp']),
-                        style: TextStyle(fontSize: 12, color: Colors.blue.shade400, fontWeight: FontWeight.w500),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 14, color: Colors.blue.shade300),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatTimestamp(widget.reviewData['timestamp']),
+                            style: TextStyle(fontSize: 12, color: Colors.blue.shade400, fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
                     ],
                   ),
