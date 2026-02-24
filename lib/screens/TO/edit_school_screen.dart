@@ -5,8 +5,11 @@ class EditSchoolScreen extends StatefulWidget {
   final String schoolId;
   final Map<String, dynamic> schoolData;
 
-  const EditSchoolScreen(
-      {super.key, required this.schoolId, required this.schoolData});
+  const EditSchoolScreen({
+    super.key,
+    required this.schoolId,
+    required this.schoolData,
+  });
 
   @override
   State<EditSchoolScreen> createState() => _EditSchoolScreenState();
@@ -25,33 +28,25 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
   late TextEditingController _teachersController;
   late TextEditingController _staffController;
 
-  // --- Dropdown & Checkboxes ---
   String? _selectedSchoolType;
-  final List<String> _schoolTypes = [
-    'Government',
-    'Semi-Government',
-    'Private',
-    'International',
-  ];
+  final List<String> _schoolTypes = ['Government', 'Semi-Government', 'Private', 'International'];
 
   bool _hasElectricity = false;
   bool _hasWaterSupply = false;
   bool _hasSanitation = false;
   bool _hasCommunication = false;
-
   bool _isLoading = false;
 
-  // --- Constants ---
-  static const Color kBackgroundColor = Color(0xFFF5F7FA);
-  static const Color kFieldColor = Color(0xFFF0F2F5);
-  static const Color kTextColor = Color(0xFF333333);
-  static const Color kPrimaryBlue = Color(0xFF42A5F5);
+  // --- EYE-CATCHING COLOR PALETTE ---
+  static const Color kPrimaryIndigo = Color(0xFF303F9F);
+  static const Color kAccentAmber = Color(0xFFFFC107);
+  static const Color kBgSlate = Color(0xFFF8FAFC);
+  static const Color kCardColor = Colors.white;
+  static const Color kTextDark = Color(0xFF1E293B);
 
   @override
   void initState() {
     super.initState();
-    
-    // 1. Pre-fill Text Controllers
     _nameController = TextEditingController(text: widget.schoolData['schoolName']);
     _addressController = TextEditingController(text: widget.schoolData['schoolAddress']);
     _phoneController = TextEditingController(text: widget.schoolData['schoolPhone']);
@@ -61,28 +56,18 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
     _teachersController = TextEditingController(text: widget.schoolData['numTeachers']?.toString());
     _staffController = TextEditingController(text: widget.schoolData['numNonAcademic']?.toString());
 
-    // 2. FIX FOR DROPDOWN CRASH
     String? incomingType = widget.schoolData['schoolType'];
-
-    // Check if the incoming value is actually in our list
     if (_schoolTypes.contains(incomingType)) {
       _selectedSchoolType = incomingType;
-    } else {
-      // If data mismatch (e.g. DB has "Government School" but list has "Government")
-      if (incomingType == 'Government School') {
-        _selectedSchoolType = 'Government';
-      } else {
-        // If completely unknown, set to null so user is forced to pick a new one
-        _selectedSchoolType = null; 
-      }
+    } else if (incomingType == 'Government School') {
+      _selectedSchoolType = 'Government';
     }
 
-    // 3. Pre-fill Checkboxes
-    final infrastructure = widget.schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
-    _hasElectricity = infrastructure['electricity'] ?? false;
-    _hasWaterSupply = infrastructure['waterSupply'] ?? false;
-    _hasSanitation = infrastructure['sanitation'] ?? false;
-    _hasCommunication = infrastructure['communication'] ?? false;
+    final infra = widget.schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
+    _hasElectricity = infra['electricity'] ?? false;
+    _hasWaterSupply = infra['waterSupply'] ?? false;
+    _hasSanitation = infra['sanitation'] ?? false;
+    _hasCommunication = infra['communication'] ?? false;
   }
 
   @override
@@ -99,9 +84,7 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
   }
 
   Future<void> _updateSchool() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
     try {
@@ -110,7 +93,7 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
         'schoolAddress': _addressController.text.trim(),
         'schoolPhone': _phoneController.text.trim(),
         'schoolEmail': _emailController.text.trim(),
-        'schoolType': _selectedSchoolType, // This will now be a valid value
+        'schoolType': _selectedSchoolType,
         'educationalZone': _zoneController.text.trim(),
         'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
         'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
@@ -123,10 +106,7 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
         },
       };
 
-      await FirebaseFirestore.instance
-          .collection('schools')
-          .doc(widget.schoolId)
-          .update(schoolData);
+      await FirebaseFirestore.instance.collection('schools').doc(widget.schoolId).update(schoolData);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -137,57 +117,93 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update school: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final double width = MediaQuery.of(context).size.width;
+    final bool isLargeScreen = width > 800;
+
     return Scaffold(
-      backgroundColor: kBackgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
+      backgroundColor: kBgSlate,
+      appBar: AppBar(
+        title: const Text('Edit School Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: kTextDark,
+        elevation: 0.5,
+        actions: [
+          if (!_isLoading)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: ElevatedButton(
+                onPressed: _updateSchool,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryIndigo,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Save Changes'),
+              ),
+            )
+          else
+            const Padding(padding: EdgeInsets.all(16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+        ],
+      ),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1000), // Prevents overly wide forms on desktop
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(),
-                  const SizedBox(height: 24),
-                  _buildTextField(label: 'School Name', hint: 'Enter School name', controller: _nameController),
-                  _buildTextField(label: 'School Address', hint: 'Enter School Address', controller: _addressController),
-                  _buildTextField(
-                    label: 'School E-mail',
-                    hint: 'Enter School E-mail',
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (val) => (val != null && val.contains('@')) ? null : 'Enter valid email',
-                  ),
-                  _buildTextField(
-                    label: 'School Phone',
-                    hint: 'Enter Contact Number',
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    validator: (val) => (val != null && val.length == 10) ? null : 'Enter 10 digit number',
-                  ),
+                  _buildSectionHeader("Institution Details"),
+                  _buildResponsiveRow(isLargeScreen, [
+                    _buildTextField(label: 'School Name', hint: 'Enter School name', controller: _nameController),
+                    _buildDropdownField(),
+                  ]),
+                  _buildTextField(label: 'School Address', hint: 'Full physical address', controller: _addressController),
                   
-                  // --- Dropdown (This caused the error) ---
-                  _buildDropdownField(),
-                  
-                  _buildTextField(label: 'Educational Zone', hint: 'Enter Zone', controller: _zoneController),
-                  _buildTextField(label: 'No. of Students', hint: 'Total students', controller: _studentsController, keyboardType: TextInputType.number, validator: _validateNumber),
-                  _buildTextField(label: 'No. of Teachers', hint: 'Total teachers', controller: _teachersController, keyboardType: TextInputType.number, validator: _validateNumber),
-                  _buildTextField(label: 'No. of Staff', hint: 'Total staff', controller: _staffController, keyboardType: TextInputType.number, validator: _validateNumber),
                   const SizedBox(height: 16),
-                  _buildInfrastructureCheckboxes(),
+                  _buildSectionHeader("Contact & Zone"),
+                  _buildResponsiveRow(isLargeScreen, [
+                    _buildTextField(
+                      label: 'School E-mail',
+                      hint: 'example@school.lk',
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (val) => (val != null && val.contains('@')) ? null : 'Enter valid email',
+                    ),
+                    _buildTextField(
+                      label: 'School Phone',
+                      hint: '0112345678',
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      validator: (val) => (val != null && val.length == 10) ? null : 'Enter 10 digits',
+                    ),
+                  ]),
+                  _buildTextField(label: 'Educational Zone', hint: 'Assigned zone', controller: _zoneController),
+
+                  const SizedBox(height: 16),
+                  _buildSectionHeader("Statistics"),
+                  _buildResponsiveRow(isLargeScreen, [
+                    _buildTextField(label: 'No. of Students', hint: 'Total', controller: _studentsController, keyboardType: TextInputType.number, validator: _validateNumber),
+                    _buildTextField(label: 'No. of Teachers', hint: 'Total', controller: _teachersController, keyboardType: TextInputType.number, validator: _validateNumber),
+                    _buildTextField(label: 'No. of Staff', hint: 'Non-academic', controller: _staffController, keyboardType: TextInputType.number, validator: _validateNumber),
+                  ]),
+
+                  const SizedBox(height: 16),
+                  _buildSectionHeader("Infrastructure Components"),
+                  _buildInfrastructureGrid(isLargeScreen),
+                  const SizedBox(height: 40), // Extra space at bottom for scrolling
                 ],
               ),
             ),
@@ -197,102 +213,86 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
     );
   }
 
-  // --- Helper Widgets (Same as before) ---
-
-  Widget _buildHeader() {
+  // --- Helper: Responsive Row Switcher ---
+  Widget _buildResponsiveRow(bool isLarge, List<Widget> children) {
+    if (!isLarge) return Column(children: children);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.arrow_back, color: kTextColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        const Text('Edit School Details', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kTextColor)),
-        _isLoading
-            ? const CircularProgressIndicator()
-            : OutlinedButton(
-                onPressed: _updateSchool,
-                style: OutlinedButton.styleFrom(foregroundColor: kPrimaryBlue, side: BorderSide(color: kPrimaryBlue.withOpacity(0.5))),
-                child: const Text('Update'),
-              ),
-      ],
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children.map((w) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: w))).toList(),
     );
   }
 
-  Widget _buildDropdownField() {
+  Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 12, top: 8),
+      child: Text(title.toUpperCase(), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kPrimaryIndigo, letterSpacing: 1.1)),
+    );
+  }
+
+  Widget _buildTextField({required String label, required String hint, required TextEditingController controller, TextInputType keyboardType = TextInputType.text, String? Function(String?)? validator}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('School Type', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kTextColor)),
+          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kTextDark)),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _selectedSchoolType, // This is now safely set in initState
-            items: _schoolTypes.map((String type) {
-              return DropdownMenuItem<String>(
-                value: type,
-                child: Text(type),
-              );
-            }).toList(),
-            onChanged: (newValue) => setState(() => _selectedSchoolType = newValue),
-            decoration: _fieldDecoration('Select School Type').copyWith(suffixIcon: const Icon(Icons.arrow_drop_down)),
-            validator: (value) => value == null ? 'Please select a school type' : null,
+          TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(fontSize: 15),
+            decoration: _fieldDecoration(hint),
+            validator: validator ?? (value) => (value == null || value.isEmpty) ? 'Required' : null,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfrastructureCheckboxes() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Infrastructure Components', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kTextColor)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: kFieldColor, borderRadius: BorderRadius.circular(12)),
-          child: Column(
-            children: [
-              _buildCheckboxTile('Electricity', _hasElectricity, (v) => setState(() => _hasElectricity = v!)),
-              _buildCheckboxTile('Water Supply', _hasWaterSupply, (v) => setState(() => _hasWaterSupply = v!)),
-              _buildCheckboxTile('Sanitation', _hasSanitation, (v) => setState(() => _hasSanitation = v!)),
-              _buildCheckboxTile('Communication', _hasCommunication, (v) => setState(() => _hasCommunication = v!)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCheckboxTile(String title, bool value, Function(bool?) onChanged) {
-    return CheckboxListTile(
-      title: Text(title, style: const TextStyle(color: kTextColor)),
-      value: value,
-      onChanged: onChanged,
-      activeColor: kPrimaryBlue,
-      controlAffinity: ListTileControlAffinity.trailing,
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-    );
-  }
-
-  Widget _buildTextField({required String label, required String hint, required TextEditingController controller, TextInputType keyboardType = TextInputType.text, String? Function(String?)? validator}) {
+  Widget _buildDropdownField() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: kTextColor)),
+          const Text('School Type', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kTextDark)),
           const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            decoration: _fieldDecoration(hint),
-            validator: validator ?? (value) => (value == null || value.isEmpty) ? 'Field cannot be empty' : null,
+          DropdownButtonFormField<String>(
+            value: _selectedSchoolType,
+            items: _schoolTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (v) => setState(() => _selectedSchoolType = v),
+            decoration: _fieldDecoration('Select Type').copyWith(suffixIcon: const Icon(Icons.arrow_drop_down, color: kPrimaryIndigo)),
+            validator: (value) => value == null ? 'Selection required' : null,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfrastructureGrid(bool isLarge) {
+    return Container(
+      decoration: BoxDecoration(color: kCardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+      child: Wrap(
+        children: [
+          _buildResponsiveCheckbox('Electricity', _hasElectricity, (v) => setState(() => _hasElectricity = v!), isLarge),
+          _buildResponsiveCheckbox('Water Supply', _hasWaterSupply, (v) => setState(() => _hasWaterSupply = v!), isLarge),
+          _buildResponsiveCheckbox('Sanitation', _hasSanitation, (v) => setState(() => _hasSanitation = v!), isLarge),
+          _buildResponsiveCheckbox('Communication', _hasCommunication, (v) => setState(() => _hasCommunication = v!), isLarge),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponsiveCheckbox(String title, bool value, Function(bool?) onChanged, bool isLarge) {
+    return SizedBox(
+      width: isLarge ? 249 : double.infinity, // Grid effect on large screens
+      child: CheckboxListTile(
+        title: Text(title, style: const TextStyle(fontSize: 14, color: kTextDark)),
+        value: value,
+        onChanged: onChanged,
+        activeColor: kPrimaryIndigo,
+        controlAffinity: ListTileControlAffinity.leading,
+        dense: true,
       ),
     );
   }
@@ -300,19 +300,19 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
   InputDecoration _fieldDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade500),
       filled: true,
-      fillColor: kFieldColor,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimaryBlue, width: 2.0)),
+      fillColor: kCardColor,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kPrimaryIndigo, width: 2.0)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent, width: 2.0)),
     );
   }
 
   String? _validateNumber(String? value) {
     if (value == null || value.isEmpty) return 'Required';
-    if (int.tryParse(value) == null) return 'Invalid number';
+    if (int.tryParse(value) == null) return 'Numbers only';
     return null;
   }
 }
