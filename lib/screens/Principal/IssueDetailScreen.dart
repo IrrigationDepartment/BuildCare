@@ -38,11 +38,6 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
     return DateFormat('yyyy-MM-dd').format(timestamp.toDate());
   }
 
-  String _formatReviewTime(Timestamp? timestamp) {
-    if (timestamp == null) return 'Just now';
-    return DateFormat.yMMMd().add_jm().format(timestamp.toDate());
-  }
-
   void _nextImage() {
     if (_currentPage < _imageUrlsState.length - 1) {
       _pageController.nextPage(
@@ -246,319 +241,318 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_imageUrlsState.isNotEmpty) ...[
-              SizedBox(
-                height: 250, 
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PageView.builder(
-                      controller: _pageController,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _currentPage = index;
-                        });
-                      },
-                      itemCount: _imageUrlsState.length,
-                      itemBuilder: (context, index) {
-                        final url = _imageUrlsState[index];
-                        return GestureDetector(
-                          onTap: () => _openImageViewer(url),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                url,
-                                width: double.infinity, 
-                                height: 250, 
-                                fit: BoxFit.cover,
-                                loadingBuilder: (c, w, p) => p == null
-                                    ? w
-                                    : const Center(child: CircularProgressIndicator()),
-                                errorBuilder: (c, o, s) => Container(
-                                  width: double.infinity,
-                                  height: 250,
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.broken_image, size: 60, color: Colors.grey),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    
-                    if (_imageUrlsState.length > 1) 
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          icon: Icon(Icons.chevron_left, size: 40, 
-                                     color: _currentPage > 0 ? _primaryColor : Colors.grey.shade400),
-                          onPressed: _previousImage,
-                        ),
-                      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            bool isLargeScreen = constraints.maxWidth > 800;
 
-                    if (_imageUrlsState.length > 1) 
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          icon: Icon(Icons.chevron_right, size: 40, 
-                                     color: _currentPage < _imageUrlsState.length - 1 ? _primaryColor : Colors.grey.shade400),
-                          onPressed: _nextImage,
+            if (isLargeScreen) {
+              // --- TWO-COLUMN DESKTOP LAYOUT ---
+              return Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // LEFT COLUMN: Images, Title, and Actions
+                    Expanded(
+                      flex: 4,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildImageCarousel(),
+                            const SizedBox(height: 16),
+                            _buildTitleAndStatus(title, status),
+                            const Divider(height: 30),
+                            _buildActionButtons(),
+                          ],
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 40),
+                    // RIGHT COLUMN: Details and Reviews
+                    Expanded(
+                      flex: 5,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildDetailsSection(date, schoolName, building, description),
+                            const Divider(height: 40),
+                            _buildReviewsSection(),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
+              );
+            }
+
+            // --- SINGLE-COLUMN MOBILE LAYOUT ---
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildImageCarousel(),
+                  _buildTitleAndStatus(title, status),
+                  const Divider(height: 30),
+                  _buildDetailsSection(date, schoolName, building, description),
+                  const Divider(height: 40),
+                  _buildActionButtons(),
+                  const Divider(height: 40),
+                  _buildReviewsSection(),
+                  const SizedBox(height: 20),
+                ],
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  '${_currentPage + 1} / ${_imageUrlsState.length}',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ),
-              const Divider(height: 30), 
-            ],
+  // --- UI COMPONENT BUILDERS ---
 
-            Text(
-              title,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: status == 'Pending' ? Colors.orange.shade100 : Colors.green.shade100,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                status,
-                style: TextStyle(
-                  color: status == 'Pending' ? Colors.orange.shade800 : Colors.green.shade800,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const Divider(height: 30),
+  Widget _buildImageCarousel() {
+    if (_imageUrlsState.isEmpty) return const SizedBox.shrink();
 
-            _buildDetailRow(Icons.date_range, "Date Reported:", date),
-            _buildDetailRow(Icons.school, "School:", schoolName),
-            _buildDetailRow(Icons.location_city, "Building:", building),
-            const SizedBox(height: 15),
-
-            const Text("Description:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 5),
-            Text(description, style: const TextStyle(fontSize: 16)),
-
-            const Divider(height: 40),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddBuildingIssuesPage(
-                          userNic: widget.userNic,
-                          issueId: widget.issueId,
+    return Column(
+      children: [
+        SizedBox(
+          height: 250, 
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              PageView.builder(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentPage = index;
+                  });
+                },
+                itemCount: _imageUrlsState.length,
+                itemBuilder: (context, index) {
+                  final url = _imageUrlsState[index];
+                  return GestureDetector(
+                    onTap: () => _openImageViewer(url),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          url,
+                          width: double.infinity, 
+                          height: 250, 
+                          fit: BoxFit.cover,
+                          loadingBuilder: (c, w, p) => p == null
+                              ? w
+                              : const Center(child: CircularProgressIndicator()),
+                          errorBuilder: (c, o, s) => Container(
+                            width: double.infinity,
+                            height: 250,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.broken_image, size: 60, color: Colors.grey),
+                          ),
                         ),
-                      ),
-                    ).then((result) {
-                      if (result == true) {
-                        _refreshImages();
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Issue updated — images refreshed')),
-                          );
-                        }
-                      }
-                    });
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text("Edit Issue"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                ),
-
-                _isDeleting
-                    ? const CircularProgressIndicator()
-                    : ElevatedButton.icon(
-                        onPressed: _showDeleteConfirmationDialog,
-                        icon: const Icon(Icons.delete),
-                        label: const Text("Delete"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        ),
-                      ),
-              ],
-            ),
-
-            const Divider(height: 40),
-
-            // --- REVIEWS SECTION START ---
-            const Text(
-              "Reviews & Feedback", 
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
-            ),
-            const SizedBox(height: 15),
-
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('issues')
-                  .doc(widget.issueId)
-                  .collection('reviews') 
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        "No reviews available yet.",
-                        style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
                       ),
                     ),
                   );
+                },
+              ),
+              
+              if (_imageUrlsState.length > 1) 
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: Icon(Icons.chevron_left, size: 40, 
+                               color: _currentPage > 0 ? _primaryColor : Colors.grey.shade400),
+                    onPressed: _previousImage,
+                  ),
+                ),
+
+              if (_imageUrlsState.length > 1) 
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    icon: Icon(Icons.chevron_right, size: 40, 
+                               color: _currentPage < _imageUrlsState.length - 1 ? _primaryColor : Colors.grey.shade400),
+                    onPressed: _nextImage,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            '${_currentPage + 1} / ${_imageUrlsState.length}',
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ),
+        const Divider(height: 30), 
+      ],
+    );
+  }
+
+  Widget _buildTitleAndStatus(String title, String status) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: status == 'Pending' ? Colors.orange.shade100 : Colors.green.shade100,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            status,
+            style: TextStyle(
+              color: status == 'Pending' ? Colors.orange.shade800 : Colors.green.shade800,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailsSection(String date, String schoolName, String building, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDetailRow(Icons.date_range, "Date Reported:", date),
+        _buildDetailRow(Icons.school, "School:", schoolName),
+        _buildDetailRow(Icons.location_city, "Building:", building),
+        const SizedBox(height: 15),
+
+        const Text("Description:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
+        Text(description, style: const TextStyle(fontSize: 16)),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddBuildingIssuesPage(
+                  userNic: widget.userNic,
+                  issueId: widget.issueId,
+                ),
+              ),
+            ).then((result) {
+              if (result == true) {
+                _refreshImages();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Issue updated — images refreshed')),
+                  );
+                }
+              }
+            });
+          },
+          icon: const Icon(Icons.edit),
+          label: const Text("Edit Issue"),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
+        ),
+
+        _isDeleting
+            ? const CircularProgressIndicator()
+            : ElevatedButton.icon(
+                onPressed: _showDeleteConfirmationDialog,
+                icon: const Icon(Icons.delete),
+                label: const Text("Delete"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+      ],
+    );
+  }
+
+  Widget _buildReviewsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Reviews & Feedback", 
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+        ),
+        const SizedBox(height: 15),
+
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('issues')
+              .doc(widget.issueId)
+              .collection('reviews') 
+              .orderBy('timestamp', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Center(
+                  child: Text(
+                    "No reviews available yet.",
+                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(), 
+              itemCount: snapshot.data!.docs.length,
+              itemBuilder: (context, index) {
+                var reviewData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+
+                String reviewText = reviewData['reviewText'] ?? 'No feedback text provided.';
+                String reviewerUid = reviewData['reviewerNic'] ?? ''; 
+                
+                String timestampStr = 'Just now';
+                if(reviewData['timestamp'] != null) {
+                  timestampStr = DateFormat.yMMMd().add_jm().format((reviewData['timestamp'] as Timestamp).toDate());
                 }
 
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(), 
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    var reviewDoc = snapshot.data!.docs[index];
-                    var reviewData = reviewDoc.data() as Map<String, dynamic>;
-
-                    String reviewText = reviewData['reviewText'] ?? 'No feedback text provided.';
-                    // This is actually the user's document ID based on your database screenshot
-                    String reviewerUid = reviewData['reviewerNic'] ?? ''; 
-                    String timestampStr = _formatReviewTime(reviewData['timestamp'] as Timestamp?);
-
-                    // NEW: Fetch the specific user's data using their UID
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance.collection('users').doc(reviewerUid).get(),
-                      builder: (context, userSnapshot) {
-                        String reviewerName = "Loading...";
-                        String reviewerType = "Admin";
-                        String? profileImage;
-
-                        // Once the user's info loads, extract their real name, type, and image
-                        if (userSnapshot.connectionState == ConnectionState.done) {
-                          if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                            var userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                            reviewerName = userData['name'] ?? 'Unknown Admin';
-                            reviewerType = userData['userType'] ?? 'Admin';
-                            profileImage = userData['profile_image'];
-                          } else {
-                            reviewerName = "Unknown User";
-                          }
-                        }
-
-                        return Card(
-                          elevation: 0,
-                          color: Colors.blue.shade50, 
-                          margin: const EdgeInsets.only(bottom: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.blue.shade100),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    // Circular Profile Image
-                                    CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: Colors.blue.shade200,
-                                      backgroundImage: (profileImage != null && profileImage.isNotEmpty)
-                                          ? NetworkImage(profileImage)
-                                          : null,
-                                      child: (profileImage == null || profileImage.isEmpty)
-                                          ? Icon(Icons.person, size: 20, color: Colors.blue.shade800)
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    
-                                    // Name and User Type Stacked
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            reviewerName,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue.shade900,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                          Text(
-                                            reviewerType,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.blue.shade700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Timestamp
-                                    Text(
-                                      timestampStr,
-                                      style: TextStyle(fontSize: 12, color: Colors.blue.shade400),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                
-                                // Review Description
-                                Text(
-                                  reviewText,
-                                  style: const TextStyle(fontSize: 15, color: Colors.black87),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
+                return ReviewCard(
+                  reviewerUid: reviewerUid, 
+                  reviewText: reviewText, 
+                  timestampStr: timestampStr
                 );
               },
-            ),
-            // --- REVIEWS SECTION END ---
-            const SizedBox(height: 20),
-          ],
+            );
+          },
         ),
-      ),
+      ],
     );
   }
   
@@ -582,6 +576,140 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// OPTIMIZED REVIEW CARD WIDGET
+// Prevents duplicate Firestore calls while scrolling through reviews
+// ============================================================================
+class ReviewCard extends StatefulWidget {
+  final String reviewerUid;
+  final String reviewText;
+  final String timestampStr;
+
+  const ReviewCard({
+    Key? key,
+    required this.reviewerUid,
+    required this.reviewText,
+    required this.timestampStr,
+  }) : super(key: key);
+
+  @override
+  State<ReviewCard> createState() => _ReviewCardState();
+}
+
+class _ReviewCardState extends State<ReviewCard> {
+  static final Map<String, Map<String, dynamic>> _userCache = {};
+  
+  String reviewerName = "Loading...";
+  String reviewerType = "Admin";
+  String? profileImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    if (widget.reviewerUid.isEmpty) {
+      if (mounted) setState(() => reviewerName = "Unknown User");
+      return;
+    }
+
+    if (_userCache.containsKey(widget.reviewerUid)) {
+      _applyUserData(_userCache[widget.reviewerUid]!);
+      return;
+    }
+
+    try {
+      // 1. Try fetching by Document ID
+      var doc = await FirebaseFirestore.instance.collection('users').doc(widget.reviewerUid).get();
+      if (doc.exists && doc.data() != null) {
+        _userCache[widget.reviewerUid] = doc.data() as Map<String, dynamic>;
+        if (mounted) _applyUserData(_userCache[widget.reviewerUid]!);
+      } else {
+        // 2. Fallback: Try fetching by NIC field
+        var query = await FirebaseFirestore.instance.collection('users').where('nic', isEqualTo: widget.reviewerUid).limit(1).get();
+        if(query.docs.isNotEmpty) {
+           _userCache[widget.reviewerUid] = query.docs.first.data();
+           if (mounted) _applyUserData(_userCache[widget.reviewerUid]!);
+        } else {
+          if (mounted) setState(() => reviewerName = "Unknown User");
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => reviewerName = "Error");
+    }
+  }
+
+  void _applyUserData(Map<String, dynamic> data) {
+    setState(() {
+      reviewerName = data['name'] ?? 'Unknown Admin';
+      reviewerType = data['userType'] ?? 'Admin';
+      profileImage = data['profile_image'];
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Colors.blue.shade50, 
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.blue.shade100),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.blue.shade200,
+                  backgroundImage: (profileImage != null && profileImage!.isNotEmpty)
+                      ? NetworkImage(profileImage!)
+                      : null,
+                  child: (profileImage == null || profileImage!.isEmpty)
+                      ? Icon(Icons.person, size: 20, color: Colors.blue.shade800)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        reviewerName,
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900, fontSize: 15),
+                      ),
+                      Text(
+                        reviewerType,
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  widget.timestampStr,
+                  style: TextStyle(fontSize: 12, color: Colors.blue.shade400),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              widget.reviewText,
+              style: const TextStyle(fontSize: 15, color: Colors.black87),
+            ),
+          ],
+        ),
       ),
     );
   }
