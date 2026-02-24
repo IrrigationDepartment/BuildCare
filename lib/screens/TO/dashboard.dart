@@ -16,7 +16,7 @@ import 'app_settings.dart';
 import 'profile.dart';
 
 // ====================================================================
-// DATA MODEL (Original)
+// DATA MODEL 
 // ====================================================================
 class RecentActivityItem {
   final String id;
@@ -46,14 +46,16 @@ class TODashboard extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<TODashboard> {
-  // --- Style Constants (Original) ---
-  static const Color kPrimaryBlue = Color(0xFF42A5F5);
-  static const Color kLightBlue = Color(0xFFE3F2FD);
-  static const Color kBackgroundColor = Color(0xFFF5F7FA);
+  // ====================================================================
+  // EYE-CATCHING MODERN COLOR PALETTE
+  // ====================================================================
+  static const Color kPrimaryColor = Color(0xFF4F46E5); // Indigo 600
+  static const Color kPrimaryDark = Color(0xFF312E81); // Indigo 900
+  static const Color kAccentColor = Color(0xFFEC4899); // Pink 500 (For badges)
+  static const Color kBackgroundColor = Color(0xFFF8FAFC); // Slate 50
   static const Color kCardColor = Colors.white;
-  static const Color kHeaderGrey = Color(0xFFF0F2F5);
-  static const Color kTextColor = Color(0xFF333333);
-  static const Color kSubTextColor = Color(0xFF757575);
+  static const Color kTextColor = Color(0xFF1E293B); // Slate 800
+  static const Color kSubTextColor = Color(0xFF64748B); // Slate 500
 
   int _selectedIndex = 0;
   late Future<List<RecentActivityItem>> _recentActivitiesFuture;
@@ -83,31 +85,23 @@ class _DashboardScreenState extends State<TODashboard> {
   }
 
   // ====================================================================
-  // UPDATED DATA FETCHING WITH FILTERING
+  // DATA FETCHING (Unchanged Logic)
   // ====================================================================
   Future<List<RecentActivityItem>> _fetchRecentActivities() async {
     final String userNic = widget.userData['nic'] ?? '';
     final String userRole = widget.userData['userType'] ?? '';
     final String userOffice = widget.userData['office'] ?? '';
-    
+
     List<RecentActivityItem> allActivities = [];
     final now = DateTime.now();
 
     try {
       Query issuesQuery = FirebaseFirestore.instance.collection('issues');
-      
-      // Apply filtering based on user role
       if (userRole == 'District Engineer') {
-        // District Engineer: Filter by office district
         issuesQuery = issuesQuery.where('office', isEqualTo: userOffice);
       } else if (userRole == 'Principal') {
-        // Principal: Show only their own activities
         issuesQuery = issuesQuery.where('addedByNic', isEqualTo: userNic);
-      } else {
-        // Other roles (like Technical Officer): Show all
-        // Or you can add specific filtering here
       }
-      
       final issuesSnap = await issuesQuery.get();
 
       for (var doc in issuesSnap.docs) {
@@ -115,11 +109,9 @@ class _DashboardScreenState extends State<TODashboard> {
         if (data != null) {
           allActivities.add(RecentActivityItem(
             id: doc.id,
-            title:
-                "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
-            subtitle:
-                "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
-            icon: Icons.home_work_outlined,
+            title: "${data['schoolName'] ?? 'School'} - ${data['issueTitle'] ?? 'Issue'}",
+            subtitle: "${data['location'] ?? 'No Location'} - ${data['status'] ?? 'Pending'}",
+            icon: Icons.home_work_rounded,
             timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? now,
             type: 'issue',
           ));
@@ -131,18 +123,11 @@ class _DashboardScreenState extends State<TODashboard> {
 
     try {
       Query schoolsQuery = FirebaseFirestore.instance.collection('schools');
-      
-      // Apply filtering based on user role
       if (userRole == 'District Engineer') {
-        // District Engineer: Filter by office district
         schoolsQuery = schoolsQuery.where('educationalZone', isEqualTo: userOffice);
       } else if (userRole == 'Principal') {
-        // Principal: Show only their own schools
         schoolsQuery = schoolsQuery.where('addedByNic', isEqualTo: userNic);
-      } else {
-        // Other roles: Show all
       }
-      
       final schoolsSnap = await schoolsQuery.get();
 
       for (var doc in schoolsSnap.docs) {
@@ -152,7 +137,7 @@ class _DashboardScreenState extends State<TODashboard> {
             id: doc.id,
             title: data['schoolName'] ?? 'Unnamed School',
             subtitle: data['schoolAddress'] ?? 'No Address',
-            icon: Icons.school,
+            icon: Icons.school_rounded,
             timestamp: (data['addedAt'] as Timestamp?)?.toDate() ?? now,
             type: 'school',
           ));
@@ -162,19 +147,11 @@ class _DashboardScreenState extends State<TODashboard> {
       debugPrint("Error fetching schools: $e");
     }
 
-    // Also fetch master plans if needed
     try {
       Query masterPlansQuery = FirebaseFirestore.instance.collection('schoolMasterPlans');
-      
-      if (userRole == 'District Engineer') {
-        // District Engineer: Filter by office district
-        // Assuming there's a way to link master plans to districts
-        // You might need to join with schools collection
-      } else if (userRole == 'Principal') {
-        // Principal: Show only their own master plans
+      if (userRole == 'Principal') {
         masterPlansQuery = masterPlansQuery.where('addedByNic', isEqualTo: userNic);
       }
-      
       final masterPlansSnap = await masterPlansQuery.get();
 
       for (var doc in masterPlansSnap.docs) {
@@ -184,7 +161,7 @@ class _DashboardScreenState extends State<TODashboard> {
             id: doc.id,
             title: "Master Plan: ${data['schoolName'] ?? 'School'}",
             subtitle: "Uploaded on ${data['uploadDate'] ?? 'Unknown Date'}",
-            icon: Icons.architecture,
+            icon: Icons.architecture_rounded,
             timestamp: (data['createdAt'] as Timestamp?)?.toDate() ?? now,
             type: 'masterplan',
           ));
@@ -194,7 +171,6 @@ class _DashboardScreenState extends State<TODashboard> {
       debugPrint("Error fetching master plans: $e");
     }
 
-    // Sort by timestamp and return top 5
     allActivities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return allActivities.take(5).toList();
   }
@@ -210,8 +186,6 @@ class _DashboardScreenState extends State<TODashboard> {
         page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '');
         break;
       case 'masterplan':
-        // You can add navigation for master plan details here
-        // For now, just navigate to schools
         page = ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '');
         break;
     }
@@ -222,6 +196,8 @@ class _DashboardScreenState extends State<TODashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isLargeScreen = MediaQuery.of(context).size.width >= 800;
+
     Widget bodyContent;
     if (_selectedIndex == 0) {
       bodyContent = _buildDashboardHome();
@@ -233,44 +209,96 @@ class _DashboardScreenState extends State<TODashboard> {
 
     return Scaffold(
       backgroundColor: kBackgroundColor,
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings), label: 'Settings'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: kPrimaryBlue,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-        backgroundColor: Colors.white,
-        elevation: 10,
-        type: BottomNavigationBarType.fixed,
-      ),
-      body: bodyContent,
+      bottomNavigationBar: isLargeScreen
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  )
+                ],
+              ),
+              child: BottomNavigationBar(
+                items: const <BottomNavigationBarItem>[
+                  BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+                  BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Profile'),
+                  BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: 'Settings'),
+                ],
+                currentIndex: _selectedIndex,
+                selectedItemColor: kPrimaryColor,
+                unselectedItemColor: Colors.grey.shade400,
+                onTap: _onItemTapped,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                type: BottomNavigationBarType.fixed,
+                showUnselectedLabels: true,
+                selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+      body: isLargeScreen
+          ? Row(
+              children: [
+                NavigationRail(
+                  backgroundColor: Colors.white,
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: _onItemTapped,
+                  labelType: NavigationRailLabelType.all,
+                  selectedIconTheme: const IconThemeData(color: kPrimaryColor),
+                  unselectedIconTheme: IconThemeData(color: Colors.grey.shade400),
+                  selectedLabelTextStyle: const TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold),
+                  destinations: const [
+                    NavigationRailDestination(
+                        icon: Icon(Icons.home_outlined),
+                        selectedIcon: Icon(Icons.home_rounded),
+                        label: Text('Home')),
+                    NavigationRailDestination(
+                        icon: Icon(Icons.person_outline),
+                        selectedIcon: Icon(Icons.person_rounded),
+                        label: Text('Profile')),
+                    NavigationRailDestination(
+                        icon: Icon(Icons.settings_outlined),
+                        selectedIcon: Icon(Icons.settings_rounded),
+                        label: Text('Settings')),
+                  ],
+                ),
+                VerticalDivider(thickness: 1, width: 1, color: Colors.grey.shade200),
+                Expanded(child: bodyContent),
+              ],
+            )
+          : bodyContent,
     );
   }
 
   Widget _buildDashboardHome() {
     return SafeArea(
       child: RefreshIndicator(
+        color: kPrimaryColor,
         onRefresh: _refreshData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildWelcomeHeader(),
-                const SizedBox(height: 24),
-                _buildGridMenu(),
-                const SizedBox(height: 24),
-                _buildRecentActivityHeader(),
-                const SizedBox(height: 16),
-                _buildRecentActivitySection(),
-              ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildWelcomeHeader(),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Quick Actions'),
+                    const SizedBox(height: 16),
+                    _buildGridMenu(),
+                    const SizedBox(height: 32),
+                    _buildSectionTitle('Recent Activity'),
+                    const SizedBox(height: 16),
+                    _buildRecentActivitySection(),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -278,56 +306,87 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- HEADER WITH NOTIFICATION BELL (Added) ---
+  // --- STUNNING GRADIENT HEADER ---
   Widget _buildWelcomeHeader() {
     String userRole = widget.userData['userType'] ?? 'User';
     String userOffice = widget.userData['office'] ?? '';
     String displayRole = userRole;
-    
+
     if (userRole == 'District Engineer' && userOffice.isNotEmpty) {
       displayRole = '$userRole - $userOffice District';
     }
-    
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: kHeaderGrey,
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [kPrimaryColor, kPrimaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: kPrimaryColor.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
       ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 30,
-            backgroundColor: kPrimaryBlue,
-            child: Icon(Icons.person, size: 30, color: Colors.white),
+          Container(
+            padding: const EdgeInsets.all(3), // Border width
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: const CircleAvatar(
+              radius: 32,
+              backgroundColor: kPrimaryDark,
+              child: Icon(Icons.person_rounded, size: 36, color: Colors.white),
+            ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome, ${widget.userData['name'] ?? ''}!',
+                  'Welcome back,',
+                  style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8), letterSpacing: 0.5),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.userData['name'] ?? 'User',
                   style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: kTextColor),
+                      color: Colors.white),
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 4),
                 Text(displayRole,
-                    style: const TextStyle(fontSize: 16, color: kSubTextColor)),
+                    style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.9))),
               ],
             ),
           ),
           Stack(
+            clipBehavior: Clip.none,
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded,
-                    size: 28, color: kTextColor),
-                onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const NotificationScreen())),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.notifications_outlined,
+                      size: 26, color: Colors.white),
+                  onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const NotificationScreen())),
+                ),
               ),
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -336,18 +395,20 @@ class _DashboardScreenState extends State<TODashboard> {
                     .where('userId', isEqualTo: widget.userData['nic'] ?? '')
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const SizedBox();
+                  }
                   return Positioned(
-                    right: 8,
-                    top: 8,
+                    right: -2,
+                    top: -2,
                     child: Container(
-                      padding: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10)),
+                          color: kAccentColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: kPrimaryDark, width: 2)),
                       constraints:
-                          const BoxConstraints(minWidth: 16, minHeight: 16),
+                          const BoxConstraints(minWidth: 20, minHeight: 20),
                       child: Text('${snapshot.data!.docs.length}',
                           style: const TextStyle(
                               color: Colors.white,
@@ -365,68 +426,61 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
+  // A reusable section title for consistency
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w800,
+        color: kTextColor,
+        letterSpacing: -0.5,
+      ),
+    );
+  }
+
   Widget _buildGridMenu() {
     String userRole = widget.userData['userType'] ?? '';
     List<Widget> menuItems = [];
 
-    // Common menu items for all users
     menuItems.addAll([
       _buildMenuCard(
-          icon: Icons.school,
-          title: 'Manage School',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => ManageSchoolsScreen(
-                      userNic: widget.userData['nic'] ?? '')))),
+          icon: Icons.school_rounded,
+          title: 'Manage\nSchool',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ManageSchoolsScreen(userNic: widget.userData['nic'] ?? '')))),
       _buildMenuCard(
-          icon: Icons.assessment,
-          title: 'Issues Report',
-          onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => IssueReportListScreen(
-                      userNic: widget.userData['nic'] ?? '')))),
+          icon: Icons.assessment_rounded,
+          title: 'Issues\nReport',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => IssueReportListScreen(userNic: widget.userData['nic'] ?? '')))),
     ]);
 
-    // Add role-specific menu items
     if (userRole == 'District Engineer' || userRole == 'Technical Officer') {
       menuItems.addAll([
         _buildMenuCard(
-            icon: Icons.description,
-            title: 'Contract Details',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const ContractDetailsScreen()))),
+            icon: Icons.description_rounded,
+            title: 'Contract\nDetails',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractDetailsScreen()))),
         _buildMenuCard(
-            icon: Icons.business_center,
-            title: 'Contractor Details',
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const ContractorListScreen()))),
+            icon: Icons.business_center_rounded,
+            title: 'Contractor\nDetails',
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractorListScreen()))),
       ]);
     } else if (userRole == 'Principal') {
       menuItems.addAll([
         _buildMenuCard(
-            icon: Icons.architecture,
-            title: 'Master Plans',
-            onTap: () {
-              // Navigate to master plans screen
-              // You can create a separate screen for this
-            }),
+            icon: Icons.architecture_rounded,
+            title: 'Master\nPlans',
+            onTap: () {}),
         _buildMenuCard(
-            icon: Icons.report,
-            title: 'My Reports',
-            onTap: () {
-              // Navigate to principal's reports
-            }),
+            icon: Icons.report_rounded,
+            title: 'My\nReports',
+            onTap: () {}),
       ]);
     }
 
-    return GridView.count(
-      crossAxisCount: 2,
+    return GridView.extent(
+      maxCrossAxisExtent: 180, // slightly narrower to look better on mobile
+      childAspectRatio: 1.0, // perfect squares
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 16,
@@ -435,57 +489,87 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
+  // --- MODERN GLASS/TINTED MENU CARDS ---
   Widget _buildMenuCard(
       {required IconData icon,
       required String title,
       required VoidCallback onTap}) {
-    return Card(
-      elevation: 2,
-      color: kCardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 40, color: kPrimaryBlue),
-          const SizedBox(height: 12),
-          Text(title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: kTextColor))
-        ]),
+    return Container(
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          highlightColor: kPrimaryColor.withOpacity(0.05),
+          splashColor: kPrimaryColor.withOpacity(0.1),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: kPrimaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 32, color: kPrimaryColor),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: kTextColor,
+                    height: 1.2,
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildRecentActivityHeader() {
-    return const Row(children: [
-      Icon(Icons.history, color: kSubTextColor),
-      SizedBox(width: 8),
-      Text('Recent Activity',
-          style: TextStyle(
-              fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor))
-    ]);
-  }
-
-  // --- RECENT ACTIVITY SECTION (Preserved original interface) ---
   Widget _buildRecentActivitySection() {
     return FutureBuilder<List<RecentActivityItem>>(
       future: _recentActivitiesFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
-          return const Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: Padding(
+            padding: EdgeInsets.all(32.0),
+            child: CircularProgressIndicator(color: kPrimaryColor),
+          ));
+        }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(40),
             width: double.infinity,
             decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(12)),
-            child: const Column(children: [
-              Icon(Icons.inbox, size: 40, color: Colors.grey),
-              SizedBox(height: 8),
-              Text('No recent activity found.',
-                  style: TextStyle(color: kSubTextColor))
+                color: kCardColor, 
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
+                ]),
+            child: Column(children: [
+              Icon(Icons.inbox_rounded, size: 60, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              const Text('No recent activity found',
+                  style: TextStyle(color: kSubTextColor, fontSize: 16, fontWeight: FontWeight.w500))
             ]),
           );
         }
@@ -503,57 +587,75 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
+  // --- MODERN LIST TILES ---
   Widget _buildActivityCard(
       {required String title,
       required String subtitle,
       required IconData icon,
       required VoidCallback onTap}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
           color: kCardColor,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4))
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 12,
+                offset: const Offset(0, 6))
           ]),
-      child: Row(
-        children: [
-          Icon(icon, color: kPrimaryBlue, size: 28),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: kTextColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(fontSize: 13, color: kSubTextColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: kPrimaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: kPrimaryColor, size: 26),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: kTextColor),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 6),
+                      Text(subtitle,
+                          style: const TextStyle(fontSize: 13, color: kSubTextColor, fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: kPrimaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: kPrimaryColor),
+                    onPressed: onTap,
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: onTap,
-            style: OutlinedButton.styleFrom(
-                foregroundColor: kPrimaryBlue,
-                side: const BorderSide(color: kLightBlue),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20))),
-            child: const Text('View'),
-          ),
-        ],
+        ),
       ),
     );
   }
