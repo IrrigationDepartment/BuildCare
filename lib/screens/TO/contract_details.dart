@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_contract.dart';
 import 'view_details.dart';
 
-// --- Data Model ---
 class Contract {
   final String id;
   final String cidaRegisterNumber;
@@ -25,7 +24,6 @@ class Contract {
   }
 }
 
-// --- UPDATED: Changed to StatefulWidget ---
 class ContractDetailsScreen extends StatefulWidget {
   const ContractDetailsScreen({super.key});
 
@@ -34,9 +32,14 @@ class ContractDetailsScreen extends StatefulWidget {
 }
 
 class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
-  // 1. Variables to hold search text
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+
+  // --- STYLE CONSTANTS ---
+  static const Color kPrimaryIndigo = Color(0xFF1E293B); // Deep Slate
+  static const Color kAccentAzure = Color(0xFF0284C7);   // Professional Blue
+  static const Color kBgSlate = Color(0xFFF1F5F9);      // Light Grey/Blue
+  static const Color kCardColor = Colors.white;
 
   @override
   void dispose() {
@@ -46,170 +49,158 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double width = MediaQuery.of(context).size.width;
+
+    // --- RESPONSIVE BREAKPOINTS ---
+    int crossAxisCount = 1;
+    double aspectRatio = 4.0; // Wide for mobile list
+
+    if (width > 1100) {
+      crossAxisCount = 3;
+      aspectRatio = 2.5;
+    } else if (width > 650) {
+      crossAxisCount = 2;
+      aspectRatio = 2.8;
+    }
+
     return Scaffold(
+      backgroundColor: kBgSlate,
       appBar: AppBar(
-        title: const Text('Manage Contracts'),
-        backgroundColor: const Color(0xFFF5F7FA),
-        elevation: 1,
+        title: const Text('Contract Database', 
+          style: TextStyle(fontWeight: FontWeight.bold, color: kPrimaryIndigo)),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        centerTitle: false,
       ),
-      body: Column(
-        children: [
-          // --- 2. Search Bar (Placed outside StreamBuilder for better performance) ---
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by CIDA No. or Name...',
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                // Clear button
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = "";
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                  borderSide: const BorderSide(color: Color(0xFF42A5F5)),
-                ),
-              ),
-              onChanged: (value) {
-                // 3. Update state when user types
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
-            ),
-          ),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 1200),
+          child: Column(
+            children: [
+              _buildSearchBar(width),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('contracts').snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: kAccentAzure));
+                    }
+                    if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(child: Text('No contracts found.'));
+                    }
 
-          // --- 3. The List (Wrapped in Expanded) ---
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('contracts') // Ensure collection name is correct
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                    final List<Contract> filteredContracts = snapshot.data!.docs
+                        .map((doc) => Contract.fromFirestore(doc))
+                        .where((c) => 
+                            c.contractorName.toLowerCase().contains(_searchQuery) || 
+                            c.cidaRegisterNumber.toLowerCase().contains(_searchQuery))
+                        .toList();
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
+                    if (filteredContracts.isEmpty) {
+                      return Center(child: Text('No results found for "$_searchQuery"'));
+                    }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Text('No contracts found.'),
-                  );
-                }
-
-                // Convert all docs to Contract objects
-                final List<Contract> allContracts = snapshot.data!.docs
-                    .map((doc) => Contract.fromFirestore(doc))
-                    .toList();
-
-                // --- 4. Filtering Logic ---
-                final List<Contract> filteredContracts = allContracts.where((contract) {
-                  final nameLower = contract.contractorName.toLowerCase();
-                  final cidaLower = contract.cidaRegisterNumber.toLowerCase();
-                  
-                  return nameLower.contains(_searchQuery) || 
-                         cidaLower.contains(_searchQuery);
-                }).toList();
-
-                if (filteredContracts.isEmpty) {
-                  return Center(
-                    child: Text('No results found for "$_searchQuery"'),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: filteredContracts.length,
-                  itemBuilder: (context, index) {
-                    final contract = filteredContracts[index];
-                    return Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 6.0, horizontal: 10.0),
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.engineering,
-                          color: Color(0xFF42A5F5),
-                          size: 30,
-                        ),
-                        title: Text(
-                          contract.contractorName,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        subtitle: Text(
-                          'CIDA Reg No: ${contract.cidaRegisterNumber}',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        trailing: TextButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => ViewContractDetailsScreen(
-                                    contractId: contract.id),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.info_outline,
-                              size: 18, color: Colors.blue),
-                          label: const Text('Details',
-                              style: TextStyle(color: Colors.blue)),
-                        ),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => ViewContractDetailsScreen(
-                                  contractId: contract.id),
-                            ),
-                          );
-                        },
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        childAspectRatio: aspectRatio,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
                       ),
+                      itemCount: filteredContracts.length,
+                      itemBuilder: (context, index) => _buildContractCard(filteredContracts[index]),
                     );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AddContractScreen())),
+        icon: const Icon(Icons.add_task_rounded),
+        label: const Text('New Contract'),
+        backgroundColor: kAccentAzure,
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(double screenWidth) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search by Contractor Name or CIDA Number...',
+          prefixIcon: const Icon(Icons.search_rounded, color: kAccentAzure),
+          suffixIcon: _searchQuery.isNotEmpty 
+              ? IconButton(icon: const Icon(Icons.cancel), onPressed: () { 
+                  _searchController.clear();
+                  setState(() => _searchQuery = "");
+                }) 
+              : null,
+          filled: true,
+          fillColor: kBgSlate,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        ),
+        onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+      ),
+    );
+  }
+
+  Widget _buildContractCard(Contract contract) {
+    return Container(
+      decoration: BoxDecoration(
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: kPrimaryIndigo.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
         ],
       ),
-
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => AddContractScreen()),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Contract'),
-        backgroundColor: const Color(0xFF42A5F5),
-        foregroundColor: Colors.white,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => ViewContractDetailsScreen(contractId: contract.id))),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: kAccentAzure.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.engineering_rounded, color: kAccentAzure, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(contract.contractorName, 
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: kPrimaryIndigo)),
+                      const SizedBox(height: 4),
+                      Text('CIDA: ${contract.cidaRegisterNumber}', 
+                        style: TextStyle(color: kPrimaryIndigo.withOpacity(0.6), fontSize: 13)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
