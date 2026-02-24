@@ -143,37 +143,12 @@ class _ProfilePageState extends State<ProfilePage> {
         if (jsonResponse['status'] == 'success') {
           String newImageUrl = jsonResponse['profileImageUrl'];
 
-          // FIX: Batch update to save the image to the main doc AND any duplicates
-          WriteBatch batch = FirebaseFirestore.instance.batch();
-          
-          // 1. Update the main user document in the 'users' collection
+          // FIXED: ONLY update the current user's document.
           DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
-          batch.set(userRef, {
+          await userRef.set({
             'profile_image': newImageUrl,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
-
-          // 2. Update any other duplicate Principal records with the same NIC
-          String userNic = widget.userData['nic']?.toString() ?? "";
-          if (userNic.isNotEmpty) {
-            QuerySnapshot userQuery = await FirebaseFirestore.instance
-                .collection('users')
-                .where('nic', isEqualTo: userNic)
-                .where('userType', isEqualTo: 'Principal')
-                .get();
-
-            for (var doc in userQuery.docs) {
-              if (doc.id != widget.userId) { 
-                batch.set(doc.reference, {
-                  'profile_image': newImageUrl,
-                  'updatedAt': FieldValue.serverTimestamp(),
-                }, SetOptions(merge: true));
-              }
-            }
-          }
-
-          // Commit all changes to Firestore
-          await batch.commit();
 
           setState(() {
             _profileImageUrl = newImageUrl;
@@ -211,15 +186,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
     try {
       String typedSchoolPhone = _schoolPhoneController.text.trim();
-      String userNic = widget.userData['nic']?.toString() ?? "";
 
-      WriteBatch batch = FirebaseFirestore.instance.batch();
-
-      // Update the main user document
+      // FIXED: ONLY update the current user's document.
       DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
       
-      // FIXED: Using batch.set with merge: true instead of batch.update
-      batch.set(userRef, {
+      await userRef.set({
         'name': _nameController.text.trim(),
         'mobilePhone': _phoneController.text.trim(),
         'schoolName': typedSchoolName,
@@ -228,28 +199,6 @@ class _ProfilePageState extends State<ProfilePage> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Update any other duplicate Principal records with the same NIC
-      QuerySnapshot userQuery = await FirebaseFirestore.instance
-          .collection('users')
-          .where('nic', isEqualTo: userNic)
-          .where('userType', isEqualTo: 'Principal')
-          .get();
-
-      for (var doc in userQuery.docs) {
-        if (doc.id != widget.userId) { 
-          // FIXED: Using batch.set with merge: true instead of batch.update
-          batch.set(doc.reference, {
-            'name': _nameController.text.trim(),
-            'mobilePhone': _phoneController.text.trim(),
-            'schoolName': typedSchoolName,
-            'officePhone': typedSchoolPhone,
-            'profile_image': _profileImageUrl,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-      }
-
-      await batch.commit();
       await _fetchLatestUserData();
 
       if (mounted) {

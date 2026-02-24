@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart'; // <--- NEW IMPORT
 
 // ============================================================================
 // 1. ALL SCHOOLS PAGE (LIST & FILTER)
@@ -43,7 +44,6 @@ class _AllSchoolsPageState extends State<AllSchoolsPage> {
           final Set<String> uniqueDistricts = {'All'};
           for (var doc in allSchools) {
             final data = doc.data() as Map<String, dynamic>;
-            // Fallback to educationalZone if district isn't explicitly set, or use 'Unknown'
             final district = data['district'] as String? ?? data['educationalZone'] as String? ?? 'Unknown';
             uniqueDistricts.add(district);
           }
@@ -204,6 +204,27 @@ class SchoolDetailPage extends StatelessWidget {
 
   const SchoolDetailPage({super.key, required this.schoolId, required this.schoolData});
 
+  // Helper method to open URL
+  Future<void> _launchMasterPlanUrl(BuildContext context, String urlString) async {
+    if (urlString.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No link provided for this plan.')));
+      return;
+    }
+    
+    final Uri url = Uri.parse(urlString);
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open the master plan link.')));
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final schoolName = schoolData['schoolName'] as String? ?? 'Unknown School';
@@ -337,7 +358,7 @@ class SchoolDetailPage extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Master Plans Section (Requested Feature)
+                  // DYNAMIC Master Plans Section
                   _buildSectionHeader('Master Plans & Development'),
                   Card(
                     elevation: 0,
@@ -353,54 +374,90 @@ class SchoolDetailPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           
-                          // Placeholder for actual Master Plan data
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.indigo.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.indigo.shade100),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: const BoxDecoration(color: Colors.indigo, shape: BoxShape.circle),
-                                  child: const Icon(Icons.architecture, color: Colors.white, size: 20),
-                                ),
-                                const SizedBox(width: 16),
-                                const Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Primary Building Renovation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo)),
-                                      Text('Phase 1: Foundation & Roofing', style: TextStyle(fontSize: 13, color: Colors.black87)),
-                                    ],
+                          // STREAM BUILDER ADDED HERE
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('schoolMasterPlans')
+                                .where('schoolName', isEqualTo: schoolName) // Match by school name
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+                              }
+                              
+                              if (snapshot.hasError) {
+                                return const Text('Error loading master plans.', style: TextStyle(color: Colors.red));
+                              }
+
+                              final plans = snapshot.data?.docs ?? [];
+
+                             if (plans.isEmpty) {
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(12),
+                                    // FIX: Removed the invalid BorderStyle.dash
+                                    border: Border.all(color: Colors.grey.shade300), 
                                   ),
-                                ),
-                                const Icon(Icons.chevron_right, color: Colors.indigo),
-                              ],
-                            ),
-                          ),
-                          
-                          const SizedBox(height: 12),
-                          
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                // TODO: Navigate to full Master Plans list or PDF viewer
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening Master Plan Documents...')));
-                              },
-                              icon: const Icon(Icons.picture_as_pdf),
-                              label: const Text('View All Master Plan Documents'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.deepPurple,
-                                side: const BorderSide(color: Colors.deepPurple),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
+                                  child: const Text('No master plans uploaded yet.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                                );
+                              }
+
+                              return Column(
+                                children: plans.map((doc) {
+                                  final planData = doc.data() as Map<String, dynamic>;
+                                  final description = planData['description'] ?? 'Unnamed Plan';
+                                  final uploadDate = planData['uploadDate'] ?? 'Unknown Date';
+                                  final url = planData['masterPlanUrl'] ?? '';
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.indigo.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.indigo.shade100),
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: () => _launchMasterPlanUrl(context, url),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(10),
+                                                decoration: const BoxDecoration(color: Colors.indigo, shape: BoxShape.circle),
+                                                child: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 20),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      description, 
+                                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                    Text('Uploaded: $uploadDate', style: const TextStyle(fontSize: 13, color: Colors.black87)),
+                                                  ],
+                                                ),
+                                              ),
+                                              const Icon(Icons.open_in_new, color: Colors.indigo),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              );
+                            },
                           ),
                         ],
                       ),
