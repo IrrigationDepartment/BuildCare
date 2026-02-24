@@ -269,8 +269,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           ),
         ),
       ),
-      bottomNavigationBar:
-          screenWidth > 800 ? null : const CustomBottomNavBar(currentIndex: 0),
+      // BUG FIXED HERE: Removed the screenWidth > 800 check. Navigation bar now always displays.
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
 
