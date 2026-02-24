@@ -7,7 +7,8 @@ import 'package:rxdart/rxdart.dart';
 import 'view_issues.dart';
 import 'contractors_list.dart';
 import 'contract_list.dart';
-import 'notifications.dart'; // <-- ADDED: Import for the notifications page
+import 'notifications.dart'; 
+import 'school_analysis.dart'; // <-- ADDED: Import for the school analysis page
 
 // --- REGISTRATION PAGE IMPORTS ---
 import 'add_ce.dart';
@@ -252,6 +253,13 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                           }
                         },
                       ),
+                      
+                      const SizedBox(height: 32),
+                      // --- ADDED: Analytics Section ---
+                      _buildSectionTitle('Analytics & Reports'),
+                      const SizedBox(height: 16),
+                      _buildAnalyticsCard(context),
+
                       const SizedBox(height: 32),
                       _buildSectionTitle('System Alerts'),
                       const SizedBox(height: 16),
@@ -269,8 +277,72 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           ),
         ),
       ),
-      // BUG FIXED HERE: Removed the screenWidth > 800 check. Navigation bar now always displays.
       bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
+    );
+  }
+
+  // --- ADDED: Custom Card specifically for routing to School Analysis ---
+  Widget _buildAnalyticsCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  // Ensure this matches the exact class name inside your school_analysis.dart file!
+                  builder: (context) => const SchoolAnalysisPage()), 
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: Colors.deepPurple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16)),
+                  child: const Icon(Icons.analytics_outlined, color: Colors.deepPurple, size: 32),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('School Analysis',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B))),
+                      const SizedBox(height: 4),
+                      Text('View detailed school performance and comparisons',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1103,7 +1175,7 @@ class CustomBottomNavBar extends StatelessWidget {
         destination = const ProfileManagementPage();
         break;
       case 2:
-        destination = const SettingsPage();
+        destination = const SettingsScreen();
         break;
       default:
         return;

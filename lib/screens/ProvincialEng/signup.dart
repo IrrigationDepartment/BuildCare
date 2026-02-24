@@ -30,8 +30,6 @@ class _ProvincialEngRegistrationPageState
   final _emailController = TextEditingController();
   final _officePhoneController = TextEditingController();
   final _mobileController = TextEditingController();
-  final _petNameController = TextEditingController();
-  final _nicknameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -86,8 +84,6 @@ class _ProvincialEngRegistrationPageState
     _emailController.dispose();
     _officePhoneController.dispose();
     _mobileController.dispose();
-    _petNameController.dispose();
-    _nicknameController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
 
@@ -205,8 +201,6 @@ class _ProvincialEngRegistrationPageState
           'office': _selectedOffice,
           'officePhone': _officePhoneController.text.trim(),
           'mobilePhone': _mobileController.text.trim(),
-          'securityQuestionPet': _petNameController.text.trim(),
-          'securityQuestionNickname': _nicknameController.text.trim(),
           'userType': 'Provincial Engineer',
           'createdAt': Timestamp.now(),
           'isActive': _initialIsActiveStatus,
@@ -382,21 +376,6 @@ class _ProvincialEngRegistrationPageState
                             if (!RegExp(r'^\d{10}$').hasMatch(value)) return 'Must be 10 digits';
                             return null;
                           }),
-
-                      const Divider(height: 40),
-                      Text('Security Questions', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
-                      const SizedBox(height: 16),
-
-                      _buildLabeledTextField(
-                          label: 'First Pet Name',
-                          hint: 'Answer',
-                          icon: Icons.pets_outlined,
-                          controller: _petNameController),
-                      _buildLabeledTextField(
-                          label: 'Childhood Nickname',
-                          hint: 'Answer',
-                          icon: Icons.child_care,
-                          controller: _nicknameController),
 
                       const Divider(height: 40),
                       Text('Password', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
