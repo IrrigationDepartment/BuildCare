@@ -13,24 +13,33 @@ class SchoolDetailsPage extends StatefulWidget {
 }
 
 class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
-  // --- Style Constants ---
-  static const Color kPrimaryBlue = Color(0xFF42A5F5);
-  static const Color kBackgroundColor = Color(0xFFF5F7FA);
-  static const Color kTextColor = Color(0xFF333333);
-  static const Color kActiveColor = Color(0xFF4CAF50); // Green
-  static const Color kInactiveColor = Color(0xFFBDBDBD); // Grey
-  static const Color kAccentColor = Color(0xFFFFA726); // Orange for Stats/Edit
+  // --- EYE-CATCHING MODERN COLOR PALETTE ---
+  static const Color kPrimaryColor = Color(0xFF4F46E5); // Indigo 600
+  static const Color kPrimaryDark = Color(0xFF312E81); // Indigo 900
+  static const Color kBackgroundColor = Color(0xFFF8FAFC); // Slate 50
+  static const Color kCardColor = Colors.white;
+  static const Color kTextColor = Color(0xFF1E293B); // Slate 800
+  static const Color kSubTextColor = Color(0xFF64748B); // Slate 500
+  
+  static const Color kActiveColor = Color(0xFF10B981); // Emerald 500 (Green)
+  static const Color kInactiveColor = Color(0xFF94A3B8); // Slate 400 (Grey)
+  static const Color kAccentColor = Color(0xFFEC4899); // Pink 500 (For Edit Button)
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
-        title:
-            const Text('School Details', style: TextStyle(color: kTextColor)),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: kTextColor),
+        title: const Text('School Details',
+            style: TextStyle(color: kTextColor, fontWeight: FontWeight.w800, fontSize: 20)),
+        backgroundColor: kBackgroundColor,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: kPrimaryColor),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
@@ -39,13 +48,13 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
             .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('School details not found.'));
+            return _buildEmptyState();
           }
 
           final schoolData = snapshot.data!.data() as Map<String, dynamic>;
@@ -53,27 +62,32 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
               schoolData['infrastructure'] as Map<String, dynamic>? ?? {};
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 20.0), // Increased padding for better look
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. General Info Card
-                _buildInfoCard(schoolData),
-                const SizedBox(height: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            // RESPONSIVE WRAPPER: Centers the content on large screens
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. General Info Card (Now a hero header)
+                    _buildHeroHeader(schoolData),
+                    const SizedBox(height: 24),
 
-                // 2. Stats Card (Students/Teachers/Staff)
-                _buildStatsCard(schoolData),
-                const SizedBox(height: 15),
+                    // 2. Stats Card (Responsive grid-like flow)
+                    _buildStatsCard(schoolData),
+                    const SizedBox(height: 24),
 
-                // 3. Infrastructure Card
-                _buildInfrastructureCard(infrastructure),
-                const SizedBox(height: 20),
+                    // 3. Infrastructure Card
+                    _buildInfrastructureCard(infrastructure),
+                    const SizedBox(height: 32),
 
-                // 4. Action Buttons
-                _buildActionButtons(context, schoolData),
-              ],
+                    // 4. Action Buttons
+                    _buildActionButtons(context, schoolData),
+                    const SizedBox(height: 40), // Bottom padding
+                  ],
+                ),
+              ),
             ),
           );
         },
@@ -81,55 +95,88 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
     );
   }
 
-  // --- 1. General Information Card ---
-  Widget _buildInfoCard(Map<String, dynamic> data) {
+  // --- 1. General Information Card (Upgraded to Hero Header) ---
+  Widget _buildHeroHeader(Map<String, dynamic> data) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [kPrimaryColor, kPrimaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: kPrimaryColor.withOpacity(0.3),
             spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header (School Name)
-          _buildDetailRow('School Name', data['schoolName'], isHeader: true),
-          const Divider(height: 20, thickness: 1.5, color: kBackgroundColor),
+          // School Name
+          Text(
+            data['schoolName'] ?? 'Unknown School',
+            style: const TextStyle(
+              fontSize: 24, 
+              fontWeight: FontWeight.bold, 
+              color: Colors.white,
+              height: 1.2
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white24, height: 1),
+          const SizedBox(height: 16),
 
           // Details
-          _buildDetailRow('Address', data['schoolAddress']),
-          _buildDetailRow('E-mail', data['schoolEmail']),
-          _buildDetailRow('Phone', data['schoolPhone']),
-          _buildDetailRow('Type', data['schoolType']),
-          _buildDetailRow('Zone', data['educationalZone']),
+          _buildHeroDetailRow(Icons.location_on_rounded, data['schoolAddress']),
+          _buildHeroDetailRow(Icons.email_rounded, data['schoolEmail']),
+          _buildHeroDetailRow(Icons.phone_rounded, data['schoolPhone']),
+          _buildHeroDetailRow(Icons.category_rounded, data['schoolType']),
+          _buildHeroDetailRow(Icons.map_rounded, data['educationalZone'] != null ? '${data['educationalZone']} Zone' : null),
         ],
       ),
     );
   }
 
-  // --- 2. Stats Card (New) ---
+  Widget _buildHeroDetailRow(IconData icon, String? value) {
+    if (value == null || value.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white70, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- 2. Stats Card ---
   Widget _buildStatsCard(Map<String, dynamic> data) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -137,49 +184,63 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Personnel and Student Count',
+            'Personnel & Students',
             style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor),
+                fontSize: 18, fontWeight: FontWeight.w800, color: kTextColor, letterSpacing: -0.5),
           ),
-          const Divider(height: 20, thickness: 1, color: kBackgroundColor),
-          _buildStatItem(
-              'Students', data['numStudents']?.toString(), Icons.group),
-          _buildStatItem('Teachers', data['numTeachers']?.toString(),
-              Icons.person_pin_circle),
-          _buildStatItem('Staff', data['numNonAcademic']?.toString(),
-              Icons.business_center),
+          const SizedBox(height: 20),
+          
+          // Using Wrap makes it responsive. It puts items side-by-side on wide screens.
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              _buildStatItem('Students', data['numStudents']?.toString(), Icons.group_rounded),
+              _buildStatItem('Teachers', data['numTeachers']?.toString(), Icons.school_rounded),
+              _buildStatItem('Staff', data['numNonAcademic']?.toString(), Icons.business_center_rounded),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _buildStatItem(String label, String? value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
+    // We give it a fixed minimum width so they form a nice grid on tablets
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kBackgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withOpacity(0.05))
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: kPrimaryBlue, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      color: kTextColor,
-                      fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  value ?? 'N/A',
-                  style: const TextStyle(
-                      fontSize: 18,
-                      color: kPrimaryBlue,
-                      fontWeight: FontWeight.bold),
-                ),
-              ],
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: kPrimaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Icon(icon, color: kPrimaryColor, size: 24),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value ?? 'N/A',
+            style: const TextStyle(
+                fontSize: 22,
+                color: kTextColor,
+                fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+                fontSize: 14,
+                color: kSubTextColor,
+                fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -190,148 +251,190 @@ class _SchoolDetailsPageState extends State<SchoolDetailsPage> {
   Widget _buildInfrastructureCard(Map<String, dynamic> infrastructure) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(24.0),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: kCardColor,
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-              color: Colors.grey.withOpacity(0.15),
-              blurRadius: 5,
-              offset: const Offset(0, 3)),
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 8)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Infrastructure Components',
+            'Infrastructure',
             style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.bold, color: kTextColor),
+                fontSize: 18, fontWeight: FontWeight.w800, color: kTextColor, letterSpacing: -0.5),
           ),
-          const SizedBox(height: 12),
-          _buildInfrastructureItem(
-              'Electricity', infrastructure['electricity'] ?? false),
-          _buildInfrastructureItem(
-              'Water Supply', infrastructure['waterSupply'] ?? false),
-          _buildInfrastructureItem(
-              'Sanitation', infrastructure['sanitation'] ?? false),
-          _buildInfrastructureItem(
-              'Communication', infrastructure['communication'] ?? false),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfrastructureItem(String label, bool hasComponent) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Icon(
-            hasComponent
-                ? Icons.check_circle_outline
-                : Icons.cancel_outlined, // Cleaner outline icons
-            color: hasComponent ? kActiveColor : kInactiveColor,
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 16, color: kTextColor),
+          const SizedBox(height: 20),
+          
+          // Responsive Wrap for infrastructure items
+          Wrap(
+            spacing: 24,
+            runSpacing: 16,
+            children: [
+              _buildInfrastructureItem('Electricity', infrastructure['electricity'] ?? false, Icons.bolt_rounded),
+              _buildInfrastructureItem('Water Supply', infrastructure['waterSupply'] ?? false, Icons.water_drop_rounded),
+              _buildInfrastructureItem('Sanitation', infrastructure['sanitation'] ?? false, Icons.cleaning_services_rounded),
+              _buildInfrastructureItem('Communication', infrastructure['communication'] ?? false, Icons.wifi_rounded),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // --- 4. Action Buttons ---
-  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> data) {
-    return Column(
+  Widget _buildInfrastructureItem(String label, bool hasComponent, IconData icon) {
+    return Row(
+      mainAxisSize: MainAxisSize.min, // Important for Wrap to work properly
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditSchoolScreen(
-                      schoolId: widget.schoolId, schoolData: data),
-                ),
-              );
-            },
-            icon: const Icon(Icons.edit, color: Colors.white),
-            label: const Text('Edit School Details',
-                style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  kAccentColor, // Changed to a different accent color
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: hasComponent ? kActiveColor.withOpacity(0.1) : kInactiveColor.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            icon,
+            color: hasComponent ? kActiveColor : kInactiveColor,
+            size: 20,
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const ViewMasterPlanScreen()),
-              );
-            },
-            icon: const Icon(Icons.map_outlined, color: Colors.white),
-            label: const Text('View Master Plan',
-                style: TextStyle(color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimaryBlue,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
+        const SizedBox(width: 12),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 15, 
+            color: hasComponent ? kTextColor : kSubTextColor, 
+            fontWeight: hasComponent ? FontWeight.w600 : FontWeight.w500,
+            decoration: hasComponent ? null : TextDecoration.lineThrough // Strikethrough if not available
           ),
         ),
       ],
     );
   }
 
-  // --- MODIFIED HELPER: Uses RichText for inline "Attribute: Value" format with wrapping ---
-  Widget _buildDetailRow(String label, String? value, {bool isHeader = false}) {
-    final displayValue = value ?? 'N/A';
-    // Use larger font for the school name header
-    final double fontSize = isHeader ? 22 : 16;
+  // --- 4. Action Buttons ---
+  Widget _buildActionButtons(BuildContext context, Map<String, dynamic> data) {
+    // Put them side-by-side on large screens, stack on mobile
+    final bool isLargeScreen = MediaQuery.of(context).size.width >= 600;
 
-    // School name value should also be bold, others should be normal weight
-    final fontWeightValue = isHeader ? FontWeight.bold : FontWeight.w500;
+    if (isLargeScreen) {
+      return Row(
+        children: [
+          Expanded(child: _buildEditButton(context, data)),
+          const SizedBox(width: 16),
+          Expanded(child: _buildMapButton(context)),
+        ],
+      );
+    }
 
-    return Padding(
-      padding: EdgeInsets.only(
-          bottom: isHeader ? 0 : 8.0), // Less padding for header
-      child: RichText(
-        text: TextSpan(
-          // Default style for the RichText
-          style: DefaultTextStyle.of(context).style.copyWith(
-                fontSize: fontSize,
-                color: kTextColor,
-                decoration: TextDecoration.none, // Removes the underline
-              ),
-          children: <TextSpan>[
-            // Attribute/Label: Always bold and followed by a colon
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+    return Column(
+      children: [
+        _buildEditButton(context, data),
+        const SizedBox(height: 16),
+        _buildMapButton(context),
+      ],
+    );
+  }
+
+  Widget _buildEditButton(BuildContext context, Map<String, dynamic> data) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: kAccentColor.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          )
+        ]
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EditSchoolScreen(
+                  schoolId: widget.schoolId, schoolData: data),
             ),
-            // Value: Normal weight, except for the header value
-            TextSpan(
-              text: displayValue,
-              style: TextStyle(fontWeight: fontWeightValue),
-            ),
-          ],
+          );
+        },
+        icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 20),
+        label: const Text('Edit Details',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kAccentColor,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMapButton(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: kPrimaryColor.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          )
+        ]
+      ),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const ViewMasterPlanScreen()),
+          );
+        },
+        icon: const Icon(Icons.map_rounded, color: Colors.white, size: 20),
+        label: const Text('View Master Plan',
+            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kPrimaryColor,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))
+              ]
+            ),
+            child: Icon(Icons.search_off_rounded, size: 60, color: Colors.grey.shade300),
+          ),
+          const SizedBox(height: 24),
+          const Text('School Not Found', 
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kTextColor)),
+          const SizedBox(height: 8),
+          const Text('The details for this school could not be loaded.', 
+            style: TextStyle(fontSize: 15, color: kSubTextColor)),
+        ],
       ),
     );
   }
