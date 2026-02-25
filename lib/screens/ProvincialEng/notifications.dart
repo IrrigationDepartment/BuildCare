@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for user logic
 import 'package:intl/intl.dart';
 
 // Updated imports to match your provided file names
@@ -19,6 +20,22 @@ class NotificationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. GET THE CURRENT USER INFO
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
+    final String currentUserId = currentUser?.uid ?? '';
+
+    // 2. BUILD THE QUERY DYNAMICALLY
+    Query notificationsQuery = FirebaseFirestore.instance
+        .collection('notifications')
+        .orderBy('timestamp', descending: true);
+
+    // 3. APPLY THE FILTER: Only show notifications created AFTER the user registered
+    if (userCreationTime != null) {
+      notificationsQuery = notificationsQuery.where('timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    }
+
     return Scaffold(
       backgroundColor: kBackgroundColor,
       appBar: AppBar(
@@ -38,7 +55,7 @@ class NotificationPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: TextButton(
-              onPressed: () => _markAllAsRead(),
+              onPressed: () => _markAllAsRead(currentUserId),
               style: TextButton.styleFrom(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
@@ -55,10 +72,7 @@ class NotificationPage extends StatelessWidget {
           // Makes the UI look like a centered feed on web/desktop monitors
           constraints: const BoxConstraints(maxWidth: 750), 
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('notifications')
-                .orderBy('timestamp', descending: true)
-                .snapshots(),
+            stream: notificationsQuery.snapshots(), // Using dynamic query
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator(color: kPrimaryBlue));
@@ -75,7 +89,10 @@ class NotificationPage extends StatelessWidget {
                   itemBuilder: (context, index) {
                     var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
                     String docId = snapshot.data!.docs[index].id;
-                    bool isRead = data['isRead'] ?? false;
+                    
+                    // --- NEW LOGIC: Check if this specific user has read it ---
+                    List<dynamic> readByUsers = data['readBy'] ?? [];
+                    bool isRead = readByUsers.contains(currentUserId);
                     
                     // Routing metadata
                     String? type = data['type']; 
@@ -88,12 +105,14 @@ class NotificationPage extends StatelessWidget {
                       color: isRead ? Colors.white : kUnreadBackground,
                       child: InkWell(
                         onTap: () async {
-                          // Mark as read instantly in UI by updating Firestore
-                          if (!isRead) {
+                          // --- NEW LOGIC: Add this user's ID to the readBy array ---
+                          if (currentUserId.isNotEmpty && !isRead) {
                             FirebaseFirestore.instance
                                 .collection('notifications')
                                 .doc(docId)
-                                .update({'isRead': true});
+                                .update({
+                                  'readBy': FieldValue.arrayUnion([currentUserId])
+                                });
                           }
 
                           if (!context.mounted) return;
@@ -305,16 +324,36 @@ class NotificationPage extends StatelessWidget {
     );
   }
 
-  Future<void> _markAllAsRead() async {
-    final batch = FirebaseFirestore.instance.batch();
-    final query = await FirebaseFirestore.instance
-        .collection('notifications')
-        .where('isRead', isEqualTo: false)
-        .get();
+  // --- NEW LOGIC: Mark All as Read ---
+  Future<void> _markAllAsRead(String currentUserId) async {
+    if (currentUserId.isEmpty) return;
 
-    for (var doc in query.docs) {
-      batch.update(doc.reference, {'isRead': true});
+    final batch = FirebaseFirestore.instance.batch();
+    
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
+    
+    // Fetch all notifications
+    Query query = FirebaseFirestore.instance.collection('notifications');
+        
+    if (userCreationTime != null) {
+      query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
     }
+
+    final querySnapshot = await query.get();
+
+    for (var doc in querySnapshot.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final readBy = data['readBy'] as List<dynamic>? ?? [];
+      
+      // If this user hasn't read it yet, add them to the array
+      if (!readBy.contains(currentUserId)) {
+        batch.update(doc.reference, {
+          'readBy': FieldValue.arrayUnion([currentUserId])
+        });
+      }
+    }
+    
     await batch.commit();
   }
 }
