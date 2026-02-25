@@ -9,6 +9,9 @@ import 'issue_report_details_screen.dart';
 import 'contract_details.dart';
 import 'contractor_list_screen.dart';
 
+// --- NEW: Import the Add Issue Screen ---
+import 'add_issue_screen.dart'; 
+
 // --- New Notification Import ---
 import 'notification.dart';
 
@@ -395,7 +398,6 @@ class _DashboardScreenState extends State<TODashboard> {
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('notifications')
-                    .where('isRead', isEqualTo: false) // Fetch all unread docs
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -404,19 +406,23 @@ class _DashboardScreenState extends State<TODashboard> {
 
                   // Compare timestamps safely inside Dart
                   final userCreationTime = FirebaseAuth.instance.currentUser?.metadata.creationTime;
+                  final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
                   int newNotificationsCount = 0;
 
                   for (var doc in snapshot.data!.docs) {
                     final data = doc.data() as Map<String, dynamic>;
                     final timestamp = data['timestamp'] as Timestamp?;
+                    final readByUsers = data['readBy'] as List<dynamic>? ?? [];
                     
-                    if (timestamp != null && userCreationTime != null) {
-                      if (timestamp.toDate().isAfter(userCreationTime)) {
+                    // Check if the current user has NOT read it yet
+                    if (!readByUsers.contains(currentUserId)) {
+                      if (timestamp != null && userCreationTime != null) {
+                        if (timestamp.toDate().isAfter(userCreationTime)) {
+                          newNotificationsCount++;
+                        }
+                      } else if (timestamp != null) {
                         newNotificationsCount++;
                       }
-                    } else if (timestamp != null) {
-                      // Fallback if user creation time isn't available
-                      newNotificationsCount++;
                     }
                   }
 
@@ -465,6 +471,7 @@ class _DashboardScreenState extends State<TODashboard> {
     String userRole = widget.userData['userType'] ?? '';
     List<Widget> menuItems = [];
 
+    // --- COMMON ITEMS FOR EVERYONE ---
     menuItems.addAll([
       _buildMenuCard(
           icon: Icons.school_rounded,
@@ -474,8 +481,15 @@ class _DashboardScreenState extends State<TODashboard> {
           icon: Icons.assessment_rounded,
           title: 'Issues\nReport',
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => IssueReportListScreen(userNic: widget.userData['nic'] ?? '')))),
+      
+      // --- NEW ADD ISSUE CARD ---
+      _buildMenuCard(
+          icon: Icons.add_circle_outline_rounded,
+          title: 'Report\nNew Issue',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AddIssueScreen(userNic: widget.userData['nic'] ?? '')))),
     ]);
 
+    // --- ROLE SPECIFIC ITEMS ---
     if (userRole == 'District Engineer' || userRole == 'Technical Officer') {
       menuItems.addAll([
         _buildMenuCard(
