@@ -70,11 +70,13 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final String nicValue = _nicController.text.trim();
+      
       final contractorData = {
         'companyName': _companyNameController.text.trim(),
         'cidaNo': _cidaController.text.trim(),
         'contractorName': _contractorNameController.text.trim(),
-        'nic': _nicController.text.trim(),
+        'nic': nicValue,
         'contact': _contactController.text.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -83,22 +85,35 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
         // Update existing record
         await FirebaseFirestore.instance
             .collection('contractor_details')
-            .doc(widget.contractorId)
+            .doc(widget.contractorId) // In edit mode, we use the passed ID
             .update(contractorData);
       } else {
-        // 1. Save new contractor to Firestore
-        DocumentReference docRef = await FirebaseFirestore.instance
+        // --- NEW LOGIC: Use NIC as the Document ID (Primary Key) ---
+        
+        // 1. First check if a contractor with this NIC already exists
+        final docSnapshot = await FirebaseFirestore.instance
             .collection('contractor_details')
-            .add(contractorData);
+            .doc(nicValue)
+            .get();
+            
+        if (docSnapshot.exists) {
+           throw Exception('A contractor with this NIC already exists.');
+        }
 
-        // 2. TRIGGER NOTIFICATION for the new contractor
+        // 2. Save new contractor using NIC as the Document ID
+        await FirebaseFirestore.instance
+            .collection('contractor_details')
+            .doc(nicValue)
+            .set(contractorData);
+
+        // 3. TRIGGER NOTIFICATION for the new contractor
         await FirebaseFirestore.instance.collection('notifications').add({
           'title': 'New Contractor Registered',
           'subtitle': '${_companyNameController.text.trim()} (${_contractorNameController.text.trim()})',
           'timestamp': FieldValue.serverTimestamp(),
           'isRead': false,
-          'type': 'contractor', // Used for routing in notification.dart
-          'contractorId': docRef.id, // Linking the document ID
+          'type': 'contractor',
+          'contractorId': nicValue, // Linking the new Document ID (which is the NIC)
         });
       }
 
@@ -120,7 +135,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'), 
+            content: Text(e.toString().replaceAll('Exception: ', '')), // Clean up exception text
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
           ),
@@ -206,6 +221,8 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
                       hintText: 'Enter National Identity Card Number',
                       controller: _nicController,
                       icon: Icons.badge_rounded,
+                      readOnly: _isEditMode, // NIC is primary key, cannot edit after creation
+                      helperText: _isEditMode ? "NIC cannot be changed as it is the Primary Key." : null,
                     ),
                     _buildTextField(
                       label: 'Contact Number',
@@ -275,6 +292,8 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
     required TextEditingController controller,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
+    String? helperText,
     String? Function(String?)? validator,
   }) {
     return Padding(
@@ -289,9 +308,9 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: kCardColor,
+              color: readOnly ? Colors.grey.shade100 : kCardColor,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
+              boxShadow: readOnly ? [] : [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.03), 
                   blurRadius: 15, 
@@ -302,15 +321,23 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
             child: TextFormField(
               controller: controller,
               keyboardType: keyboardType,
-              style: const TextStyle(fontWeight: FontWeight.w600, color: kTextColor),
+              readOnly: readOnly,
+              style: TextStyle(
+                fontWeight: FontWeight.w600, 
+                color: readOnly ? Colors.grey.shade600 : kTextColor
+              ),
               decoration: InputDecoration(
                 hintText: hintText,
                 hintStyle: const TextStyle(color: kSubTextColor, fontWeight: FontWeight.normal),
                 filled: true,
-                fillColor: kCardColor,
+                fillColor: readOnly ? Colors.grey.shade100 : kCardColor,
                 prefixIcon: Container(
                   margin: const EdgeInsets.only(left: 8, right: 12),
-                  child: Icon(icon, color: kPrimaryColor.withOpacity(0.8), size: 22)
+                  child: Icon(
+                    readOnly ? Icons.lock_outline_rounded : icon, 
+                    color: readOnly ? Colors.grey.shade400 : kPrimaryColor.withOpacity(0.8), 
+                    size: 22
+                  )
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16), 
@@ -321,6 +348,14 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
               validator: validator ?? (value) => (value == null || value.isEmpty) ? 'This field is required' : null,
             ),
           ),
+          if (helperText != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0, left: 4.0),
+              child: Text(
+                helperText,
+                style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w500),
+              ),
+            ),
         ],
       ),
     );

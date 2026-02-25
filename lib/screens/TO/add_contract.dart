@@ -1,3 +1,4 @@
+import 'dart:async'; // Required for the Debounce Timer
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -24,6 +25,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
   static const Color kCardColor = Colors.white;
   static const Color kTextColor = Color(0xFF1E293B); // Slate 800
   static const Color kSubTextColor = Color(0xFF64748B); // Slate 500
+  static const Color kSuccessColor = Color(0xFF10B981); // Emerald Green
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
@@ -39,6 +41,9 @@ class _AddContractScreenState extends State<AddContractScreen> {
   DateTime? _endDate;
   bool _isEditMode = false;
   bool _isLoading = false;
+  bool _isSearchingContractor = false;
+  
+  Timer? _debounce; // Timer for auto-fill search delay
 
   @override
   void initState() {
@@ -67,6 +72,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel(); // Cancel timer if screen is closed
     _cidaController.dispose();
     _contractorController.dispose();
     _typeController.dispose();
@@ -74,6 +80,42 @@ class _AddContractScreenState extends State<AddContractScreen> {
     _startDateController.dispose();
     _endDateController.dispose();
     super.dispose();
+  }
+
+  // --- Auto-Fill Contractor Logic ---
+  Future<void> _searchContractorByCida(String cidaQuery) async {
+    setState(() => _isSearchingContractor = true);
+
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('contractor_details')
+          .where('cidaNo', isEqualTo: cidaQuery)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final contractorData = querySnapshot.docs.first.data();
+        setState(() {
+          // Auto fill the contractor name
+          _contractorController.text = contractorData['contractorName'] ?? '';
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Contractor Found: ${contractorData['contractorName']}'),
+              backgroundColor: kSuccessColor,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching contractor: $e');
+    } finally {
+      if (mounted) setState(() => _isSearchingContractor = false);
+    }
   }
 
   // --- Date Picker Function ---
@@ -144,8 +186,8 @@ class _AddContractScreenState extends State<AddContractScreen> {
           'subtitle': '${_typeController.text.trim()} by ${_contractorController.text.trim()}',
           'timestamp': FieldValue.serverTimestamp(),
           'isRead': false,
-          'type': 'contract', // Identify type for routing in notification.dart
-          'contractId': contractRef.id, // Linking the ID so user can view details
+          'type': 'contract',
+          'contractId': contractRef.id, 
         });
       }
 
@@ -156,7 +198,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
               _isEditMode ? 'Contract updated successfully!' : 'Contract added successfully!',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            backgroundColor: Colors.green.shade600,
+            backgroundColor: kSuccessColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
@@ -198,7 +240,6 @@ class _AddContractScreenState extends State<AddContractScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          // RESPONSIVE WRAPPER: Centers the content on large screens
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
@@ -217,12 +258,35 @@ class _AddContractScreenState extends State<AddContractScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    
+                    // --- CIDA NUMBER WITH AUTO-FILL LISTENER ---
                     _buildTextField(
                       label: 'CIDA Registration No.',
-                      hintText: 'Enter Registration No',
-                      suffixIcon: Icons.badge_rounded,
+                      hintText: 'Type to auto-fill contractor...',
+                      customSuffix: _isSearchingContractor 
+                          ? const Padding(
+                              padding: EdgeInsets.all(14.0),
+                              child: SizedBox(
+                                width: 16, height: 16, 
+                                child: CircularProgressIndicator(strokeWidth: 2, color: kPrimaryColor)
+                              ),
+                            )
+                          : Icon(Icons.badge_rounded, color: kPrimaryColor.withOpacity(0.8), size: 22),
                       controller: _cidaController,
+                      onChanged: (value) {
+                        // Debounce logic: wait 600ms after user stops typing before searching
+                        if (_debounce?.isActive ?? false) _debounce!.cancel();
+                        _debounce = Timer(const Duration(milliseconds: 600), () {
+                          if (value.trim().isNotEmpty) {
+                            _searchContractorByCida(value.trim());
+                          } else {
+                            // Clear contractor if CIDA is emptied
+                            _contractorController.clear();
+                          }
+                        });
+                      },
                     ),
+
                     _buildTextField(
                       label: 'Name of the Contractor',
                       hintText: 'Enter Contractor Name',
@@ -325,12 +389,14 @@ class _AddContractScreenState extends State<AddContractScreen> {
   Widget _buildTextField({
     required String label,
     required String hintText,
-    required IconData suffixIcon,
+    IconData? suffixIcon,
+    Widget? customSuffix,
     required TextEditingController controller,
     bool isDate = false,
     VoidCallback? onTap,
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24.0),
@@ -358,6 +424,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
               controller: controller,
               readOnly: isDate,
               onTap: onTap,
+              onChanged: onChanged,
               keyboardType: keyboardType,
               style: const TextStyle(fontWeight: FontWeight.w600, color: kTextColor),
               decoration: InputDecoration(
@@ -367,7 +434,7 @@ class _AddContractScreenState extends State<AddContractScreen> {
                 fillColor: kCardColor,
                 suffixIcon: Container(
                   margin: const EdgeInsets.only(right: 8),
-                  child: Icon(suffixIcon, color: kPrimaryColor.withOpacity(0.8), size: 22)
+                  child: customSuffix ?? (suffixIcon != null ? Icon(suffixIcon, color: kPrimaryColor.withOpacity(0.8), size: 22) : null)
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16), 
