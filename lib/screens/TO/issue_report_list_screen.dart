@@ -30,6 +30,24 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
   String _userName = '';
   late Stream<QuerySnapshot> _issuesStream;
 
+  // --- FILTER STATE ---
+  String? _selectedDamageType;
+  final List<String> _allDamageTypes = [
+    'Foundation & Wall Damage',
+    'Roofing Damage',
+    'Utility Damage (Electricity/Water)',
+    'Floor Damage',
+    'Plumbing/Draining Structural Issue',
+    'Windows/Doors Frame Damage',
+    'Staircase & Corridor Damage',
+    'Ceiling & Canopy Damage',
+    'HVAC / Air Conditioning Issue',
+    'Fencing & Gate Damage',
+    'Painting & Plastering Issue',
+    'Fire or Smoke Damage',
+    'Other Structural Damage'
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -67,15 +85,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     // Apply role-based filtering
     if (_userRole == 'District Engineer') {
       // District Engineer: Filter by office district
-      // First, get all schools in the district
-      // ignore: unused_local_variable
-      final schoolsQuery = FirebaseFirestore.instance
-          .collection('schools')
-          .where('educationalZone', isEqualTo: _userOffice)
-          .snapshots();
-      
-      // We need to handle this differently - show a loading state first
-      // The actual filtering will happen in the StreamBuilder
       query = query.orderBy('timestamp', descending: true);
     } else if (_userRole == 'Principal') {
       // Principal: Filter by their NIC (only their own issues)
@@ -112,6 +121,118 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     }
   }
 
+  // --- FILTER BOTTOM SHEET ---
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            String searchQuery = '';
+            
+            // Filter list based on search query
+            List<String> filteredTypes = _allDamageTypes
+                .where((type) =>
+                    type.toLowerCase().contains(searchQuery.toLowerCase()))
+                .toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              decoration: const BoxDecoration(
+                color: kCardColor,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.only(top: 24, left: 24, right: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filter by Damage',
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: kTextColor),
+                      ),
+                      if (_selectedDamageType != null)
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _selectedDamageType = null);
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Clear Filter', style: TextStyle(color: Colors.redAccent)),
+                        )
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Search Bar
+                  TextField(
+                    onChanged: (value) {
+                      setModalState(() {
+                        searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search damage types...',
+                      prefixIcon: const Icon(Icons.search, color: kSubTextColor),
+                      filled: true,
+                      fillColor: kBackgroundColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Filtered List
+                  Expanded(
+                    child: filteredTypes.isEmpty
+                        ? const Center(
+                            child: Text('No matching damage types found.',
+                                style: TextStyle(color: kSubTextColor)))
+                        : ListView.separated(
+                            itemCount: filteredTypes.length,
+                            separatorBuilder: (context, index) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final type = filteredTypes[index];
+                              final isSelected = _selectedDamageType == type;
+
+                              return ListTile(
+                                title: Text(type,
+                                    style: TextStyle(
+                                      color: isSelected ? kPrimaryColor : kTextColor,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    )),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle, color: kPrimaryColor)
+                                    : null,
+                                contentPadding: EdgeInsets.zero,
+                                onTap: () {
+                                  setState(() {
+                                    _selectedDamageType = type;
+                                  });
+                                  Navigator.pop(context);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -130,6 +251,16 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
+          // Filter Icon Button
+          IconButton(
+            icon: Icon(
+              _selectedDamageType == null ? Icons.filter_list_rounded : Icons.filter_list_off_rounded, 
+              color: _selectedDamageType == null ? kPrimaryColor : kAccentColor
+            ),
+            tooltip: 'Filter Issues',
+            onPressed: _showFilterBottomSheet,
+          ),
+          
           if (_userRole == 'District Engineer')
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
@@ -169,7 +300,39 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      body: _buildBody(),
+      body: Column(
+        children: [
+          // Active Filter Chip Display
+          if (_selectedDamageType != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              child: Row(
+                children: [
+                  const Text('Filtering: ', style: TextStyle(color: kSubTextColor, fontWeight: FontWeight.w600, fontSize: 13)),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: InputChip(
+                        label: Text(_selectedDamageType!, style: const TextStyle(color: kPrimaryColor, fontWeight: FontWeight.bold, fontSize: 13)),
+                        backgroundColor: kPrimaryColor.withOpacity(0.1),
+                        deleteIconColor: kPrimaryColor,
+                        onDeleted: () {
+                          setState(() {
+                            _selectedDamageType = null;
+                          });
+                        },
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: kPrimaryColor.withOpacity(0.2))),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          // Expanded body area
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
@@ -208,6 +371,19 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
           return _buildEmptyState();
         }
 
+        // --- LOCAL FILTERING APPLIED HERE ---
+        List<DocumentSnapshot> displayDocs = snapshot.data!.docs;
+        if (_selectedDamageType != null) {
+          displayDocs = displayDocs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['damageType'] == _selectedDamageType;
+          }).toList();
+        }
+
+        if (displayDocs.isEmpty) {
+           return _buildEmptyState(isFilterEmpty: true);
+        }
+
         // --- RESPONSIVE GRID FOR CARDS ---
         return Center(
           child: ConstrainedBox(
@@ -218,7 +394,7 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
               childAspectRatio: 1.6, // Adjust this ratio based on card height needs
-              children: snapshot.data!.docs.map((issueDoc) {
+              children: displayDocs.map((issueDoc) {
                 return _buildIssueCard(issueDoc);
               }).toList(),
             ),
@@ -242,27 +418,7 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
         
         final schoolNames = schoolsSnapshot.data!;
         if (schoolNames.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))]
-                  ),
-                  child: Icon(Icons.school_rounded, size: 60, color: Colors.grey.shade300),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'No schools found in $_userOffice district',
-                  style: const TextStyle(color: kSubTextColor, fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          );
+          return _buildEmptyState();
         }
         
         return StreamBuilder<QuerySnapshot>(
@@ -281,35 +437,22 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
               return _buildEmptyState();
             }
 
-            // Filter issues by school names in the district
+            // --- LOCAL FILTERING APPLIED HERE FOR DISTRICT ENGINEER ---
             final filteredIssues = snapshot.data!.docs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
+              
+              // 1. Filter by School in District
               final schoolName = data['schoolName'] as String? ?? '';
-              return schoolNames.contains(schoolName);
+              if (!schoolNames.contains(schoolName)) return false;
+
+              // 2. Filter by Damage Type (If active)
+              if (_selectedDamageType != null && data['damageType'] != _selectedDamageType) return false;
+
+              return true;
             }).toList();
 
             if (filteredIssues.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))]
-                      ),
-                      child: Icon(Icons.report_problem_rounded, size: 60, color: Colors.grey.shade300),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'No issues found in $_userOffice district',
-                      style: const TextStyle(color: kSubTextColor, fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              );
+              return _buildEmptyState(isFilterEmpty: true);
             }
 
             // --- RESPONSIVE GRID FOR CARDS ---
@@ -334,11 +477,14 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState({bool isFilterEmpty = false}) {
     String message = 'No issues found';
     IconData icon = Icons.check_circle_outline_rounded;
     
-    if (_userRole == 'Principal') {
+    if (isFilterEmpty) {
+      message = 'No issues found matching "$_selectedDamageType"';
+      icon = Icons.filter_alt_off_rounded;
+    } else if (_userRole == 'Principal') {
       message = 'You haven\'t reported any issues yet';
       icon = Icons.add_circle_outline_rounded;
     } else if (_userRole == 'District Engineer') {
@@ -360,11 +506,15 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
             child: Icon(icon, size: 60, color: Colors.grey.shade300),
           ),
           const SizedBox(height: 24),
-          const Text('All Clear!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kTextColor)),
+          Text(isFilterEmpty ? 'No Matches' : 'All Clear!', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: kTextColor)),
           const SizedBox(height: 8),
-          Text(
-            message,
-            style: const TextStyle(color: kSubTextColor, fontSize: 15),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40.0),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: kSubTextColor, fontSize: 15),
+            ),
           ),
         ],
       ),
