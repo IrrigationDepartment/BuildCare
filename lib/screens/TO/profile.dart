@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 // --- Imports ---
 import 'dashboard.dart';
@@ -35,6 +37,12 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _userType;
   Map<String, dynamic>? _userDataMap;
 
+  // Image Upload Technology Variables
+  XFile? _selectedImage;
+  String? _selectedImageBase64;
+  final ImagePicker _picker = ImagePicker();
+  final String _serverUrl = 'https://buildcare.atigalle.x10.mx/'; // Updated to match your new tech
+
   bool _isLoading = true;
   bool _isUpdating = false;
 
@@ -64,7 +72,7 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() {
           _userDataMap = data;
           _nameController.text = data['name'] ?? '';
-          _mobileController.text = data['mobilePhone'] ?? '';
+          _mobileController.text = data['mobilePhone'] ?? data['mobitaphone'] ?? '';
           _profileImageUrl = data['profile_image'];
           _email = data['email'];
           _userType = data['userType'];
@@ -73,100 +81,172 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching profile: $e', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.redAccent),
-      );
+      _showSnackBar('Error fetching profile: $e', Colors.redAccent);
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _updateProfilePicture() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  // --- NEW TECH: Pick Image but Don't Upload Yet ---
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
+      
+      if (image != null) {
+        if (kIsWeb) {
+          final bytes = await image.readAsBytes();
+          final base64Image = base64Encode(bytes);
+          setState(() {
+            _selectedImage = image;
+            _selectedImageBase64 = 'data:image/jpeg;base64,$base64Image';
+          });
+        } else {
+          setState(() {
+            _selectedImage = image;
+            _selectedImageBase64 = null;
+          });
+        }
+        _showSnackBar('Image selected. Click "Save Changes" to upload.', kPrimaryColor);
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      _showSnackBar('Error selecting image', Colors.redAccent);
+    }
+  }
 
-    if (image == null) return;
+  // --- NEW TECH: Server Upload Logic ---
+  Future<String?> _uploadImageToServer() async {
+    if (_selectedImage == null) return null;
+    
+    try {
+      final userId = currentUser?.uid;
+      final email = currentUser?.email;
+      
+      if (userId == null) return null;
+      
+      List<int> imageBytes;
+      if (kIsWeb) {
+        if (_selectedImageBase64 != null) {
+          imageBytes = base64Decode(_selectedImageBase64!.split(',').last);
+        } else {
+          imageBytes = await _selectedImage!.readAsBytes();
+        }
+      } else {
+        imageBytes = await _selectedImage!.readAsBytes();
+      }
+      
+      var request = http.MultipartRequest('POST', Uri.parse(_serverUrl));
+      
+      request.files.add(http.MultipartFile.fromBytes(
+        'profile_image',
+        imageBytes,
+        filename: 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      ));
+      
+      request.fields['user_id'] = userId;
+      request.fields['email'] = email ?? '';
+      request.fields['action'] = 'upload_profile_image';
+      
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        try {
+          var jsonResponse = jsonDecode(response.body);
+          if (jsonResponse['success'] == true || jsonResponse['status'] == 'success') {
+            return jsonResponse['image_url'] ?? jsonResponse['url'] ?? jsonResponse['file_url'];
+          } else if (jsonResponse['image_url'] != null) {
+            return jsonResponse['image_url'];
+          }
+        } catch (e) {
+          debugPrint('Error parsing JSON: $e');
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error in _uploadImageToServer: $e');
+      return null;
+    }
+  }
+
+  // --- MERGED LOGIC: Save Data & Upload Image Together ---
+  Future<void> _updateProfileData() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (currentUser == null) return;
 
     setState(() => _isUpdating = true);
 
     try {
-      var uri = Uri.parse('http://buildcare.atigalle.x10.mx/profile/TO');
+      String? finalImageUrl = _profileImageUrl;
+      bool imageUploaded = false;
 
-      var request = http.MultipartRequest('POST', uri);
-
-      final byteData = await image.readAsBytes();
-
-      var multipartFile = http.MultipartFile.fromBytes(
-        'file',
-        byteData,
-        filename: image.name,
-      );
-
-      request.files.add(multipartFile);
-
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        var jsonResponse = json.decode(response.body);
-
-        String downloadUrl = jsonResponse['url'] ?? '';
-
-        if (downloadUrl.isNotEmpty) {
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser!.uid)
-              .update({'profile_image': downloadUrl});
-
-          setState(() {
-            _profileImageUrl = downloadUrl;
-            if (_userDataMap != null) {
-              _userDataMap!['profile_image'] = downloadUrl;
-            }
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile picture updated!'), backgroundColor: Colors.green),
-          );
+      // 1. Upload image first if one was selected
+      if (_selectedImage != null) {
+        _showSnackBar('Uploading image...', kPrimaryColor);
+        finalImageUrl = await _uploadImageToServer();
+        
+        if (finalImageUrl != null) {
+          imageUploaded = true;
+        } else {
+          _showSnackBar('Failed to upload image to server.', Colors.orange);
+          finalImageUrl = _profileImageUrl; // Fallback to old image
         }
-      } else {
-        throw Exception('Server error: ${response.statusCode}');
       }
+
+      // 2. Prepare Firestore update data
+      Map<String, dynamic> updateData = {
+        'name': _nameController.text.trim(),
+        'mobilePhone': _mobileController.text.trim(),
+        'LastUpdated': Timestamp.now(),
+      };
+
+      if (imageUploaded && finalImageUrl != null) {
+        updateData['profile_image'] = finalImageUrl;
+      }
+
+      // 3. Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser!.uid)
+          .update(updateData);
+
+      // 4. Update local map & state
+      setState(() {
+        if (_userDataMap != null) {
+          _userDataMap!['name'] = _nameController.text.trim();
+          _userDataMap!['mobilePhone'] = _mobileController.text.trim();
+          if (imageUploaded) {
+            _userDataMap!['profile_image'] = finalImageUrl;
+          }
+        }
+        if (imageUploaded) {
+          _profileImageUrl = finalImageUrl;
+          _selectedImage = null; // Clear preview
+          _selectedImageBase64 = null;
+        }
+      });
+
+      _showSnackBar('Profile updated successfully!', Colors.green);
+
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload image: $e'), backgroundColor: Colors.redAccent),
-      );
+      _showSnackBar('Error updating profile: $e', Colors.redAccent);
     } finally {
       setState(() => _isUpdating = false);
     }
   }
 
-  Future<void> _updateProfileData() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _isUpdating = true);
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser!.uid)
-          .update({
-        'name': _nameController.text.trim(),
-        'mobilePhone': _mobileController.text.trim(),
-      });
-
-      if (_userDataMap != null) {
-        _userDataMap!['name'] = _nameController.text.trim();
-        _userDataMap!['mobilePhone'] = _mobileController.text.trim();
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating profile: $e'), backgroundColor: Colors.redAccent),
-      );
-    } finally {
-      setState(() => _isUpdating = false);
-    }
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)), 
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -198,7 +278,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ? const Center(child: CircularProgressIndicator(color: kPrimaryColor))
           : SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-              // RESPONSIVE WRAPPER: Centers the content and limits width on large screens
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 600),
@@ -207,7 +286,37 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Column(
                       children: [
                         _buildProfileImage(),
-                        const SizedBox(height: 40),
+                        
+                        // Show a helpful indicator if an image is waiting to be saved
+                        if (_selectedImage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16.0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.green.shade100),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle, size: 16, color: Colors.green.shade600),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'New image selected',
+                                    style: TextStyle(
+                                      color: Colors.green.shade700,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        const SizedBox(height: 30),
                         
                         // Input Fields
                         _buildTextField(
@@ -277,14 +386,27 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // --- STUNNING PROFILE IMAGE WIDGET ---
+  // --- UPDATED: Avatar Preview with Base64/File support ---
   Widget _buildProfileImage() {
+    // Determine which image provider to use
+    ImageProvider? imageProvider;
+    
+    if (_selectedImage != null) {
+      if (kIsWeb && _selectedImageBase64 != null) {
+        imageProvider = MemoryImage(base64Decode(_selectedImageBase64!.split(',').last));
+      } else if (!kIsWeb) {
+        imageProvider = FileImage(File(_selectedImage!.path));
+      }
+    } else if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
+      imageProvider = NetworkImage(_profileImageUrl!);
+    }
+
     return Center(
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
-            padding: const EdgeInsets.all(4), // Space for the gradient ring
+            padding: const EdgeInsets.all(4),
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -298,15 +420,13 @@ class _ProfilePageState extends State<ProfilePage> {
               height: 130,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white, // Inner border
+                color: Colors.white,
                 border: Border.all(color: Colors.white, width: 3),
-                image: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(_profileImageUrl!),
-                        fit: BoxFit.cover)
+                image: imageProvider != null 
+                    ? DecorationImage(image: imageProvider, fit: BoxFit.cover)
                     : null,
               ),
-              child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+              child: imageProvider == null
                   ? const Icon(Icons.person_rounded, size: 60, color: Colors.grey)
                   : null,
             ),
@@ -317,7 +437,7 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: _isUpdating ? null : _updateProfilePicture,
+                onTap: _isUpdating ? null : _pickImage, // Changed to _pickImage
                 borderRadius: BorderRadius.circular(30),
                 child: Container(
                   padding: const EdgeInsets.all(12),
@@ -332,14 +452,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           offset: const Offset(0, 4),
                         )
                       ]),
-                  child: _isUpdating
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.camera_alt_rounded,
-                          color: Colors.white, size: 20),
+                  child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 20),
                 ),
               ),
             ),
@@ -392,7 +505,7 @@ class _ProfilePageState extends State<ProfilePage> {
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-          color: Colors.grey.shade100, // A soft grey to indicate it's not editable
+          color: Colors.grey.shade100, 
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.grey.shade200)
       ),
