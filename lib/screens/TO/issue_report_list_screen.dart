@@ -56,7 +56,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
 
   Future<void> _fetchUserDataAndSetStream() async {
     try {
-      // Fetch user data from Firestore
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .where('nic', isEqualTo: widget.userNic)
@@ -71,7 +70,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
           _userName = userData['name'] ?? '';
         });
         
-        // Set up the stream with proper filtering
         _setupIssuesStream();
       }
     } catch (e) {
@@ -82,20 +80,15 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
   void _setupIssuesStream() {
     Query query = FirebaseFirestore.instance.collection('issues');
     
-    // Apply role-based filtering
     if (_userRole == 'District Engineer') {
-      // District Engineer: Filter by office district
       query = query.orderBy('timestamp', descending: true);
     } else if (_userRole == 'Principal') {
-      // Principal: Filter by their NIC (only their own issues)
       query = query
           .where('addedByNic', isEqualTo: widget.userNic)
           .orderBy('timestamp', descending: true);
     } else if (_userRole == 'Technical Officer') {
-      // Technical Officer: Get all issues
       query = query.orderBy('timestamp', descending: true);
     } else {
-      // Default: Show all issues
       query = query.orderBy('timestamp', descending: true);
     }
     
@@ -132,7 +125,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
           builder: (BuildContext context, StateSetter setModalState) {
             String searchQuery = '';
             
-            // Filter list based on search query
             List<String> filteredTypes = _allDamageTypes
                 .where((type) =>
                     type.toLowerCase().contains(searchQuery.toLowerCase()))
@@ -170,7 +162,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Search Bar
                   TextField(
                     onChanged: (value) {
                       setModalState(() {
@@ -191,7 +182,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Filtered List
                   Expanded(
                     child: filteredTypes.isEmpty
                         ? const Center(
@@ -251,7 +241,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
-          // Filter Icon Button
           IconButton(
             icon: Icon(
               _selectedDamageType == null ? Icons.filter_list_rounded : Icons.filter_list_off_rounded, 
@@ -280,7 +269,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
             ),
         ],
       ),
-      // --- Button to add a new issue report ---
       floatingActionButton: _userRole == 'Principal' 
           ? FloatingActionButton.extended(
               onPressed: () {
@@ -302,7 +290,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: Column(
         children: [
-          // Active Filter Chip Display
           if (_selectedDamageType != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -328,8 +315,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                 ],
               ),
             ),
-          
-          // Expanded body area
           Expanded(child: _buildBody()),
         ],
       ),
@@ -347,17 +332,14 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
   }
 
   Widget _buildBody() {
-    // If user data is still loading
     if (_userRole.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
     }
 
-    // For District Engineers, we need special handling
     if (_userRole == 'District Engineer') {
       return _buildDistrictEngineerIssues();
     }
 
-    // For Principals and others
     return StreamBuilder<QuerySnapshot>(
       stream: _issuesStream,
       builder: (context, snapshot) {
@@ -371,7 +353,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
           return _buildEmptyState();
         }
 
-        // --- LOCAL FILTERING APPLIED HERE ---
         List<DocumentSnapshot> displayDocs = snapshot.data!.docs;
         if (_selectedDamageType != null) {
           displayDocs = displayDocs.where((doc) {
@@ -384,22 +365,8 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
            return _buildEmptyState(isFilterEmpty: true);
         }
 
-        // --- RESPONSIVE GRID FOR CARDS ---
-        return Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: GridView.extent(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100), // Bottom padding for FAB
-              maxCrossAxisExtent: 400, // Cards will be max 400px wide
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.6, // Adjust this ratio based on card height needs
-              children: displayDocs.map((issueDoc) {
-                return _buildIssueCard(issueDoc);
-              }).toList(),
-            ),
-          ),
-        );
+        // Output the responsive layout
+        return _buildResponsiveGrid(displayDocs);
       },
     );
   }
@@ -437,15 +404,12 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
               return _buildEmptyState();
             }
 
-            // --- LOCAL FILTERING APPLIED HERE FOR DISTRICT ENGINEER ---
             final filteredIssues = snapshot.data!.docs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               
-              // 1. Filter by School in District
               final schoolName = data['schoolName'] as String? ?? '';
               if (!schoolNames.contains(schoolName)) return false;
 
-              // 2. Filter by Damage Type (If active)
               if (_selectedDamageType != null && data['damageType'] != _selectedDamageType) return false;
 
               return true;
@@ -455,24 +419,50 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
               return _buildEmptyState(isFilterEmpty: true);
             }
 
-            // --- RESPONSIVE GRID FOR CARDS ---
-            return Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: GridView.extent(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-                  maxCrossAxisExtent: 400, 
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 1.6, 
-                  children: filteredIssues.map((issueDoc) {
-                    return _buildIssueCard(issueDoc);
-                  }).toList(),
-                ),
-              ),
-            );
+            // Output the responsive layout
+            return _buildResponsiveGrid(filteredIssues);
           },
         );
+      },
+    );
+  }
+
+  // --- NEW: LayoutBuilder for true responsiveness ---
+  Widget _buildResponsiveGrid(List<DocumentSnapshot> docs) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // MOBILE / SMALL SCREEN VIEW (< 650px)
+        if (constraints.maxWidth < 650) {
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            itemCount: docs.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 16),
+            itemBuilder: (context, index) {
+              return _buildIssueCard(docs[index]);
+            },
+          );
+        } 
+        // TABLET / DESKTOP VIEW (>= 650px)
+        else {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1200),
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 450, // Card won't get wider than 450
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 20,
+                  mainAxisExtent: 210, // Gives the card a fixed height to prevent Grid aspect ratio stretching
+                ),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  return _buildIssueCard(docs[index]);
+                },
+              ),
+            ),
+          );
+        }
       },
     );
   }
@@ -521,7 +511,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     );
   }
 
-  // --- Helper to get color for the status chip ---
   Color _getStatusBgColor(String? status) {
     switch (status?.toLowerCase()) {
       case 'in progress':
@@ -537,7 +526,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     }
   }
 
-  // --- Helper to get text color for the status chip ---
   Color _getStatusTextColor(String? status) {
     switch (status?.toLowerCase()) {
       case 'in progress':
@@ -553,7 +541,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     }
   }
 
-  // --- Builds the individual issue card ---
   Widget _buildIssueCard(DocumentSnapshot issueDoc) {
     final data = issueDoc.data() as Map<String, dynamic>;
     final String issueId = issueDoc.id;
@@ -565,7 +552,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
     final Timestamp? timestamp = data['timestamp'];
     final DateTime? date = timestamp?.toDate();
     
-    // Format date
     String dateStr = '';
     if (date != null) {
       dateStr = '${date.day}/${date.month}/${date.year}';
@@ -600,11 +586,11 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
           },
           child: Padding(
             padding: const EdgeInsets.all(20.0),
+            // Replaced spaceBetween with explicit SizedBox to prevent unbounded height errors in ListView
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min, // Ensures it takes only needed space on Mobile
               children: [
-                // Top Row: Title & Status
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -642,7 +628,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // --- Status Chip ---
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
@@ -662,7 +647,9 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                   ],
                 ),
                 
-                // Middle Row: Meta Data (School, Date, etc)
+                const Spacer(), // Pushes the rest to the bottom dynamically
+                const SizedBox(height: 12),
+                
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -709,11 +696,11 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                   ],
                 ),
 
-                // Bottom Row: Action Buttons
+                const SizedBox(height: 12),
+                
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // Edit Button (If allowed)
                     if (_canEditIssue(reporterNic)) ...[
                       TextButton.icon(
                         onPressed: () {
@@ -722,7 +709,7 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                             MaterialPageRoute(
                               builder: (context) => AddIssueScreen(
                                 userNic: widget.userNic,
-                                issueId: issueId, // Pass the ID to enable edit mode
+                                issueId: issueId, 
                               ),
                             ),
                           );
@@ -736,7 +723,6 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
                       ),
                       const SizedBox(width: 8),
                     ],
-                    // View Details Button
                     Container(
                       decoration: BoxDecoration(
                         color: kPrimaryColor.withOpacity(0.1),
@@ -773,12 +759,9 @@ class _IssueReportListScreenState extends State<IssueReportListScreen> {
   }
 
   bool _canEditIssue(String? reporterNic) {
-    // Principals can only edit their own issues
     if (_userRole == 'Principal') {
       return reporterNic == widget.userNic;
     }
-    
-    // District Engineers and Technical Officers can edit all issues in their view
     return _userRole == 'District Engineer' || _userRole == 'Technical Officer';
   }
 }
