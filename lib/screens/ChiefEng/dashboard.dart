@@ -12,6 +12,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+// --- FB Style Theme Colors ---
+const Color fbBackground = Color(0xFFF0F2F5);
+const Color fbBlue = Color(0xFF1877F2);
+const Color fbDarkText = Color(0xFF050505);
+const Color fbSecondaryText = Color(0xFF65676B);
+
 class ChiefEngDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
   const ChiefEngDashboard({super.key, required this.userData});
@@ -23,7 +29,6 @@ class ChiefEngDashboard extends StatefulWidget {
 class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   int _selectedIndex = 0;
 
-  // Image variables - NO dart:io imports!
   String? _profileImageUrl;
   bool _isUploading = false;
   final ImagePicker _picker = ImagePicker();
@@ -80,64 +85,39 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
     });
 
     try {
-      print('Starting upload process...');
-
       String userId = widget.userData['uid'] ?? '';
-      if (userId.isEmpty) {
-        throw Exception('User ID not found');
-      }
-      print('User ID: $userId');
+      if (userId.isEmpty) throw Exception('User ID not found');
 
-      // Read image as bytes - works on ALL platforms
-      print('Reading image bytes...');
       final bytes = await pickedFile.readAsBytes();
-      print('Image size: ${bytes.length} bytes');
-
-      // Firebase Storage reference
       String fileName =
           'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       Reference storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images')
           .child(fileName);
-      print('Storage reference created: $fileName');
 
-      // Delete old image if exists
       if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
         try {
-          print('Deleting old image...');
           Reference oldImageRef =
               FirebaseStorage.instance.refFromURL(_profileImageUrl!);
           await oldImageRef.delete();
-          print('Old image deleted successfully');
         } catch (e) {
           print('Error deleting old image: $e');
         }
       }
 
-      // Upload using putData - works on web AND mobile!
-      print('Starting upload to Firebase Storage...');
       UploadTask uploadTask = storageRef.putData(
         bytes,
         SettableMetadata(contentType: 'image/jpeg'),
       );
 
-      // Wait for upload to complete
-      TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() {
-        print('Upload completed!');
-      });
-
-      print('Getting download URL...');
+      TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() {});
       String downloadUrl = await taskSnapshot.ref.getDownloadURL();
-      print('Download URL: $downloadUrl');
 
-      // Update Firestore
-      print('Updating Firestore...');
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'profileImage': downloadUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      print('Firestore updated successfully');
 
       if (mounted) {
         setState(() {
@@ -146,12 +126,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
         });
         _showSnackBar('Profile image uploaded successfully! ✓', Colors.green);
       }
-
-      print('Upload process completed successfully!');
-    } catch (e, stackTrace) {
-      print(' Upload error: $e');
-      print('Stack trace: $stackTrace');
-
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isUploading = false;
@@ -185,350 +160,310 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // Detect screen width for responsive web vs mobile
+    final bool isDesktop = MediaQuery.of(context).size.width >= 800;
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
+      backgroundColor: fbBackground,
+      body: isDesktop
+          ? Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: _onItemTapped,
+                  labelType: NavigationRailLabelType.all,
+                  selectedIconTheme: const IconThemeData(color: fbBlue),
+                  selectedLabelTextStyle: const TextStyle(color: fbBlue, fontWeight: FontWeight.bold),
+                  unselectedIconTheme: const IconThemeData(color: fbSecondaryText),
+                  backgroundColor: Colors.white,
+                  elevation: 5,
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: Text('Home'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.person_outline),
+                      selectedIcon: Icon(Icons.person),
+                      label: Text('Profile'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.settings_outlined),
+                      selectedIcon: Icon(Icons.settings),
+                      label: Text('Settings'),
+                    ),
+                  ],
+                ),
+                const VerticalDivider(thickness: 1, width: 1),
+                Expanded(child: _pages[_selectedIndex]),
+              ],
+            )
+          : _pages[_selectedIndex],
+      bottomNavigationBar: isDesktop
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _selectedIndex,
+                onTap: _onItemTapped,
+                selectedItemColor: fbBlue,
+                unselectedItemColor: fbSecondaryText,
+                showSelectedLabels: true,
+                showUnselectedLabels: true,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                type: BottomNavigationBarType.fixed,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined, size: 28),
+                    activeIcon: Icon(Icons.home, size: 28),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person_outline, size: 28),
+                    activeIcon: Icon(Icons.person, size: 28),
+                    label: 'Profile',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.settings_outlined, size: 28),
+                    activeIcon: Icon(Icons.settings, size: 28),
+                    label: 'Settings',
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          selectedItemColor: const Color(0xFF64B5F6),
-          unselectedItemColor: Colors.grey,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home, size: 30),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person, size: 30),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings, size: 30),
-              label: '',
-            ),
-          ],
-        ),
+    );
+  }
+
+  // Wraps main content in a constrained box so it doesn't stretch endlessly on huge screens
+  Widget _buildResponsiveWrapper({required Widget child}) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1000), // Max width for web
+        child: child,
       ),
     );
   }
 
   Widget _buildDashboardPage() {
     return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.blueAccent.shade200,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    spreadRadius: 2,
+      child: _buildResponsiveWrapper(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Welcome Banner
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [fbBlue, Color(0xFF42A5F5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // StreamBuilder for real-time profile image updates
-                  StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(widget.userData['uid'])
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      String? imageUrl;
-                      if (snapshot.hasData && snapshot.data!.exists) {
-                        final data =
-                            snapshot.data!.data() as Map<String, dynamic>;
-                        imageUrl = data['profileImage'];
-                      }
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: fbBlue.withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // StreamBuilder for real-time profile image updates
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(widget.userData['uid'])
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        String? imageUrl;
+                        if (snapshot.hasData && snapshot.data!.exists) {
+                          final data =
+                              snapshot.data!.data() as Map<String, dynamic>;
+                          imageUrl = data['profileImage'];
+                        }
 
-                      return GestureDetector(
-                        onTap: _isUploading ? null : _pickImage,
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF64B5F6),
-                                shape: BoxShape.circle,
-                                border:
-                                    Border.all(color: Colors.white, width: 2),
-                                image: (imageUrl != null && imageUrl.isNotEmpty)
-                                    ? DecorationImage(
-                                        image: NetworkImage(imageUrl),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: (imageUrl == null || imageUrl.isEmpty)
-                                  ? const Icon(Icons.person,
-                                      color: Colors.white, size: 35)
-                                  : null,
-                            ),
-                            if (_isUploading)
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Center(
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (!_isUploading)
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFF64B5F6),
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: const Icon(
-                                    Icons.camera_alt,
-                                    size: 14,
-                                    color: Color(0xFF64B5F6),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        RichText(
-                          text: TextSpan(
+                        return GestureDetector(
+                          onTap: _isUploading ? null : _pickImage,
+                          child: Stack(
                             children: [
-                              const TextSpan(
-                                text: 'Welcome! ',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                width: 70,
+                                height: 70,
+                                decoration: BoxDecoration(
                                   color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 3),
+                                  image: (imageUrl != null && imageUrl.isNotEmpty)
+                                      ? DecorationImage(
+                                          image: NetworkImage(imageUrl),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
                                 ),
+                                child: (imageUrl == null || imageUrl.isEmpty)
+                                    ? const Icon(Icons.person,
+                                        color: fbSecondaryText, size: 40)
+                                    : null,
                               ),
-                              TextSpan(
-                                text:
-                                    widget.userData['name'] ?? 'Chief Engineer',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
+                              if (_isUploading)
+                                Positioned.fill(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        RichText(
-                          text: const TextSpan(
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome, ${widget.userData['name'] ?? 'Chief Engineer'}!',
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
-                            children: [
-                              TextSpan(text: 'Chief Engineer.. '),
-                            ],
                           ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Chief Engineer Dashboard',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  const DashboardNotificationButton(),
-                ],
+                    const DashboardNotificationButton(),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 30),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade300, width: 2),
+              const SizedBox(height: 24),
+
+              // User Management Section
+              _buildSectionCard(
+                title: 'User Management',
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.start,
+                  children: [
+                    SizedBox(width: 300, child: TechnicalOfficerDashboardCardStream()),
+                    SizedBox(width: 300, child: DistrictEngineerDashboardCardStream()),
+                    SizedBox(width: 300, child: SchoolsDashboardCard()),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'User Management',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TechnicalOfficerDashboardCardStream(),
-                          DistrictEngineerDashboardCardStream(),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SchoolsDashboardCard(),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+              const SizedBox(height: 24),
+
+              // Project Management Section
+              _buildSectionCard(
+                title: 'Project Management',
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.start,
+                  children: [
+                    SizedBox(width: 300, child: IssuesDashboardCardStream()),
+                    SizedBox(width: 300, child: MasterPlansDashboardCardStream()),
+                    SizedBox(width: 300, child: ContractDetailsDashboardCardStream()),
+                    SizedBox(width: 300, child: ContractorDetailsDashboardCardStream()),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 30),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade300, width: 2),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Project Management',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IssuesDashboardCardStream(),
-                          MasterPlansDashboardCardStream(),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          ContractDetailsDashboardCardStream(),
-                          ContractorDetailsDashboardCardStream(),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildActionButton(String title, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              spreadRadius: 1,
+  // Reusable FB-style card wrapper for sections
+  Widget _buildSectionCard({required String title, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: fbDarkText,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 15),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            const SizedBox(width: 15),
-            Icon(
-              icon,
-              color: const Color(0xFF64B5F6),
-              size: 30,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
       ),
     );
   }
 
   Widget _buildProfilePage() {
-    return Container(
-      color: Colors.white,
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+    return SingleChildScrollView(
+      child: _buildResponsiveWrapper(
+        child: Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Column(
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
+              // Profile Image Logic
               StreamBuilder<DocumentSnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('users')
@@ -546,11 +481,18 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                     child: Stack(
                       children: [
                         Container(
-                          width: 120,
-                          height: 120,
+                          width: 130,
+                          height: 130,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF64B5F6),
+                            color: fbBackground,
                             shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 4),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                              ),
+                            ],
                             image: (imageUrl != null && imageUrl.isNotEmpty)
                                 ? DecorationImage(
                                     image: NetworkImage(imageUrl),
@@ -559,8 +501,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                                 : null,
                           ),
                           child: (imageUrl == null || imageUrl.isEmpty)
-                              ? const Icon(Icons.person,
-                                  size: 60, color: Colors.white)
+                              ? const Icon(Icons.person, size: 70, color: fbSecondaryText)
                               : null,
                         ),
                         if (_isUploading)
@@ -583,16 +524,13 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                             bottom: 0,
                             right: 0,
                             child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF64B5F6),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: fbBackground,
                                 shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
                               ),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                size: 20,
-                                color: Colors.white,
-                              ),
+                              child: const Icon(Icons.camera_alt, size: 22, color: fbDarkText),
                             ),
                           ),
                       ],
@@ -600,21 +538,15 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                   );
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Text(
                 widget.userData['name'] ?? 'Chief Engineer',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: fbDarkText),
               ),
               const SizedBox(height: 8),
               Text(
                 widget.userData['email'] ?? 'chief@example.com',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[600],
-                ),
+                style: const TextStyle(fontSize: 16, color: fbSecondaryText),
               ),
               const SizedBox(height: 30),
               _buildProfileCard(
@@ -632,7 +564,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 title: 'Phone',
                 value: widget.userData['mobilePhone'] ?? 'N/A',
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -646,11 +578,12 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                         ));
                   },
                   icon: const Icon(Icons.edit),
-                  label: const Text('Edit Profile'),
+                  label: const Text('Edit Profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF64B5F6),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    backgroundColor: fbBackground,
+                    foregroundColor: fbDarkText,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -664,27 +597,23 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
     );
   }
 
-  Widget _buildProfileCard({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
+  Widget _buildProfileCard({required IconData icon, required String title, required String value}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: fbBackground, // Soft background for input-like fields
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFB3E5FC),
-              borderRadius: BorderRadius.circular(10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: const Color(0xFF64B5F6), size: 24),
+            child: Icon(icon, color: fbBlue, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -693,18 +622,12 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: const TextStyle(fontSize: 13, color: fbSecondaryText, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: fbDarkText),
                 ),
               ],
             ),
@@ -715,654 +638,111 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
   }
 
   Widget _buildSettingsPage() {
-    return Container(
-      color: Colors.white,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const SizedBox(height: 10),
-          const Text(
-            'Settings',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          _buildSettingsSection('Account Settings'),
-          
-          _buildSettingsItem(
-              icon: Icons.lock,
-              title: 'Change Password',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ChangePasswordPageChief(),
+    return SingleChildScrollView(
+      child: _buildResponsiveWrapper(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              const Text(
+                'Settings',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: fbDarkText),
+              ),
+              const SizedBox(height: 24),
+              _buildSettingsSection('Account Settings'),
+              _buildSettingsItem(
+                  icon: Icons.lock,
+                  title: 'Change Password',
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => ChangePasswordPageChief()));
+                  }),
+              _buildSettingsItem(
+                  icon: Icons.security,
+                  title: 'Security Questions',
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => SecurityQuestionsScreen()));
+                  }),
+              const SizedBox(height: 20),
+              _buildSettingsSection('App Settings'),
+              _buildSettingsItem(
+                  icon: Icons.notifications,
+                  title: 'Notifications',
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsPage()));
+                  }),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Handle Logout
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Log Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.redAccent,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: BorderSide(color: Colors.redAccent.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                );
-
-                //ChangePasswordPage
-              }),
-          _buildSettingsItem(
-              icon: Icons.security,
-              title: 'Securty Questions',
-              onTap: () {
-                //SecurityQuestionsScreen
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SecurityQuestionsScreen(),
-                  ),
-                );
-              }),
-          // SizedBox(height: 20),
-          // _buildSettingsSection('App Settings'),
-          _buildSettingsItem(
-              icon: Icons.notifications,
-              title: 'Notifications',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationsPage(),
-                  ),
-                );
-              }),
-          // _buildSettingsItem(
-          //     icon: Icons.language, title: 'Language', onTap: () {}),
-          // _buildSettingsItem(
-          //     icon: Icons.dark_mode, title: 'Theme', onTap: () {}),
-          const SizedBox(height: 30),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildSettingsSection(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
       child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey,
-        ),
+        title.toUpperCase(),
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: fbSecondaryText, letterSpacing: 1.2),
       ),
     );
   }
 
-  Widget _buildSettingsItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildSettingsItem({required IconData icon, required String title, required VoidCallback onTap}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFB3E5FC),
-            borderRadius: BorderRadius.circular(8),
+            color: fbBackground,
+            shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: const Color(0xFF64B5F6)),
+          child: Icon(icon, color: fbDarkText),
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: fbDarkText),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: fbSecondaryText),
         onTap: onTap,
       ),
     );
   }
 }
 
-class RecentActivitySection extends StatelessWidget {
-  const RecentActivitySection({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade300, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Recent Activity',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 15),
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('issues')
-                .orderBy('timestamp', descending: true)
-                .limit(3)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Error loading activities',
-                    style: TextStyle(color: Colors.red[400]),
-                  ),
-                );
-              }
-
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF64B5F6),
-                    ),
-                  ),
-                );
-              }
-
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 48,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No recent activities',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              return Column(
-                children: snapshot.data!.docs.map((doc) {
-                  var issueData = doc.data() as Map<String, dynamic>;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: IssueActivityCard(
-                      issueData: issueData,
-                      issueId: doc.id,
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class IssueActivityCard extends StatelessWidget {
-  final Map<String, dynamic> issueData;
-  final String issueId;
-
-  const IssueActivityCard({
-    Key? key,
-    required this.issueData,
-    required this.issueId,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    String schoolName = issueData['schoolName'] ?? 'Unknown School';
-    String issueTitle = issueData['issueTitle'] ?? 'No Title';
-    String status = issueData['status'] ?? 'Pending';
-
-    String subtitle = '$schoolName - Status: $status Review';
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.black, width: 2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.business,
-              size: 24,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  issueTitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => IssueDetailsPage(
-                    issueId: issueId,
-                    issueData: issueData,
-                  ),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF64B5F6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            ),
-            child: const Text(
-              'View Details',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class IssueDetailsPage extends StatelessWidget {
-  final String issueId;
-  final Map<String, dynamic> issueData;
-
-  const IssueDetailsPage({
-    Key? key,
-    required this.issueId,
-    required this.issueData,
-  }) : super(key: key);
-
-  String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return 'N/A';
-
-    try {
-      DateTime dateTime;
-      if (timestamp is Timestamp) {
-        dateTime = timestamp.toDate();
-      } else if (timestamp is String) {
-        dateTime = DateTime.parse(timestamp);
-      } else {
-        return 'Invalid Date';
-      }
-
-      String year = dateTime.year.toString();
-      String month = _getMonthName(dateTime.month);
-      String day = dateTime.day.toString().padLeft(2, '0');
-      String hour = dateTime.hour > 12
-          ? (dateTime.hour - 12).toString().padLeft(2, '0')
-          : dateTime.hour.toString().padLeft(2, '0');
-      String minute = dateTime.minute.toString().padLeft(2, '0');
-      String period = dateTime.hour >= 12 ? 'PM' : 'AM';
-
-      return '$month $day, $year - $hour:$minute $period';
-    } catch (e) {
-      return 'Invalid Date';
-    }
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
-    return months[month - 1];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: const Text('Issue Details'),
-        backgroundColor: const Color(0xFF64B5F6),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDetailCard(
-              'School Information',
-              [
-                _buildDetailRow('School Name', issueData['schoolName']),
-                _buildDetailRow('Building Name', issueData['buildingName']),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildDetailCard(
-              'Issue Information',
-              [
-                _buildDetailRow('Issue Title', issueData['issueTitle']),
-                _buildDetailRow('Damage Type', issueData['damageType']),
-                _buildDetailRow('Status', issueData['status']),
-                _buildDetailRow('Description', issueData['description']),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildDetailCard(
-              'Additional Details',
-              [
-                _buildDetailRow('Number of Classrooms',
-                    issueData['numClassrooms']?.toString()),
-                _buildDetailRow(
-                    'Number of Floors', issueData['numFloors']?.toString()),
-                _buildDetailRow('Date of Occurrence',
-                    _formatDate(issueData['dateOfOccurance'])),
-                _buildDetailRow(
-                    'Reported On', _formatDate(issueData['timestamp'])),
-                _buildDetailRow('Added By', issueData['addedByNic']),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (issueData['imageUrls'] != null &&
-                (issueData['imageUrls'] as List).isNotEmpty)
-              _buildImagesSection(issueData['imageUrls'] as List),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailCard(String title, List<Widget> children) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value?.toString() ?? 'N/A',
-            style: const TextStyle(
-              fontSize: 15,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImagesSection(List imageUrls) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Issue Images',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemCount: imageUrls.length,
-            itemBuilder: (context, index) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  imageUrls[index],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.error),
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class DashboardCarddash extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final double width;
-  final double height;
-  final Color iconColor;
-  final Color iconBackgroundColor;
-  final VoidCallback? onTap;
-
-  const DashboardCarddash({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.width,
-    required this.height,
-    this.iconColor = const Color(0xFFF48FB1),
-    this.iconBackgroundColor = const Color(0xFFFCE4EC),
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: width,
-        height: height,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.grey.shade300,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 28,
-              height: 38,
-              decoration: BoxDecoration(
-                color: iconBackgroundColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 25,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.grey.shade800,
-                        height: 1.2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
+// Ensure your DashboardCarddash & IssueActivityCard files/classes use 'Container' layout instead of fixed width Row constraints so Wrap() takes effect properly.

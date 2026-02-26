@@ -489,6 +489,8 @@ class RecentActivitySection extends StatelessWidget {
       ),
     );
   }
+  
+  Widget? IssueActivityCard({required Map<String, dynamic> issueData, required String issueId}) {}
 }
 
 //Dashboard Card
