@@ -164,6 +164,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
       if (uid != null) {
         final userData = {
+          'uid': uid, // FIXED: Added this so the dashboard can identify the unique user
           'userType': 'Principal', 
           'nic': _nicController.text.trim().toUpperCase(),
           'schoolName': _schoolNameController.text.trim(),
@@ -229,7 +230,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600), // Slightly wider for tablet/web
+              constraints: const BoxConstraints(maxWidth: 600), 
               child: Container(
                 padding: const EdgeInsets.all(40.0),
                 decoration: BoxDecoration(
@@ -267,16 +268,13 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                       ),
                       const SizedBox(height: 32),
 
-                      // --- FORM FIELDS ---
                       _buildReadOnlyDropdown('User Type', 'Principal'),
                       
                       _buildSchoolTypeDropdown(), 
                       _buildDistrictDropdown(), 
 
-                      // --- AUTOCOMPLETE SCHOOL NAME ---
                       _buildSchoolAutocompleteField(),
                       
-                      // --- NIC FIELD ---
                       _buildTextFormField(
                         controller: _nicController,
                         labelText: 'Principal NIC Number',
@@ -372,7 +370,6 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                       
                       const SizedBox(height: 32),
 
-                      // --- SIGN UP BUTTON ---
                       _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : ElevatedButton(
@@ -420,7 +417,6 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   }
 
   // --- HELPER WIDGETS ---
-
   Widget _buildSchoolAutocompleteField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
@@ -442,7 +438,6 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
               _schoolNameController.text = selection;
             },
             fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
-              // Sync the local controller with the Autocomplete controller so validation works
               fieldTextEditingController.addListener(() {
                 _schoolNameController.text = fieldTextEditingController.text;
               });
@@ -668,7 +663,6 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     );
   }
 
-  // Universal input decoration to keep styling consistent
   InputDecoration _inputDecoration({IconData? icon, Widget? suffixIcon, String? errorText}) {
     return InputDecoration(
       prefixIcon: icon != null ? Icon(icon, color: Colors.blueAccent.shade200) : null,
