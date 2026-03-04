@@ -9,8 +9,15 @@ import 'issue_report_details_screen.dart';
 import 'view_details.dart'; // Contains ViewContractDetailsScreen
 import 'view_contractor_screen.dart'; // Contains ViewContractorScreen
 
-class NotificationScreen extends StatelessWidget {
+// StatefulWidget වලට convert කළා — user NIC load කරන්න
+class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
+
+  @override
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
 
   // --- EYE-CATCHING MODERN COLOR PALETTE ---
   static const Color kPrimaryColor = Color(0xFF4F46E5); // Indigo 600
@@ -20,23 +27,58 @@ class NotificationScreen extends StatelessWidget {
   static const Color kSubTextColor = Color(0xFF64748B); // Slate 500
   static const Color kAccentColor = Color(0xFFEC4899); // Pink 500 (For unread dot)
 
+  String? _userNic; // Login වෙලා ඉන්න user ගේ NIC
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserNic();
+  }
+
+  // Users collection එකෙන් current user ගේ NIC ගන්නවා
+  Future<void> _fetchUserNic() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: currentUser.uid)
+          .limit(1)
+          .get();
+      if (query.docs.isNotEmpty) {
+        setState(() {
+          _userNic = query.docs.first.data()['nic'] as String?;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching user NIC: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 1. GET THE CURRENT USER INFO
     final User? currentUser = FirebaseAuth.instance.currentUser;
-    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
     final String currentUserId = currentUser?.uid ?? '';
 
-    // 2. BUILD THE QUERY DYNAMICALLY
-    Query notificationsQuery = FirebaseFirestore.instance
-        .collection('notifications')
-        .orderBy('timestamp', descending: true);
-
-    // 3. APPLY THE FILTER: Only show notifications created AFTER the user registered
-    if (userCreationTime != null) {
-      notificationsQuery = notificationsQuery.where('timestamp',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: kPrimaryColor)),
+      );
     }
+
+    // recipientNic filter — මේ TO කෙනාට යවපු notifications විතරයි පේන්නේ
+    final Query notificationsQuery = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('recipientNic', isEqualTo: _userNic)
+        .orderBy('timestamp', descending: true);
 
     return Scaffold(
       backgroundColor: kBackgroundColor,
@@ -79,7 +121,6 @@ class NotificationScreen extends StatelessWidget {
           }
 
           return Center(
-            // RESPONSIVE WRAPPER: Centers content on tablets/desktop
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
               child: ListView.builder(
@@ -89,11 +130,9 @@ class NotificationScreen extends StatelessWidget {
                   var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
                   String docId = snapshot.data!.docs[index].id;
                   
-                  // --- NEW LOGIC: Check if this specific user has read it ---
                   List<dynamic> readByUsers = data['readBy'] ?? [];
                   bool isRead = readByUsers.contains(currentUserId);
 
-                  // Extract routing metadata
                   String? type = data['type'];
                   String? schoolId = data['schoolId'];
                   String? issueId = data['issueId'];
@@ -124,7 +163,6 @@ class NotificationScreen extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () async {
-                          // --- NEW LOGIC: Add this user's ID to the readBy array ---
                           if (currentUserId.isNotEmpty && !isRead) {
                             await FirebaseFirestore.instance
                                 .collection('notifications')
@@ -136,8 +174,8 @@ class NotificationScreen extends StatelessWidget {
 
                           if (!context.mounted) return;
 
-                          // 2. Intelligent Routing based on 'type'
-                          if (type == 'issue' && issueId != null) {
+                          // type 'new_issue' සහ 'issue' දෙකම handle කරනවා
+                          if ((type == 'issue' || type == 'new_issue') && issueId != null) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -186,7 +224,6 @@ class NotificationScreen extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ICON
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
@@ -202,8 +239,6 @@ class NotificationScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 16),
-                              
-                              // TEXT CONTENT
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,7 +253,7 @@ class NotificationScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      data['subtitle'] ?? '',
+                                      data['subtitle'] ?? data['body'] ?? '',
                                       style: TextStyle(
                                           fontSize: 14,
                                           color: isRead ? kSubTextColor : kTextColor.withOpacity(0.8),
@@ -241,8 +276,6 @@ class NotificationScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              
-                              // UNREAD INDICATOR
                               if (!isRead)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8.0, left: 8.0),
@@ -270,10 +303,10 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  // Helper to pick icons based on context
   IconData _getIconForType(String? type) {
     switch (type) {
       case 'issue':
+      case 'new_issue':
         return Icons.report_problem_rounded;
       case 'contract':
         return Icons.assignment_rounded;
@@ -321,29 +354,20 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  // --- NEW LOGIC: Mark All as Read ---
   Future<void> _markAllAsRead(String currentUserId) async {
-    if (currentUserId.isEmpty) return;
+    if (currentUserId.isEmpty || _userNic == null) return;
 
     final batch = FirebaseFirestore.instance.batch();
-    
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
-    
-    // We fetch all notifications
-    Query query = FirebaseFirestore.instance.collection('notifications');
-        
-    if (userCreationTime != null) {
-      query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
-    }
 
-    final querySnapshot = await query.get();
+    // මේ user ට විතරයි related notifications mark කරන්නේ
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('notifications')
+        .where('recipientNic', isEqualTo: _userNic)
+        .get();
 
     for (var doc in querySnapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       final readBy = data['readBy'] as List<dynamic>? ?? [];
-      
-      // If this user hasn't read it yet, add them to the array
       if (!readBy.contains(currentUserId)) {
         batch.update(doc.reference, {
           'readBy': FieldValue.arrayUnion([currentUserId])
