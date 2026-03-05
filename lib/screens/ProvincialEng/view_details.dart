@@ -114,11 +114,10 @@ class ViewContractDetailsScreen extends StatelessWidget {
               const Divider(color: kPrimaryBlue, thickness: 2, height: 20),
               
               // Contract Details Fields
-              // IMPORTANT: If these still say "N/A" in your app, you must check your 
-              // Firebase 'contracts' collection to make sure the keys exactly match these strings!
+              // UPDATED: Keys now perfectly match the 'contracts' collection
               _buildDetailRow(
                 'CIDA Reg. Number', 
-                data['cidaRegisterNumber']?.toString() ?? 'N/A',
+                data['cidaNo']?.toString() ?? 'N/A', // Changed from cidaRegisterNumber
                 icon: Icons.badge,
               ),
               _buildDetailRow(
@@ -128,12 +127,12 @@ class ViewContractDetailsScreen extends StatelessWidget {
               ),
               _buildDetailRow(
                 'Type of Contract', 
-                data['typeOfContract']?.toString() ?? 'N/A',
+                data['projectType']?.toString() ?? 'N/A', // Changed from typeOfContract
                 icon: Icons.category,
               ),
               _buildDetailRow(
                 'Contract Value', 
-                formatCurrency(data['contractValue']),
+                formatCurrency(data['value']), // Changed from contractValue
                 icon: Icons.attach_money,
               ),
               _buildDetailRow(
