@@ -139,7 +139,7 @@ class ViewContractorScreen extends StatelessWidget {
               ),
               const Divider(color: kPrimaryBlue, thickness: 2, height: 20),
 
-              // Contractor Details Fields
+              // Contractor Details Fields - UPDATED WITH CORRECT DATABASE KEYS
               _buildDetailRow(
                 'Company Name',
                 data['companyName']?.toString() ?? 'N/A',
@@ -147,7 +147,7 @@ class ViewContractorScreen extends StatelessWidget {
               ),
               _buildDetailRow(
                 'CIDA Reg. Number',
-                data['cidaRegistrationNumber']?.toString() ?? 'N/A',
+                data['cidaNo']?.toString() ?? 'N/A',
                 icon: Icons.badge,
               ),
               _buildDetailRow(
@@ -157,12 +157,12 @@ class ViewContractorScreen extends StatelessWidget {
               ),
               _buildDetailRow(
                 'NIC Number',
-                data['nicNumber']?.toString() ?? 'N/A',
+                data['nic']?.toString() ?? 'N/A',
                 icon: Icons.credit_card,
               ),
               _buildDetailRow(
                 'Contact Number',
-                data['contactNumber']?.toString() ?? 'N/A',
+                data['contact']?.toString() ?? 'N/A',
                 icon: Icons.phone,
               ),
 
@@ -388,7 +388,8 @@ class ViewContractorScreen extends StatelessWidget {
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
-          final cidaRegNumber = data['cidaRegistrationNumber']?.toString() ?? '';
+          // UPDATED WITH CORRECT DATABASE KEY
+          final cidaRegNumber = data['cidaNo']?.toString() ?? '';
 
           return SingleChildScrollView(
             child: Center(
