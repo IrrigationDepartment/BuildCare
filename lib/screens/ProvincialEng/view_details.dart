@@ -38,7 +38,7 @@ class ViewContractDetailsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            value,
+            value.isEmpty ? 'N/A' : value, // Added check for empty strings
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -53,20 +53,32 @@ class ViewContractDetailsScreen extends StatelessWidget {
 
   // --- Widget for the main content card ---
   Widget _buildDetailsCard(BuildContext context, Map<String, dynamic> data) {
-    // Helper function to format dates
+    // Helper function to format dates (UPGRADED to handle nulls and strings)
     String formatDate(dynamic timestamp) {
+      if (timestamp == null) return 'N/A';
       if (timestamp is Timestamp) {
         return DateFormat('yyyy-MM-dd').format(timestamp.toDate());
       } else if (timestamp is DateTime) {
         return DateFormat('yyyy-MM-dd').format(timestamp);
+      } else if (timestamp is String) {
+        return timestamp; // If it's saved as a normal string in DB
       }
       return 'N/A';
     }
 
-    // Helper function to format currency
+    // Helper function to format currency (UPGRADED to handle nulls and strings)
     String formatCurrency(dynamic value) {
+      if (value == null) return 'N/A';
+      
+      num? numericValue;
       if (value is num) {
-        return NumberFormat.currency(locale: 'en_US', symbol: 'LKR').format(value);
+        numericValue = value;
+      } else if (value is String) {
+        numericValue = num.tryParse(value); // Try to convert string to number
+      }
+
+      if (numericValue != null) {
+        return NumberFormat.currency(locale: 'en_US', symbol: 'LKR ').format(numericValue);
       }
       return 'N/A';
     }
@@ -102,6 +114,8 @@ class ViewContractDetailsScreen extends StatelessWidget {
               const Divider(color: kPrimaryBlue, thickness: 2, height: 20),
               
               // Contract Details Fields
+              // IMPORTANT: If these still say "N/A" in your app, you must check your 
+              // Firebase 'contracts' collection to make sure the keys exactly match these strings!
               _buildDetailRow(
                 'CIDA Reg. Number', 
                 data['cidaRegisterNumber']?.toString() ?? 'N/A',
@@ -134,17 +148,17 @@ class ViewContractDetailsScreen extends StatelessWidget {
               ),
               
               const SizedBox(height: 20),
-              // --- 2. EDIT BUTTON ACTION change---
+              // --- 2. EDIT BUTTON ACTION ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // 'Edit' screen navigate 
+                    // Navigate to 'Edit' screen
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => AddContractScreen(
-                          contractId: contractId, // Document ID pass
-                          initialData: data,      // current data  pass 
+                          contractId: contractId, // Pass Document ID
+                          initialData: data,      // Pass current data
                         ),
                       ),
                     );
@@ -210,7 +224,7 @@ class ViewContractDetailsScreen extends StatelessWidget {
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 600),
-                // context සහ data, _buildDetailsCard එකට pass කිරීම
+                // Pass context and data to _buildDetailsCard
                 child: _buildDetailsCard(context, data),
               ),
             ),
