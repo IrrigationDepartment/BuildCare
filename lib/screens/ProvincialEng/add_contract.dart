@@ -53,11 +53,12 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
   // --- Helper: Populate form for 'Edit' mode ---
   void _populateForm(Map<String, dynamic> data) {
-    _cidaController.text = data['cidaRegisterNumber']?.toString() ?? '';
+    // UPDATED: Keys matching 'contracts' database
+    _cidaController.text = data['cidaNo']?.toString() ?? '';
     _contractorController.text = data['contractorName']?.toString() ?? '';
     _companyController.text = data['companyName']?.toString() ?? '';
-    _typeController.text = data['typeOfContract']?.toString() ?? '';
-    _valueController.text = data['contractValue']?.toString() ?? '';
+    _typeController.text = data['projectType']?.toString() ?? '';
+    _valueController.text = data['value']?.toString() ?? '';
 
     _startDate = _parseTimestamp(data['startDate']);
     _endDate = _parseTimestamp(data['endDate']);
@@ -103,9 +104,10 @@ class _AddContractScreenState extends State<AddContractScreen> {
 
     try {
       // Look for the contractor with the matching CIDA number
+      // UPDATED: Query now searches using 'cidaNo' instead of 'cidaRegistrationNumber'
       final querySnapshot = await FirebaseFirestore.instance
           .collection('contractor_details')
-          .where('cidaRegistrationNumber', isEqualTo: cida)
+          .where('cidaNo', isEqualTo: cida) 
           .limit(1)
           .get();
 
@@ -179,48 +181,55 @@ class _AddContractScreenState extends State<AddContractScreen> {
       setState(() => _isSaving = true);
 
       // Data map to be saved/updated
+      // UPDATED: Keys match the DB exactly
       final Map<String, dynamic> contractData = {
-        'cidaRegisterNumber': _cidaController.text.trim(),
+        'cidaNo': _cidaController.text.trim(),
         'contractorName': _contractorController.text.trim(),
         'companyName': _companyController.text.trim(),
-        'typeOfContract': _typeController.text.trim(),
+        'projectType': _typeController.text.trim(),
         'startDate': _startDate,
         'endDate': _endDate,
-        'contractValue': double.tryParse(_valueController.text.trim()) ?? 0.0,
+        'value': double.tryParse(_valueController.text.trim()) ?? 0.0,
       };
 
       try {
         if (_isEditMode) {
-          contractData['lastUpdated'] = FieldValue.serverTimestamp();
+          contractData['updatedAt'] = FieldValue.serverTimestamp(); // Standardized to updatedAt
           await FirebaseFirestore.instance
               .collection('contracts')
               .doc(widget.contractId!)
               .update(contractData);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                backgroundColor: Colors.green,
-                content: Text('Contract details updated successfully!')),
-          );
-          Navigator.of(context).pop(); 
-          Navigator.of(context).pop(); 
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  backgroundColor: Colors.green,
+                  content: Text('Contract details updated successfully!')),
+            );
+            Navigator.of(context).pop(); 
+            Navigator.of(context).pop(); 
+          }
         } else {
-          contractData['timestamp'] = FieldValue.serverTimestamp();
+          contractData['updatedAt'] = FieldValue.serverTimestamp(); // Standardized to updatedAt
           await FirebaseFirestore.instance
               .collection('contracts')
               .add(contractData);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                backgroundColor: Colors.green,
-                content: Text('Contract details saved successfully!')),
-          );
-          Navigator.pop(context);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  backgroundColor: Colors.green,
+                  content: Text('Contract details saved successfully!')),
+            );
+            Navigator.pop(context);
+          }
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.red, content: Text('Failed to save data: $e')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(backgroundColor: Colors.red, content: Text('Failed to save data: $e')),
+          );
+        }
       } finally {
         if (mounted) setState(() => _isSaving = false);
       }
