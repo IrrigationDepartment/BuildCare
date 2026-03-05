@@ -31,8 +31,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   String? _selectedDamageType;
   DateTime? _selectedDate;
   
-  // Firebase users collection එකේ 'office' field එක තමයි location store කරන්නේ
-  String? _userOffice; // උදා: "Galle"
+  String? _userOffice; 
 
   bool get _isEditMode => widget.issueId != null;
   bool _isLoading = false;
@@ -86,7 +85,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         var userData = userQuery.docs.first.data() as Map<String, dynamic>;
         setState(() {
           _schoolNameController.text = userData['schoolName'] ?? 'Not Found';
-          // Firebase users collection එකේ province/district නැහැ — 'office' field එකයි තියෙන්නේ
           _userOffice = userData['office'];
         });
         debugPrint("Principal office: $_userOffice");
@@ -147,7 +145,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  // Issue submit කරන main method
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedDate == null) {
@@ -158,12 +155,9 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Images upload කරගන්නවා
       List<String> uploadedImageUrls = await _uploadImages();
       List<String> finalUrls = [..._existingImageUrls, ...uploadedImageUrls];
 
-      // 2. Issue data Map එකට දාගන්නවා
-      // Firebase users collection එකේ 'office' field තමයි location — province/district නැහැ
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding,
@@ -174,20 +168,18 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         'imageUrls': finalUrls,
         'status': 'Pending',
         'addedByNic': widget.userNic,
-        'office': _userOffice, // province/district වෙනුවට office
+        'office': _userOffice, 
         if (!_isEditMode) 'timestamp': FieldValue.serverTimestamp(),
         if (_isEditMode) 'lastUpdated': FieldValue.serverTimestamp(),
       };
 
-      // 3. Firestore issues collection එකට save කරනවා
       DocumentReference docRef;
       if (_isEditMode) {
         docRef = FirebaseFirestore.instance.collection('issues').doc(widget.issueId!);
         await docRef.update(issueData);
       } else {
         docRef = await FirebaseFirestore.instance.collection('issues').add(issueData);
-
-        // 4. Notifications යවනවා - userTypes 4කටම
+        // Notifications යවනවා - එකම එක document එකක් විතරයි යවන්නේ
         await _sendNotificationsToAllRoles(docRef.id);
       }
 
@@ -203,92 +195,37 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  // Notifications යවන method
-  // Firebase users collection query කරලා userType සහ office match වෙන අයට notify කරනවා
+  // --- අලුතින් වෙනස් කරපු Notification යවන Function එක ---
   Future<void> _sendNotificationsToAllRoles(String issueDocId) async {
     final String schoolName = _schoolNameController.text.trim();
     final String notifTitle = 'New Building Issue Reported';
     final String notifBody = '$schoolName reported: $_selectedBuilding - $_selectedDamageType';
-    final db = FirebaseFirestore.instance;
 
-    // Firebase screenshot වලින් field names confirm කළා:
-    // role field = 'userType'
-    // location field = 'office'
-    // userType values: "Technical Officer", "District Engineer", "Provincial Engineer", "Chief Engineer"
+    // 4ක් වෙනුවට 1 Notification එකක් යවනවා array එකක් පාවිච්චි කරලා
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'title': notifTitle,
+      'subtitle': notifBody,
+      'body': notifBody,
+      'issueId': issueDocId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'type': 'new_issue',
+      'isRead': false,
+      'readBy': [],
+      'office': _userOffice, 
+      'targetRoles': [
+        'Technical Officer',
+        'District Engineer',
+        'Provincial Engineer',
+        'Chief Engineer'
+      ],
+      'schoolName': schoolName,
+    });
 
-    final List<String> targetUserTypes = [
-      'Technical Officer',
-      'District Engineer',
-      'Provincial Engineer',
-      'Chief Engineer',
-    ];
-
-    final WriteBatch batch = db.batch();
-
-    for (final userType in targetUserTypes) {
-      try {
-        Query query = db.collection('users').where('userType', isEqualTo: userType);
-
-        // Technical Officer සහ District Engineer — same office (district) filter
-        // Provincial Engineer සහ Chief Engineer — office filter නැහැ (ඔක්කොම)
-        if ((userType == 'Technical Officer' || userType == 'District Engineer') && _userOffice != null) {
-          query = query.where('office', isEqualTo: _userOffice);
-        }
-
-        final QuerySnapshot usersSnapshot = await query.get();
-        debugPrint('Found ${usersSnapshot.docs.length} users for userType: $userType');
-
-        if (usersSnapshot.docs.isNotEmpty) {
-          for (final userDoc in usersSnapshot.docs) {
-            final userData = userDoc.data() as Map<String, dynamic>;
-            final String? recipientNic = userData['nic'] as String?;
-
-            final notifRef = db.collection('notifications').doc();
-            batch.set(notifRef, {
-              'title': notifTitle,
-              'subtitle': notifBody, // chief_notification.dart uses 'subtitle'
-              'body': notifBody,
-              'issueId': issueDocId,
-              'timestamp': FieldValue.serverTimestamp(), // ALL notification pages query 'timestamp'
-              'type': 'new_issue',
-              'isRead': false,
-              'readBy': [],
-              'office': _userOffice,
-              'targetUserType': userType,
-              'recipientNic': recipientNic,
-              'schoolName': schoolName,
-            });
-          }
-        } else {
-          debugPrint('No users found for $userType — adding generic notification');
-          final notifRef = db.collection('notifications').doc();
-          batch.set(notifRef, {
-            'title': notifTitle,
-            'subtitle': notifBody,
-            'body': notifBody,
-            'issueId': issueDocId,
-            'timestamp': FieldValue.serverTimestamp(),
-            'type': 'new_issue',
-            'isRead': false,
-            'readBy': [],
-            'office': _userOffice,
-            'targetUserType': userType,
-            'recipientNic': null,
-            'schoolName': schoolName,
-          });
-        }
-      } catch (e) {
-        debugPrint('Error for userType $userType: $e');
-      }
-    }
-
-    await batch.commit();
-    debugPrint('✅ All notifications committed to Firestore!');
+    debugPrint('✅ 1 Single notification committed to Firestore for all roles!');
   }
 
   @override
   Widget build(BuildContext context) {
-    // Interface එකේ කිසිම වෙනසක් කරලා නැහැ
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
@@ -347,8 +284,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           ),
     );
   }
-
-  // --- පහළ තියෙන ඔක්කොම UI Helper methods උඹේ කලින් code එකේ තිබ්බ ඒවාමයි ---
 
   Widget _buildFormCard({required String title, required List<Widget> children}) {
     return Container(
