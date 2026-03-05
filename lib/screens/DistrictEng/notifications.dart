@@ -43,7 +43,7 @@ class _NotificationPageState extends State<NotificationPage> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildCustomAppBar(currentUserId, context),
+            _buildCustomAppBar(currentUserId),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: notificationsQuery.snapshots(),
@@ -142,8 +142,7 @@ class _NotificationPageState extends State<NotificationPage> {
     );
   }
 
-  // Updated App Bar matching the second image
-  Widget _buildCustomAppBar(String currentUserId, BuildContext context) {
+  Widget _buildCustomAppBar(String currentUserId) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
       child: Row(
@@ -184,25 +183,20 @@ class _NotificationPageState extends State<NotificationPage> {
 
   Widget _buildAvatarWithBadge(String? type) {
     IconData badgeIcon;
-    Color badgeColor;
 
     switch (type) {
       case 'issue':
         badgeIcon = Icons.report_problem;
-        badgeColor = Colors.orange;
         break;
       case 'contract':
         badgeIcon = Icons.assignment;
-        badgeColor = Colors.green;
         break;
       case 'contractor':
         badgeIcon = Icons.business_center;
-        badgeColor = Colors.purple;
         break;
       case 'school':
       default:
         badgeIcon = Icons.school;
-        badgeColor = fbBlue;
     }
 
     return Stack(
@@ -210,7 +204,7 @@ class _NotificationPageState extends State<NotificationPage> {
         CircleAvatar(
           radius: 28,
           backgroundColor: Colors.grey[200],
-          child: Icon(badgeIcon, color: fbGrey, size: 24), // Changed to match second image style slightly
+          child: Icon(badgeIcon, color: fbGrey, size: 24), 
         ),
       ],
     );
