@@ -41,11 +41,10 @@ class ContractorsListPage extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 800),
             child: StreamBuilder<QuerySnapshot>(
-              // --- FIX 1: Collection name and OrderBy field must exist in Firestore ---
+              // --- FIX 1: Removed .orderBy() to ensure we get ALL documents, 
+              // even those without an 'updatedAt' field.
               stream: FirebaseFirestore.instance
                   .collection('contractor_details')
-                  .orderBy('updatedAt',
-                      descending: true) // Changed from 'timestamp'
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -72,18 +71,35 @@ class ContractorsListPage extends StatelessWidget {
                   );
                 }
 
+                // --- FIX 2: Sort the documents locally in Dart ---
+                // This keeps newest at the top, but pushes older docs without a date to the bottom
+                var docs = snapshot.data!.docs.toList();
+                docs.sort((a, b) {
+                  var dataA = a.data() as Map<String, dynamic>;
+                  var dataB = b.data() as Map<String, dynamic>;
+                  
+                  Timestamp? timeA = dataA['updatedAt'] as Timestamp?;
+                  Timestamp? timeB = dataB['updatedAt'] as Timestamp?;
+                  
+                  if (timeA == null && timeB == null) return 0;
+                  if (timeA == null) return 1; // Put docs without dates at the end
+                  if (timeB == null) return -1;
+                  
+                  // Descending order (newest first)
+                  return timeB.compareTo(timeA); 
+                });
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: docs.length, // Use the locally sorted list length
                   itemBuilder: (context, index) {
-                    var doc = snapshot.data!.docs[index];
+                    var doc = docs[index]; // Use the locally sorted document
                     var data = doc.data() as Map<String, dynamic>;
                     var docId = doc.id;
 
-                    // --- FIX 2: Matching exact field keys from your screenshot ---
+                    // --- FIX 3: Matching exact field keys from your screenshot ---
                     String contractorName = data['contractorName'] ?? 'Unknown';
                     String companyName = data['companyName'] ?? 'No Company';
-                    // Field in screenshot is "cidaNo", NOT "cidaRegistrationNumber"
                     String cidaNum = data['cidaNo'] ?? 'N/A';
 
                     String initial = contractorName.isNotEmpty
