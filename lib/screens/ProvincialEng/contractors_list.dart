@@ -3,15 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 // --- IMPORTS FOR ROUTING ---
 import 'add_contractor_screen.dart';
-// Make sure this matches whatever you named the file holding ViewContractorScreen
-import 'view_contractor_screen.dart'; 
+import 'view_contractor_screen.dart';
 
 class ContractorsListPage extends StatelessWidget {
   const ContractorsListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Matching the background color from your other screens
     const Color kBackgroundColor = Color(0xFFF5F7FA);
     const Color kPrimaryBlue = Color(0xFF42A5F5);
 
@@ -29,7 +27,6 @@ class ContractorsListPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // --- ROUTE TO ADD SCREEN ---
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -42,12 +39,13 @@ class ContractorsListPage extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800), // Responsive max width
+            constraints: const BoxConstraints(maxWidth: 800),
             child: StreamBuilder<QuerySnapshot>(
-              // --- FIXED: Looking at 'contractor_details' instead of 'contractors' ---
+              // --- FIX 1: Collection name and OrderBy field must exist in Firestore ---
               stream: FirebaseFirestore.instance
                   .collection('contractor_details')
-                  .orderBy('timestamp', descending: true)
+                  .orderBy('updatedAt',
+                      descending: true) // Changed from 'timestamp'
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -55,7 +53,8 @@ class ContractorsListPage extends StatelessWidget {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error loading data: ${snapshot.error}'));
+                  return Center(
+                      child: Text('Error loading data: ${snapshot.error}'));
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -79,14 +78,14 @@ class ContractorsListPage extends StatelessWidget {
                   itemBuilder: (context, index) {
                     var doc = snapshot.data!.docs[index];
                     var data = doc.data() as Map<String, dynamic>;
-                    var docId = doc.id; // This is the NIC number
+                    var docId = doc.id;
 
-                    // Fetching exact fields from your Firebase screenshot
+                    // --- FIX 2: Matching exact field keys from your screenshot ---
                     String contractorName = data['contractorName'] ?? 'Unknown';
                     String companyName = data['companyName'] ?? 'No Company';
-                    String cidaNum = data['cidaRegistrationNumber'] ?? 'N/A';
-                    
-                    // Get the first letter for the Avatar
+                    // Field in screenshot is "cidaNo", NOT "cidaRegistrationNumber"
+                    String cidaNum = data['cidaNo'] ?? 'N/A';
+
                     String initial = contractorName.isNotEmpty
                         ? contractorName[0].toUpperCase()
                         : 'C';
@@ -126,7 +125,6 @@ class ContractorsListPage extends StatelessWidget {
                         trailing: const Icon(Icons.arrow_forward_ios,
                             size: 16, color: Colors.grey),
                         onTap: () {
-                          // --- ROUTE TO VIEW SCREEN ---
                           Navigator.push(
                             context,
                             MaterialPageRoute(

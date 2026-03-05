@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 // --- IMPORTS ---
 import 'add_contract.dart';
-import 'view_details.dart'; // Using the updated import from your second snippet
+import 'view_details.dart'; 
 
 class ContractListPage extends StatefulWidget {
   const ContractListPage({super.key});
@@ -14,11 +14,9 @@ class ContractListPage extends StatefulWidget {
 }
 
 class _ContractListPageState extends State<ContractListPage> {
-  // --- Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
 
-  // --- Search Variables ---
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
@@ -28,7 +26,6 @@ class _ContractListPageState extends State<ContractListPage> {
     super.dispose();
   }
 
-  // --- Helper to format currency ---
   String _formatCurrency(dynamic value) {
     if (value is num) {
       return NumberFormat.currency(locale: 'en_US', symbol: 'LKR ').format(value);
@@ -36,7 +33,6 @@ class _ContractListPageState extends State<ContractListPage> {
     return 'LKR 0.00';
   }
 
-  // --- Helper to format dates from Firestore ---
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return 'TBD';
     if (timestamp is Timestamp) {
@@ -47,7 +43,6 @@ class _ContractListPageState extends State<ContractListPage> {
     return 'TBD';
   }
 
-  // --- Delete Logic with Confirmation ---
   Future<void> _confirmDelete(BuildContext context, String docId) async {
     bool? confirm = await showDialog<bool>(
       context: context,
@@ -99,7 +94,6 @@ class _ContractListPageState extends State<ContractListPage> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Route to create new contract
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddContractScreen()),
@@ -112,10 +106,9 @@ class _ContractListPageState extends State<ContractListPage> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800), // Responsive Max Width
+            constraints: const BoxConstraints(maxWidth: 800),
             child: Column(
               children: [
-                // --- Search Bar ---
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: TextField(
@@ -123,7 +116,6 @@ class _ContractListPageState extends State<ContractListPage> {
                     decoration: InputDecoration(
                       hintText: 'Search by CIDA No. or Name...',
                       prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                      // Clear button
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, color: Colors.grey),
@@ -158,13 +150,11 @@ class _ContractListPageState extends State<ContractListPage> {
                     },
                   ),
                 ),
-
-                // --- Contract List ---
                 Expanded(
                   child: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('contracts')
-                        .orderBy('timestamp', descending: true)
+                        .orderBy('updatedAt', descending: true) // FIXED: Changed 'timestamp' to 'updatedAt'
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -188,12 +178,11 @@ class _ContractListPageState extends State<ContractListPage> {
                         );
                       }
 
-                      // --- Filtering Logic ---
                       final allDocs = snapshot.data!.docs;
                       final filteredDocs = allDocs.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         final nameLower = (data['contractorName'] ?? '').toString().toLowerCase();
-                        final cidaLower = (data['cidaRegisterNumber'] ?? '').toString().toLowerCase();
+                        final cidaLower = (data['cidaNo'] ?? '').toString().toLowerCase(); // FIXED: Changed key
                         
                         return nameLower.contains(_searchQuery) || cidaLower.contains(_searchQuery);
                       }).toList();
@@ -215,12 +204,12 @@ class _ContractListPageState extends State<ContractListPage> {
                           var data = doc.data() as Map<String, dynamic>;
                           var docId = doc.id;
 
-                          // Parse data
+                          // FIXED: Updated all keys to match your screenshot
                           String contractorName = data['contractorName'] ?? 'Unknown Contractor';
-                          String contractType = data['typeOfContract'] ?? 'Unspecified';
-                          String value = _formatCurrency(data['contractValue']);
+                          String contractType = data['projectType'] ?? 'Unspecified'; // Was 'typeOfContract'
+                          String value = _formatCurrency(data['value']); // Was 'contractValue'
                           String endDate = _formatDate(data['endDate']);
-                          String cida = data['cidaRegisterNumber'] ?? 'N/A';
+                          String cida = data['cidaNo'] ?? 'N/A'; // Was 'cidaRegisterNumber'
 
                           return Card(
                             elevation: 0,
@@ -229,13 +218,12 @@ class _ContractListPageState extends State<ContractListPage> {
                               borderRadius: BorderRadius.circular(12),
                               side: BorderSide(color: Colors.grey.shade200),
                             ),
-                            // Swipe to delete feature
                             child: Dismissible(
                               key: Key(docId),
                               direction: DismissDirection.endToStart,
                               confirmDismiss: (direction) async {
                                 await _confirmDelete(context, docId);
-                                return false; // Handled manually to prevent UI sync errors
+                                return false; 
                               },
                               background: Container(
                                 alignment: Alignment.centerRight,
@@ -249,7 +237,6 @@ class _ContractListPageState extends State<ContractListPage> {
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
-                                  // Navigate to view details
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
