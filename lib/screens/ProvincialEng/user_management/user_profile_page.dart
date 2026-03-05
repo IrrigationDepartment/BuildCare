@@ -162,129 +162,138 @@ class _UserProfilePageState extends State<UserProfilePage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Edit Profile',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+      backgroundColor: Colors.transparent, // Let the inner container handle color
+      builder: (context) => Center( // Centered for web views
+        child: ConstrainedBox( // Constrain width for large screens
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView( // Prevents overflow when keyboard opens
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Edit Profile',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              // Name Field
-              _buildModernTextField(
-                label: 'Full Name',
-                controller: nameController,
-                icon: Icons.person_outline,
-              ),
-              const SizedBox(height: 16),
-              
-              // Email Field
-              _buildModernTextField(
-                label: 'Email Address',
-                controller: emailController,
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              
-              // Mobile Phone Field
-              _buildModernTextField(
-                label: 'Mobile Phone',
-                controller: phoneController,
-                icon: Icons.phone_android_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              
-              // NIC Field
-              _buildModernTextField(
-                label: 'NIC Number',
-                controller: nicController,
-                icon: Icons.badge_outlined,
-              ),
-              const SizedBox(height: 16),
-              
-              // Office Field
-              _buildModernTextField(
-                label: 'Office',
-                controller: officeController,
-                icon: Icons.work_outline,
-              ),
-              const SizedBox(height: 16),
-              
-              // Office Phone Field
-              _buildModernTextField(
-                label: 'Office Phone',
-                controller: officePhoneController,
-                icon: Icons.phone_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 32),
-              
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final updatedData = {
-                      'name': nameController.text.trim(),
-                      'email': emailController.text.trim(),
-                      'mobilePhone': phoneController.text.trim(),
-                      'nic': nicController.text.trim(),
-                      'office': officeController.text.trim(),
-                      'officePhone': officePhoneController.text.trim(),
-                      'updatedAt': Timestamp.now(),
-                    };
+                    const SizedBox(height: 24),
                     
-                    Navigator.pop(context);
-                    await _saveUserDetails(updatedData);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    // Name Field
+                    _buildModernTextField(
+                      label: 'Full Name',
+                      controller: nameController,
+                      icon: Icons.person_outline,
                     ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Save Changes',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: 16),
+                    
+                    // Email Field
+                    _buildModernTextField(
+                      label: 'Email Address',
+                      controller: emailController,
+                      icon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    
+                    // Mobile Phone Field
+                    _buildModernTextField(
+                      label: 'Mobile Phone',
+                      controller: phoneController,
+                      icon: Icons.phone_android_outlined,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // NIC Field
+                    _buildModernTextField(
+                      label: 'NIC Number',
+                      controller: nicController,
+                      icon: Icons.badge_outlined,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Office Field
+                    _buildModernTextField(
+                      label: 'Office',
+                      controller: officeController,
+                      icon: Icons.work_outline,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Office Phone Field
+                    _buildModernTextField(
+                      label: 'Office Phone',
+                      controller: officePhoneController,
+                      icon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // Save Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final updatedData = {
+                            'name': nameController.text.trim(),
+                            'email': emailController.text.trim(),
+                            'mobilePhone': phoneController.text.trim(),
+                            'nic': nicController.text.trim(),
+                            'office': officeController.text.trim(),
+                            'officePhone': officePhoneController.text.trim(),
+                            'updatedAt': Timestamp.now(),
+                          };
+                          
+                          Navigator.pop(context);
+                          await _saveUserDetails(updatedData);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         ),
       ),
@@ -469,251 +478,257 @@ class _UserProfilePageState extends State<UserProfilePage> {
           ? const Center(
               child: CircularProgressIndicator(),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Profile Header
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        // Profile Image
-                        profileImageUrl.isNotEmpty
-                            ? CircleAvatar(
-                                radius: 40,
-                                backgroundColor: Colors.white,
-                                backgroundImage: NetworkImage(profileImageUrl),
-                                onBackgroundImageError: (exception, stackTrace) {
-                                  // If image fails to load, show initials
-                                },
-                                child: profileImageUrl.isEmpty
-                                    ? Text(
-                                        widget.userData['name'] != null &&
-                                                widget.userData['name'].isNotEmpty
-                                            ? widget.userData['name'][0].toUpperCase()
-                                            : '?',
-                                        style: TextStyle(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue.shade700,
-                                        ),
-                                      )
-                                    : null,
-                              )
-                            : CircleAvatar(
-                                radius: 40,
-                                backgroundColor: Colors.white,
-                                child: Text(
-                                  widget.userData['name'] != null &&
-                                          widget.userData['name'].isNotEmpty
-                                      ? widget.userData['name'][0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade700,
-                                  ),
-                                ),
-                              ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.userData['name'] ?? 'No Name',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: _isActive
-                                      ? Colors.green.shade50
-                                      : Colors.orange.shade50,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: _isActive
-                                        ? Colors.green
-                                        : Colors.orange,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Text(
-                                  _isActive ? 'Active' : 'Inactive',
-                                  style: TextStyle(
-                                    color: _isActive
-                                        ? Colors.green
-                                        : Colors.orange,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                widget.userData['userType'] ?? widget.userType,
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-
-                  // Personal Information Card
-                  _buildDetailCard(
-                    'Personal Information',
-                    [
-                      _buildInfoItem(
-                        'Email Address',
-                        widget.userData['email'] ?? '',
-                        Icons.email_outlined,
-                      ),
-                      const Divider(height: 1),
-                      _buildInfoItem(
-                        'Mobile Phone',
-                        widget.userData['mobilePhone'] ?? '',
-                        Icons.phone_android_outlined,
-                      ),
-                      const Divider(height: 1),
-                      _buildInfoItem(
-                        'NIC Number',
-                        widget.userData['nic'] ?? '',
-                        Icons.badge_outlined,
-                      ),
-                      const Divider(height: 1),
-                      _buildInfoItem(
-                        'Office',
-                        widget.userData['office'] ?? '',
-                        Icons.work_outline,
-                      ),
-                      const Divider(height: 1),
-                      _buildInfoItem(
-                        'Office Phone',
-                        widget.userData['officePhone'] ?? '',
-                        Icons.phone_outlined,
-                      ),
-                      const Divider(height: 1),
-                      _buildInfoItem(
-                        'Security Question (Nickname)',
-                        widget.userData['securityQuestionNickname'] ?? '',
-                        Icons.security_outlined,
-                      ),
-                      const Divider(height: 1),
-                      _buildInfoItem(
-                        'Security Question (Pet)',
-                        widget.userData['securityQuestionPet'] ?? '',
-                        Icons.pets_outlined,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Account Information Card
-                  _buildDetailCard(
-                    'Account Information',
-                    [
-                      _buildInfoItem(
-                        'User ID',
-                        widget.userId.substring(0, 8) + '...',
-                        Icons.fingerprint_outlined,
-                      ),
-                      const Divider(height: 1),
-                      if (createdAt != null)
-                        _buildInfoItem(
-                          'Account Created',
-                          DateFormat('dd MMM yyyy, hh:mm a').format(createdAt),
-                          Icons.calendar_today_outlined,
-                        ),
-                      if (updatedAt != null) ...[
-                        const Divider(height: 1),
-                        _buildInfoItem(
-                          'Last Updated',
-                          DateFormat('dd MMM yyyy, hh:mm a').format(updatedAt),
-                          Icons.update_outlined,
-                        ),
-                      ],
-                      const Divider(height: 1),
-                      _buildInfoItem(
-                        'Profile Image URL',
-                        profileImageUrl.isNotEmpty 
-                            ? '${profileImageUrl.substring(0, 30)}...' 
-                            : 'Not set',
-                        Icons.image_outlined,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Action Buttons
-                  Row(
+          : Center(
+              child: ConstrainedBox(
+                // This single line keeps your layout from stretching on ultra-wide monitors
+                constraints: const BoxConstraints(maxWidth: 700),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _toggleUserStatus,
-                          icon: Icon(
-                            _isActive
-                                ? Icons.person_off_outlined
-                                : Icons.person_add_alt_1_outlined,
-                            size: 20,
-                          ),
-                          label: Text(_isActive ? 'Deactivate' : 'Activate'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _isActive
-                                ? Colors.orange.shade700
-                                : Colors.green.shade700,
-                            side: BorderSide(
-                              color: _isActive
-                                  ? Colors.orange.shade300
-                                  : Colors.green.shade300,
+                      // Profile Header
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            // Profile Image
+                            profileImageUrl.isNotEmpty
+                                ? CircleAvatar(
+                                    radius: 40,
+                                    backgroundColor: Colors.white,
+                                    backgroundImage: NetworkImage(profileImageUrl),
+                                    onBackgroundImageError: (exception, stackTrace) {},
+                                    child: profileImageUrl.isEmpty
+                                        ? Text(
+                                            widget.userData['name'] != null &&
+                                                    widget.userData['name'].isNotEmpty
+                                                ? widget.userData['name'][0].toUpperCase()
+                                                : '?',
+                                            style: TextStyle(
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue.shade700,
+                                            ),
+                                          )
+                                        : null,
+                                  )
+                                : CircleAvatar(
+                                    radius: 40,
+                                    backgroundColor: Colors.white,
+                                    child: Text(
+                                      widget.userData['name'] != null &&
+                                              widget.userData['name'].isNotEmpty
+                                          ? widget.userData['name'][0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                  ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.userData['name'] ?? 'No Name',
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2, // Helps prevent overflow if the name is massive
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: _isActive
+                                          ? Colors.green.shade50
+                                          : Colors.orange.shade50,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: _isActive
+                                            ? Colors.green
+                                            : Colors.orange,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _isActive ? 'Active' : 'Inactive',
+                                      style: TextStyle(
+                                        color: _isActive
+                                            ? Colors.green
+                                            : Colors.orange,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    widget.userData['userType'] ?? widget.userType,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _deleteUser,
-                          icon: const Icon(Icons.delete_outline, size: 20),
-                          label: const Text('Delete'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red.shade700,
-                            side: BorderSide(color: Colors.red.shade300),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      
+                      const SizedBox(height: 24),
+
+                      // Personal Information Card
+                      _buildDetailCard(
+                        'Personal Information',
+                        [
+                          _buildInfoItem(
+                            'Email Address',
+                            widget.userData['email'] ?? '',
+                            Icons.email_outlined,
+                          ),
+                          const Divider(height: 1),
+                          _buildInfoItem(
+                            'Mobile Phone',
+                            widget.userData['mobilePhone'] ?? '',
+                            Icons.phone_android_outlined,
+                          ),
+                          const Divider(height: 1),
+                          _buildInfoItem(
+                            'NIC Number',
+                            widget.userData['nic'] ?? '',
+                            Icons.badge_outlined,
+                          ),
+                          const Divider(height: 1),
+                          _buildInfoItem(
+                            'Office',
+                            widget.userData['office'] ?? '',
+                            Icons.work_outline,
+                          ),
+                          const Divider(height: 1),
+                          _buildInfoItem(
+                            'Office Phone',
+                            widget.userData['officePhone'] ?? '',
+                            Icons.phone_outlined,
+                          ),
+                          const Divider(height: 1),
+                          _buildInfoItem(
+                            'Security Question (Nickname)',
+                            widget.userData['securityQuestionNickname'] ?? '',
+                            Icons.security_outlined,
+                          ),
+                          const Divider(height: 1),
+                          _buildInfoItem(
+                            'Security Question (Pet)',
+                            widget.userData['securityQuestionPet'] ?? '',
+                            Icons.pets_outlined,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Account Information Card
+                      _buildDetailCard(
+                        'Account Information',
+                        [
+                          _buildInfoItem(
+                            'User ID',
+                            '${widget.userId.substring(0, 8)}...',
+                            Icons.fingerprint_outlined,
+                          ),
+                          const Divider(height: 1),
+                          if (createdAt != null)
+                            _buildInfoItem(
+                              'Account Created',
+                              DateFormat('dd MMM yyyy, hh:mm a').format(createdAt),
+                              Icons.calendar_today_outlined,
+                            ),
+                          if (updatedAt != null) ...[
+                            const Divider(height: 1),
+                            _buildInfoItem(
+                              'Last Updated',
+                              DateFormat('dd MMM yyyy, hh:mm a').format(updatedAt),
+                              Icons.update_outlined,
+                            ),
+                          ],
+                          const Divider(height: 1),
+                          _buildInfoItem(
+                            'Profile Image URL',
+                            profileImageUrl.isNotEmpty 
+                                ? '${profileImageUrl.substring(0, 30)}...' 
+                                : 'Not set',
+                            Icons.image_outlined,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _toggleUserStatus,
+                              icon: Icon(
+                                _isActive
+                                    ? Icons.person_off_outlined
+                                    : Icons.person_add_alt_1_outlined,
+                                size: 20,
+                              ),
+                              label: Text(_isActive ? 'Deactivate' : 'Activate'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _isActive
+                                    ? Colors.orange.shade700
+                                    : Colors.green.shade700,
+                                side: BorderSide(
+                                  color: _isActive
+                                      ? Colors.orange.shade300
+                                      : Colors.green.shade300,
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _deleteUser,
+                              icon: const Icon(Icons.delete_outline, size: 20),
+                              label: const Text('Delete'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red.shade700,
+                                side: BorderSide(color: Colors.red.shade300),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+
+                      const SizedBox(height: 32),
                     ],
                   ),
-
-                  const SizedBox(height: 32),
-                ],
+                ),
               ),
             ),
     );
