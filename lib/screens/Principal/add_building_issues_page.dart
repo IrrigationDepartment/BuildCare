@@ -23,7 +23,6 @@ class AddBuildingIssuesPage extends StatefulWidget {
 class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // --- UI Controllers ---
   final TextEditingController _schoolNameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
@@ -31,6 +30,8 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   String? _selectedBuilding;
   String? _selectedDamageType;
   DateTime? _selectedDate;
+  
+  String? _userOffice; 
 
   bool get _isEditMode => widget.issueId != null;
   bool _isLoading = false;
@@ -40,7 +41,6 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   List<String> _existingImageUrls = [];
   final ImagePicker _picker = ImagePicker();
 
-  // Color Palette
   static const Color _primaryColor = Color(0xFF53BDFF);
   static const Color _bgColor = Color(0xFFF8FAFC);
   static const Color _cardBg = Colors.white;
@@ -83,10 +83,14 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
       if (userQuery.docs.isNotEmpty) {
         var userData = userQuery.docs.first.data() as Map<String, dynamic>;
-        _schoolNameController.text = userData['schoolName'] ?? 'Not Found';
+        setState(() {
+          _schoolNameController.text = userData['schoolName'] ?? 'Not Found';
+          _userOffice = userData['office'];
+        });
+        debugPrint("Principal office: $_userOffice");
       }
     } catch (e) {
-      debugPrint("Error: $e");
+      debugPrint("Error fetching user: $e");
     }
   }
 
@@ -99,6 +103,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         _descriptionController.text = data['description'] ?? '';
         _selectedBuilding = data['buildingName'];
         _selectedDamageType = data['damageType'];
+        _userOffice = data['office'];
         if (data['dateOfOccurance'] != null) {
           _selectedDate = (data['dateOfOccurance'] as Timestamp).toDate();
           _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate!);
@@ -106,7 +111,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         _existingImageUrls = List<String>.from(data['imageUrls'] ?? []);
       }
     } catch (e) {
-      debugPrint('Error: $e');
+      debugPrint('Error loading issue: $e');
     }
   }
 
@@ -135,6 +140,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       }
       return [];
     } catch (e) {
+      debugPrint("Upload Error: $e");
       return [];
     }
   }
@@ -145,11 +151,13 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a date.')));
       return;
     }
+
     setState(() => _isLoading = true);
+
     try {
       List<String> uploadedImageUrls = await _uploadImages();
       List<String> finalUrls = [..._existingImageUrls, ...uploadedImageUrls];
-      
+
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
         'buildingName': _selectedBuilding,
@@ -158,27 +166,62 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         'description': _descriptionController.text.trim(),
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
         'imageUrls': finalUrls,
-        'status': _isEditMode ? null : 'Pending',
+        'status': 'Pending',
         'addedByNic': widget.userNic,
+        'office': _userOffice, 
         if (!_isEditMode) 'timestamp': FieldValue.serverTimestamp(),
         if (_isEditMode) 'lastUpdated': FieldValue.serverTimestamp(),
       };
 
+      DocumentReference docRef;
       if (_isEditMode) {
-        await FirebaseFirestore.instance.collection('issues').doc(widget.issueId!).update(issueData);
+        docRef = FirebaseFirestore.instance.collection('issues').doc(widget.issueId!);
+        await docRef.update(issueData);
       } else {
-        await FirebaseFirestore.instance.collection('issues').add(issueData);
+        docRef = await FirebaseFirestore.instance.collection('issues').add(issueData);
+        // Notifications යවනවා - එකම එක document එකක් විතරයි යවන්නේ
+        await _sendNotificationsToAllRoles(docRef.id);
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Success!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Issue submitted successfully!'), backgroundColor: Colors.green));
         Navigator.pop(context, true);
       }
     } catch (e) {
+      debugPrint("Firebase Error: $e");
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // --- අලුතින් වෙනස් කරපු Notification යවන Function එක ---
+  Future<void> _sendNotificationsToAllRoles(String issueDocId) async {
+    final String schoolName = _schoolNameController.text.trim();
+    final String notifTitle = 'New Building Issue Reported';
+    final String notifBody = '$schoolName reported: $_selectedBuilding - $_selectedDamageType';
+
+    // 4ක් වෙනුවට 1 Notification එකක් යවනවා array එකක් පාවිච්චි කරලා
+    await FirebaseFirestore.instance.collection('notifications').add({
+      'title': notifTitle,
+      'subtitle': notifBody,
+      'body': notifBody,
+      'issueId': issueDocId,
+      'timestamp': FieldValue.serverTimestamp(),
+      'type': 'new_issue',
+      'isRead': false,
+      'readBy': [],
+      'office': _userOffice, 
+      'targetRoles': [
+        'Technical Officer',
+        'District Engineer',
+        'Provincial Engineer',
+        'Chief Engineer'
+      ],
+      'schoolName': schoolName,
+    });
+
+    debugPrint('✅ 1 Single notification committed to Firestore for all roles!');
   }
 
   @override

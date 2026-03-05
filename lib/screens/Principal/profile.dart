@@ -143,7 +143,6 @@ class _ProfilePageState extends State<ProfilePage> {
         if (jsonResponse['status'] == 'success') {
           String newImageUrl = jsonResponse['profileImageUrl'];
 
-          // FIXED: ONLY update the current user's document.
           DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
           await userRef.set({
             'profile_image': newImageUrl,
@@ -187,7 +186,6 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       String typedSchoolPhone = _schoolPhoneController.text.trim();
 
-      // FIXED: ONLY update the current user's document.
       DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
       
       await userRef.set({
@@ -195,7 +193,7 @@ class _ProfilePageState extends State<ProfilePage> {
         'mobilePhone': _phoneController.text.trim(),
         'schoolName': typedSchoolName,
         'officePhone': typedSchoolPhone,
-        'profile_image': _profileImageUrl, // Ensure latest URL is saved
+        'profile_image': _profileImageUrl, 
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -228,11 +226,9 @@ class _ProfilePageState extends State<ProfilePage> {
         : SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // Determine layout based on width
                 bool isWideScreen = constraints.maxWidth > 800;
 
                 if (isWideScreen) {
-                  // --- DESKTOP / TABLET LAYOUT ---
                   return Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1000),
@@ -241,7 +237,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Left Column (Image & System Info)
                             Expanded(
                               flex: 1,
                               child: Column(
@@ -253,7 +248,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ),
                             const SizedBox(width: 48),
-                            // Right Column (Editable Form)
                             Expanded(
                               flex: 2,
                               child: Column(
@@ -271,7 +265,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   );
                 } else {
-                  // --- MOBILE LAYOUT ---
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -293,7 +286,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Extracted Widgets for cleaner LayoutBuilder
   Widget _buildProfileImage() {
     return Center(
       child: Stack(
@@ -365,7 +357,6 @@ class _ProfilePageState extends State<ProfilePage> {
         const Text("SCHOOL DETAILS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 1.1)),
         const SizedBox(height: 16),
         
-        // Autocomplete
         Autocomplete<Map<String, dynamic>>(
           initialValue: TextEditingValue(text: _schoolNameController.text),
           optionsBuilder: (textValue) => _availableSchools.where((s) => s['schoolName'].toString().toLowerCase().contains(textValue.text.toLowerCase())),

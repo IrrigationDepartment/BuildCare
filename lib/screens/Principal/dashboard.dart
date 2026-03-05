@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:intl/intl.dart';
 
 // Your existing imports
@@ -8,7 +9,7 @@ import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
 import 'add_school_master_plan_page.dart';
 import 'profile.dart';
-import 'settings_page.dart'; // Make sure this points to the file where SettingsScreen is saved
+import 'settings_page.dart'; 
 import 'IssueDetailScreen.dart';
 import 'notification_page.dart';
 
@@ -22,10 +23,9 @@ class PrincipalDashboard extends StatefulWidget {
 
 class _PrincipalDashboardState extends State<PrincipalDashboard> {
   static const Color _primaryColor = Color(0xFF53BDFF);
-  static const Color _accentCyan = Color(0xFF00E5FF); // Eye-catching accent
+  static const Color _accentCyan = Color(0xFF00E5FF); 
   int _previousUnreadCount = -1; 
 
-  // --- Helper for Time-Based Greeting ---
   String _getGreeting() {
     var hour = DateTime.now().hour;
     if (hour < 12) {
@@ -64,10 +64,15 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
 
   void _onItemTapped(BuildContext context, int index) {
     if (index == 1) { // Profile
-      final String principalId = widget.userData!['uid'] ?? 'principal_doc_id_123';
+      final String principalId = widget.userData!['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '';
+      
+      if (principalId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error: Cannot identify user.")));
+        return;
+      }
+      
       Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(userData: widget.userData!, userId: principalId)));
     } else if (index == 2) { // Settings
-      // FIX: Correctly calls SettingsScreen without the unnecessary arguments
       Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
     }
   }
@@ -77,9 +82,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     if (widget.userData == null) return const Scaffold(body: Center(child: Text("Error loading data")));
 
     final String userNic = widget.userData!['nic'];
-    final String principalName = widget.userData!['name'];
     final String schoolName = widget.userData!['schoolName'];
-    final String? profileImageUrl = widget.userData!['profile_image'];
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -97,8 +100,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 10),
-                      // Updated Header call (schoolName is used elsewhere, greeting used here)
-                      _buildWelcomeHeader(context, principalName, profileImageUrl, userNic),
+                      // Notice we only pass context and userNic now; the names/images are fetched in real-time
+                      _buildWelcomeHeader(context, userNic),
                       const SizedBox(height: 30),
 
                       GridView.count(
@@ -150,83 +153,102 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
-  Widget _buildWelcomeHeader(BuildContext context, String fullName, String? imageUrl, String userNic) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white, 
-        borderRadius: BorderRadius.circular(20), 
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30, 
-            backgroundColor: _primaryColor, 
-            backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null, 
-            child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Colors.white) : null
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, 
-              children: [
-                Text('Welcome, ${fullName.split(' ')[0]}!', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                // UPDATED: School name removed, Dynamic Greeting added
-                Text(_getGreeting(), style: TextStyle(fontSize: 14, color: Colors.blueGrey[600], fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
-          
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('notifications')
-                .where('receiverNic', isEqualTo: userNic)
-                .where('isRead', isEqualTo: false)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                int unreadCount = snapshot.data!.docs.length;
-                
-                if (_previousUnreadCount != -1 && unreadCount > _previousUnreadCount) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _triggerNewNotificationAlert(snapshot.data!.docs.first['message'] ?? "New update received");
-                  });
-                }
-                _previousUnreadCount = unreadCount;
+  Widget _buildWelcomeHeader(BuildContext context, String userNic) {
+    final String userId = widget.userData!['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '';
 
-                return Stack(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_none, size: 28), 
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationScreen(loggedNic: userNic)))
-                    ),
-                    if (unreadCount > 0)
-                      Positioned(
-                        right: 12, 
-                        top: 12,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: const BoxDecoration(
-                            color: Colors.red, 
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              }
-              // Display regular icon if no data is available yet
-              return const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Icon(Icons.notifications_none, size: 28),
-              );
-            },
+    // Wrap the header in a StreamBuilder pointing to the user's document
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(userId).snapshots(),
+      builder: (context, userSnapshot) {
+        
+        // Fallback variables matching the initial log-in data
+        String fullName = widget.userData!['name'] ?? 'User';
+        String? imageUrl = widget.userData!['profile_image'];
+
+        // If real-time data is available, override the fallbacks
+        if (userSnapshot.hasData && userSnapshot.data!.exists) {
+          final liveData = userSnapshot.data!.data() as Map<String, dynamic>;
+          fullName = liveData['name'] ?? fullName;
+          imageUrl = liveData['profile_image'] ?? imageUrl;
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white, 
+            borderRadius: BorderRadius.circular(20), 
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 30, 
+                backgroundColor: _primaryColor, 
+                backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null, 
+                child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Colors.white) : null
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start, 
+                  children: [
+                    Text('Welcome, ${fullName.split(' ')[0]}!', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(_getGreeting(), style: TextStyle(fontSize: 14, color: Colors.blueGrey[600], fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              
+              // Internal StreamBuilder handling unread notification alerts
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('receiverNic', isEqualTo: userNic)
+                    .where('isRead', isEqualTo: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    int unreadCount = snapshot.data!.docs.length;
+                    
+                    if (_previousUnreadCount != -1 && unreadCount > _previousUnreadCount) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _triggerNewNotificationAlert(snapshot.data!.docs.first['message'] ?? "New update received");
+                      });
+                    }
+                    _previousUnreadCount = unreadCount;
+
+                    return Stack(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none, size: 28), 
+                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationScreen(loggedNic: userNic)))
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 12, 
+                            top: 12,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: Colors.red, 
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  }
+                  return const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Icon(Icons.notifications_none, size: 28),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      }
     );
   }
 

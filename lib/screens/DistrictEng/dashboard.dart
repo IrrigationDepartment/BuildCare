@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; // FirebaseAuth import එක එකතු කළා
 
 import 'dashboard_service.dart';
 import 'dashboard_widgets.dart';
@@ -190,6 +191,17 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   }
 
   Widget _buildTopHeader() {
+    // Current user ගේ details ගන්නවා
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final String currentUserId = currentUser?.uid ?? '';
+    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
+
+    // User හැදුන දවසින් පස්සේ ආපු notifications විතරක් ගන්න query එක
+    Query query = FirebaseFirestore.instance.collection('notifications');
+    if (userCreationTime != null) {
+      query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -197,14 +209,18 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
         Expanded(child: DashboardHeader(userData: widget.userData)),
         const SizedBox(width: 16),
         StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('notifications')
-              .where('isRead', isEqualTo: false)
-              .snapshots(),
+          stream: query.snapshots(),
           builder: (context, snapshot) {
             int unreadCount = 0;
+            
             if (snapshot.hasData) {
-              unreadCount = snapshot.data!.docs.length;
+              // For loop එකක් නැතුව unread count එක විතරක් filter කරලා ගන්නවා
+              // readBy array එකේ currentUserId එක නැති (contains නැති) ඒවා තමයි unread
+              unreadCount = snapshot.data!.docs.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final readBy = data['readBy'] as List<dynamic>? ?? [];
+                return !readBy.contains(currentUserId);
+              }).length;
             }
 
             return Container(
@@ -220,8 +236,11 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                 ],
               ),
               child: Badge(
-                label: Text(unreadCount.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                isLabelVisible: unreadCount > 0, 
+                label: Text(
+                  unreadCount > 99 ? '99+' : unreadCount.toString(), // 99 ට වඩා වැඩි නම් 99+ කියලා පෙන්නනවා
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                isLabelVisible: unreadCount > 0, // Unread count එක 0 ට වඩා වැඩි නම් විතරක් badge එක පෙන්නනවා
                 backgroundColor: const Color(0xFFE11D48), 
                 offset: const Offset(-4, 4),
                 child: IconButton(

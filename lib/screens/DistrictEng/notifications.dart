@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for user logic
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
 import 'damage_details_dialog.dart'; 
@@ -8,218 +8,272 @@ import 'view_details_screen.dart';
 import 'view_contractor.dart';      
 import 'SchoolDetailsDialog.dart';    
 
-class NotificationPage extends StatelessWidget { 
+class NotificationPage extends StatefulWidget { 
   const NotificationPage({super.key});
 
-  // --- Style Constants ---
-  static const Color kPrimaryBlue = Color(0xFF42A5F5);
-  static const Color kBackgroundColor = Color(0xFFF5F7FA);
-  static const Color kTextColor = Color(0xFF333333);
-  static const Color kSubTextColor = Color(0xFF757575);
+  @override
+  State<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  // --- Facebook Style Constants ---
+  static const Color fbBlue = Color(0xFF1877F2);
+  static const Color fbUnreadBg = Color(0xFFE7F3FF);
+  static const Color fbGrey = Color(0xFF65676B);
+  static const Color fbDarkText = Color(0xFF050505);
+  static const Color fbScaffoldBg = Colors.white;
 
   @override
   Widget build(BuildContext context) {
-    // 1. GET THE CURRENT USER INFO
     final User? currentUser = FirebaseAuth.instance.currentUser;
     final DateTime? userCreationTime = currentUser?.metadata.creationTime;
     final String currentUserId = currentUser?.uid ?? '';
 
-    // 2. BUILD THE QUERY DYNAMICALLY
     Query notificationsQuery = FirebaseFirestore.instance
         .collection('notifications')
         .orderBy('timestamp', descending: true);
 
-    // 3. APPLY THE FILTER: Only show notifications created AFTER the user registered
     if (userCreationTime != null) {
       notificationsQuery = notificationsQuery.where('timestamp',
           isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
     }
 
     return Scaffold(
-      backgroundColor: kBackgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          'Notifications',
-          style: TextStyle(color: kTextColor, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: kTextColor),
-        actions: [
-          TextButton(
-            onPressed: () => _markAllAsRead(currentUserId),
-            child: const Text(
-              'Mark all as read',
-              style: TextStyle(color: kPrimaryBlue, fontWeight: FontWeight.w600),
+      backgroundColor: fbScaffoldBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildCustomAppBar(currentUserId),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: notificationsQuery.snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  var docs = snapshot.data!.docs;
+
+                  if (docs.isEmpty) {
+                    return _buildEmptyState(message: "You have no notifications.");
+                  }
+
+                  return ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      var data = docs[index].data() as Map<String, dynamic>;
+                      String docId = docs[index].id;
+                      
+                      List<dynamic> readByUsers = data['readBy'] ?? [];
+                      bool isRead = readByUsers.contains(currentUserId);
+                      
+                      String? type = data['type']; 
+                      String? schoolId = data['schoolId'];
+                      String? issueId = data['issueId'];
+                      String? contractId = data['contractId'];
+                      String? contractorId = data['contractorId'];
+
+                      return InkWell(
+                        onTap: () async {
+                          if (currentUserId.isNotEmpty && !isRead) {
+                            await FirebaseFirestore.instance
+                                .collection('notifications')
+                                .doc(docId)
+                                .update({
+                                  'readBy': FieldValue.arrayUnion([currentUserId])
+                                });
+                          }
+
+                          if (!context.mounted) return;
+
+                          // මෙතැන තමයි වෙනස් කළේ: 'issue' සහ 'new_issue' දෙකම අල්ලගන්නවා
+                          if ((type == 'issue' || type == 'new_issue') && issueId != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => DamageDetailsDialog(issueId: issueId)));
+                          } else if (type == 'contract' && contractId != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => ViewContractDetailsScreen(contractId: contractId)));
+                          } else if (type == 'contractor' && contractorId != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => ViewContractorScreen(contractorId: contractorId)));
+                          } else if (type == 'school' && schoolId != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => SchoolDetailsPage(schoolId: schoolId)));
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isRead ? Colors.transparent : fbUnreadBg,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildAvatarWithBadge(type),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildRichText(data['title'], data['subtitle'], isRead),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _getTimeAgo(data['timestamp']),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isRead ? fbGrey : fbBlue,
+                                        fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          )
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: notificationsQuery.snapshots(), // Using dynamic query
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-              String docId = snapshot.data!.docs[index].id;
-              
-              // --- NEW LOGIC: Check if this specific user has read it ---
-              List<dynamic> readByUsers = data['readBy'] ?? [];
-              bool isRead = readByUsers.contains(currentUserId);
-              
-              // Routing metadata
-              String? type = data['type']; 
-              String? schoolId = data['schoolId'];
-              String? issueId = data['issueId'];
-              String? contractId = data['contractId'];
-              String? contractorId = data['contractorId'];
-
-              return Container(
-                decoration: BoxDecoration(
-                  color: isRead ? Colors.white : kPrimaryBlue.withOpacity(0.05),
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isRead ? Colors.grey[200] : kPrimaryBlue.withOpacity(0.1),
-                    child: Icon(
-                      _getIconForType(type),
-                      color: isRead ? Colors.grey : kPrimaryBlue,
-                    ),
-                  ),
-                  title: Text(
-                    data['title'] ?? 'Notification',
-                    style: TextStyle(
-                      fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                      color: kTextColor,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data['subtitle'] ?? '',
-                        style: const TextStyle(fontSize: 13, color: kSubTextColor),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatTimestamp(data['timestamp']),
-                        style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                      ),
-                    ],
-                  ),
-                  onTap: () async {
-                    // --- NEW LOGIC: Add this user's ID to the readBy array ---
-                    if (currentUserId.isNotEmpty && !isRead) {
-                      await FirebaseFirestore.instance
-                          .collection('notifications')
-                          .doc(docId)
-                          .update({
-                            'readBy': FieldValue.arrayUnion([currentUserId])
-                          });
-                    }
-
-                    if (!context.mounted) return;
-
-                    // Navigation logic based on the uploaded files
-                    if (type == 'issue' && issueId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DamageDetailsDialog(issueId: issueId), 
-                        ),
-                      );
-                    } else if (type == 'contract' && contractId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ViewContractDetailsScreen(contractId: contractId), 
-                        ),
-                      );
-                    } else if (type == 'contractor' && contractorId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ViewContractorScreen(contractorId: contractorId), 
-                        ),
-                      );
-                    } else if (type == 'school' && schoolId != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SchoolDetailsPage(schoolId: schoolId), 
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Error: Link destination not found.")),
-                      );
-                    }
-                  },
-                  trailing: !isRead 
-                      ? const Icon(Icons.circle, size: 12, color: kPrimaryBlue) 
-                      : null,
-                ),
-              );
-            },
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 
-  IconData _getIconForType(String? type) {
+  Widget _buildCustomAppBar(String currentUserId) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: fbDarkText),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Notifications',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: fbDarkText),
+              ),
+            ],
+          ),
+          TextButton(
+            onPressed: () => _markAllAsRead(currentUserId),
+            child: const Text(
+              'Mark all read',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: fbBlue,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarWithBadge(String? type) {
+    IconData badgeIcon;
+
     switch (type) {
-      case 'issue': return Icons.report_problem_rounded;
-      case 'contract': return Icons.assignment_rounded;
-      case 'contractor': return Icons.business_center_rounded;
+      case 'issue':
+      case 'new_issue': // Icon එක වැටෙන්න මේකත් එකතු කළා
+        badgeIcon = Icons.report_problem;
+        break;
+      case 'contract':
+        badgeIcon = Icons.assignment;
+        break;
+      case 'contractor':
+        badgeIcon = Icons.business_center;
+        break;
       case 'school':
-      default: return Icons.school_rounded;
+      default:
+        badgeIcon = Icons.school;
     }
+
+    return Stack(
+      children: [
+        CircleAvatar(
+          radius: 28,
+          backgroundColor: Colors.grey[200],
+          child: Icon(badgeIcon, color: fbGrey, size: 24), 
+        ),
+      ],
+    );
   }
 
-  String _formatTimestamp(dynamic timestamp) {
+  Widget _buildRichText(String? title, String? subtitle, bool isRead) {
+    return RichText(
+      text: TextSpan(
+        style: TextStyle(
+          fontSize: 15,
+          color: fbDarkText,
+          height: 1.3,
+        ),
+        children: [
+          TextSpan(
+            text: '${title ?? 'Notification'} ',
+            style: TextStyle(fontWeight: isRead ? FontWeight.w500 : FontWeight.bold),
+          ),
+          TextSpan(
+            text: subtitle ?? '',
+            style: TextStyle(
+              fontWeight: isRead ? FontWeight.normal : FontWeight.w500,
+              color: isRead ? fbGrey : fbDarkText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getTimeAgo(dynamic timestamp) {
     if (timestamp == null) return '';
-    if (timestamp is Timestamp) {
-      return DateFormat.yMMMd().add_jm().format(timestamp.toDate());
-    }
-    return '';
+    if (timestamp is! Timestamp) return '';
+    
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inSeconds < 60) return 'Just now';
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m';
+    if (difference.inHours < 24) return '${difference.inHours}h';
+    if (difference.inDays < 7) return '${difference.inDays}d';
+    
+    return DateFormat.yMMMd().format(date);
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState({String message = 'No notifications yet'}) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.notifications_none_rounded, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          const Text('No notifications yet', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          Text(message, style: const TextStyle(fontSize: 16, color: fbGrey)),
         ],
       ),
     );
   }
 
-  // --- NEW LOGIC: Mark All as Read ---
   Future<void> _markAllAsRead(String currentUserId) async {
     if (currentUserId.isEmpty) return;
 
     final batch = FirebaseFirestore.instance.batch();
-    
     final User? currentUser = FirebaseAuth.instance.currentUser;
     final DateTime? userCreationTime = currentUser?.metadata.creationTime;
     
-    // We fetch all notifications
     Query query = FirebaseFirestore.instance.collection('notifications');
-        
     if (userCreationTime != null) {
       query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
     }
@@ -230,7 +284,6 @@ class NotificationPage extends StatelessWidget {
       final data = doc.data() as Map<String, dynamic>;
       final readBy = data['readBy'] as List<dynamic>? ?? [];
       
-      // If this user hasn't read it yet, add them to the array
       if (!readBy.contains(currentUserId)) {
         batch.update(doc.reference, {
           'readBy': FieldValue.arrayUnion([currentUserId])

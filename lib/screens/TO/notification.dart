@@ -6,36 +6,97 @@ import 'package:intl/intl.dart';
 // --- Destination Imports ---
 import 'school_details_page.dart';
 import 'issue_report_details_screen.dart';
-import 'view_details.dart'; // Contains ViewContractDetailsScreen
-import 'view_contractor_screen.dart'; // Contains ViewContractorScreen
+import 'view_details.dart'; 
+import 'view_contractor_screen.dart'; 
 
-class NotificationScreen extends StatelessWidget {
+class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
 
-  // --- EYE-CATCHING MODERN COLOR PALETTE ---
-  static const Color kPrimaryColor = Color(0xFF4F46E5); // Indigo 600
-  static const Color kBackgroundColor = Color(0xFFF8FAFC); // Slate 50
+  @override
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+
+  static const Color kPrimaryColor = Color(0xFF4F46E5); 
+  static const Color kBackgroundColor = Color(0xFFF8FAFC); 
   static const Color kCardColor = Colors.white;
-  static const Color kTextColor = Color(0xFF1E293B); // Slate 800
-  static const Color kSubTextColor = Color(0xFF64748B); // Slate 500
-  static const Color kAccentColor = Color(0xFFEC4899); // Pink 500 (For unread dot)
+  static const Color kTextColor = Color(0xFF1E293B); 
+  static const Color kSubTextColor = Color(0xFF64748B); 
+  static const Color kAccentColor = Color(0xFFEC4899); 
+
+  String? _userNic; 
+  String? _userType; 
+  String? _userOffice; 
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  // Users collection එකෙන් current user ගේ details ගන්නවා
+  Future<void> _fetchUserData() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: currentUser.uid)
+          .limit(1)
+          .get();
+      if (query.docs.isNotEmpty) {
+        final data = query.docs.first.data();
+        setState(() {
+          _userNic = data['nic'] as String?;
+          // ⚠️ Firebase එකේ තියෙන role field එකේ නම 'userType' ද කියලා අනිවාර්යයෙන්ම බලන්න. 'role' නම් data['role'] දෙන්න.
+          _userType = data['userType'] as String?; 
+          _userOffice = data['office'] as String?;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching user data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  // User ගේ role එක අනුව හරියටම අදාල Query එක හදාගන්නවා
+  Query _getNotificationsQuery() {
+    Query baseQuery = FirebaseFirestore.instance.collection('notifications');
+
+    if (_userType == 'Technical Officer' || _userType == 'District Engineer') {
+      return baseQuery
+          .where('targetRoles', arrayContains: _userType)
+          .where('office', isEqualTo: _userOffice)
+          .orderBy('timestamp', descending: true);
+    } else if (_userType == 'Provincial Engineer' || _userType == 'Chief Engineer') {
+      return baseQuery
+          .where('targetRoles', arrayContains: _userType)
+          .orderBy('timestamp', descending: true);
+    } else {
+      // Principals ලාට සහ වෙනත් අයට පරණ විදිහට NIC එකෙන් වැඩ කරන්න
+      return baseQuery
+          .where('recipientNic', isEqualTo: _userNic)
+          .orderBy('timestamp', descending: true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    // 1. GET THE CURRENT USER INFO
     final User? currentUser = FirebaseAuth.instance.currentUser;
-    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
     final String currentUserId = currentUser?.uid ?? '';
 
-    // 2. BUILD THE QUERY DYNAMICALLY
-    Query notificationsQuery = FirebaseFirestore.instance
-        .collection('notifications')
-        .orderBy('timestamp', descending: true);
-
-    // 3. APPLY THE FILTER: Only show notifications created AFTER the user registered
-    if (userCreationTime != null) {
-      notificationsQuery = notificationsQuery.where('timestamp',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: kPrimaryColor)),
+      );
     }
 
     return Scaffold(
@@ -43,8 +104,7 @@ class NotificationScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Notifications',
-          style: TextStyle(
-              color: kTextColor, fontWeight: FontWeight.w800, fontSize: 20),
+          style: TextStyle(color: kTextColor, fontWeight: FontWeight.w800, fontSize: 20),
         ),
         backgroundColor: kBackgroundColor,
         elevation: 0,
@@ -67,11 +127,24 @@ class NotificationScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: notificationsQuery.snapshots(), 
+        stream: _getNotificationsQuery().snapshots(), 
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: kPrimaryColor));
+            return const Center(child: CircularProgressIndicator(color: kPrimaryColor));
+          }
+
+          if (snapshot.hasError) {
+             debugPrint(snapshot.error.toString());
+             return const Center(
+               child: Padding(
+                 padding: EdgeInsets.all(16.0),
+                 child: Text(
+                   "Loading Error.\n\nCheck the VS Code debug console and click the Firebase link to create the required Index.",
+                   textAlign: TextAlign.center,
+                   style: TextStyle(color: Colors.red),
+                 ),
+               ),
+             );
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -79,7 +152,6 @@ class NotificationScreen extends StatelessWidget {
           }
 
           return Center(
-            // RESPONSIVE WRAPPER: Centers content on tablets/desktop
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
               child: ListView.builder(
@@ -89,11 +161,9 @@ class NotificationScreen extends StatelessWidget {
                   var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
                   String docId = snapshot.data!.docs[index].id;
                   
-                  // --- NEW LOGIC: Check if this specific user has read it ---
                   List<dynamic> readByUsers = data['readBy'] ?? [];
                   bool isRead = readByUsers.contains(currentUserId);
 
-                  // Extract routing metadata
                   String? type = data['type'];
                   String? schoolId = data['schoolId'];
                   String? issueId = data['issueId'];
@@ -124,7 +194,6 @@ class NotificationScreen extends StatelessWidget {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
                         onTap: () async {
-                          // --- NEW LOGIC: Add this user's ID to the readBy array ---
                           if (currentUserId.isNotEmpty && !isRead) {
                             await FirebaseFirestore.instance
                                 .collection('notifications')
@@ -136,8 +205,7 @@ class NotificationScreen extends StatelessWidget {
 
                           if (!context.mounted) return;
 
-                          // 2. Intelligent Routing based on 'type'
-                          if (type == 'issue' && issueId != null) {
+                          if ((type == 'issue' || type == 'new_issue') && issueId != null) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -169,8 +237,7 @@ class NotificationScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    SchoolDetailsPage(schoolId: schoolId),
+                                builder: (context) => SchoolDetailsPage(schoolId: schoolId),
                               ),
                             );
                           } else {
@@ -186,13 +253,10 @@ class NotificationScreen extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ICON
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: isRead
-                                      ? Colors.grey.shade100
-                                      : kPrimaryColor.withOpacity(0.1),
+                                  color: isRead ? Colors.grey.shade100 : kPrimaryColor.withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
@@ -202,8 +266,6 @@ class NotificationScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 16),
-                              
-                              // TEXT CONTENT
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,7 +280,7 @@ class NotificationScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      data['subtitle'] ?? '',
+                                      data['subtitle'] ?? data['body'] ?? '',
                                       style: TextStyle(
                                           fontSize: 14,
                                           color: isRead ? kSubTextColor : kTextColor.withOpacity(0.8),
@@ -241,8 +303,6 @@ class NotificationScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              
-                              // UNREAD INDICATOR
                               if (!isRead)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8.0, left: 8.0),
@@ -270,10 +330,10 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  // Helper to pick icons based on context
   IconData _getIconForType(String? type) {
     switch (type) {
       case 'issue':
+      case 'new_issue':
         return Icons.report_problem_rounded;
       case 'contract':
         return Icons.assignment_rounded;
@@ -321,29 +381,16 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  // --- NEW LOGIC: Mark All as Read ---
   Future<void> _markAllAsRead(String currentUserId) async {
     if (currentUserId.isEmpty) return;
 
     final batch = FirebaseFirestore.instance.batch();
-    
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
-    
-    // We fetch all notifications
-    Query query = FirebaseFirestore.instance.collection('notifications');
-        
-    if (userCreationTime != null) {
-      query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
-    }
 
-    final querySnapshot = await query.get();
+    final querySnapshot = await _getNotificationsQuery().get();
 
     for (var doc in querySnapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
       final readBy = data['readBy'] as List<dynamic>? ?? [];
-      
-      // If this user hasn't read it yet, add them to the array
       if (!readBy.contains(currentUserId)) {
         batch.update(doc.reference, {
           'readBy': FieldValue.arrayUnion([currentUserId])
