@@ -519,7 +519,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader ---
+// --- DashboardHeader (UPDATED FOR PERFECT NOTIFICATION SYNC) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -529,7 +529,18 @@ class DashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final String userName = userData?['name'] ?? 'Engineer';
     final String userRole = userData?['userType'] ?? 'Provincial Dashboard';
-    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+    
+    // Using FirebaseAuth just like in NotificationPage
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final String currentUserId = currentUser?.uid ?? '';
+    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
+
+    // Create the exact same query as NotificationPage
+    Query notificationsQuery = FirebaseFirestore.instance.collection('notifications');
+    if (userCreationTime != null) {
+      notificationsQuery = notificationsQuery.where('timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    }
 
     return Container(
       width: double.infinity,
@@ -564,7 +575,7 @@ class DashboardHeader extends StatelessWidget {
                 StreamBuilder<DocumentSnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('users')
-                      .doc(userId)
+                      .doc(currentUserId)
                       .snapshots(),
                   builder: (context, snapshot) {
                     String? imageUrl;
@@ -631,18 +642,30 @@ class DashboardHeader extends StatelessWidget {
             ),
           ),
           
+          // --- NOTIFICATION BELL ---
           Container(
             decoration: BoxDecoration(
                 color: Colors.white, borderRadius: BorderRadius.circular(16)),
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('notifications')
-                  .where('isRead', isEqualTo: false)
-                  .snapshots(),
+              // Using the exact query from NotificationPage
+              stream: notificationsQuery.snapshots(),
               builder: (context, snapshot) {
                 int unreadCount = 0;
-                if (snapshot.hasData) {
-                  unreadCount = snapshot.data!.docs.length;
+
+                // Syncing the read logic perfectly with your DB structure
+                if (snapshot.hasData && currentUserId.isNotEmpty) {
+                  for (var doc in snapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    
+                    // Look at the readBy array, just like NotificationPage does
+                    List<dynamic> readByUsers = data['readBy'] ?? [];
+                    bool isRead = readByUsers.contains(currentUserId);
+                    
+                    // If current user is NOT in the readBy array, count it
+                    if (!isRead) {
+                      unreadCount++;
+                    }
+                  }
                 }
 
                 return Stack(
