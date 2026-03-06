@@ -398,7 +398,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
     final String statusStr = data['status'] ?? 'Pending';
     final PdfColor statusPdfColor = _getPdfStatusColor(statusStr);
 
-    // 3. Build the PDF layout
+    // 3. Build the PDF layout (Text content first)
     pdf.addPage(
       pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -496,35 +496,6 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
 
               pw.SizedBox(height: 30),
 
-              // ATTACHED PHOTOS (Pulled directly from Server)
-              if (pdfImages.isNotEmpty) ...[
-                pw.Text('Attached Photos',
-                    style: pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue900)),
-                pw.Divider(color: PdfColors.blue900),
-                pw.SizedBox(height: 10),
-                // Wrap handles putting images side-by-side and moving to next line
-                pw.Wrap(
-                  spacing: 15,
-                  runSpacing: 15,
-                  children: pdfImages.map((img) {
-                    return pw.Container(
-                      width: 150,
-                      height: 150,
-                      decoration: pw.BoxDecoration(
-                          border:
-                              pw.Border.all(color: PdfColors.grey400, width: 2),
-                          borderRadius: pw.BorderRadius.circular(8),
-                          image: pw.DecorationImage(
-                              image: img, fit: pw.BoxFit.cover)),
-                    );
-                  }).toList(),
-                ),
-                pw.SizedBox(height: 30),
-              ],
-
               // REVIEWS
               pw.Text('Official Reviews & Remarks',
                   style: pw.TextStyle(
@@ -578,6 +549,13 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                     fontSize: 12, lineSpacing: 1.3)),
                           ]));
                 }),
+                
+                // Optional Note about attachments
+                if (pdfImages.isNotEmpty) ...[
+                  pw.SizedBox(height: 30),
+                  pw.Text('Note: Attached photos are included on the following pages.',
+                    style: pw.TextStyle(fontSize: 12, fontStyle: pw.FontStyle.italic, color: PdfColors.grey600)),
+                ]
             ];
           },
           footer: (context) {
@@ -592,7 +570,37 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
           }),
     );
 
-    // 4. Prompt user to download/save/print the generated PDF
+    // 4. ADD EACH IMAGE AS A FULL SCREEN PAGE
+    for (int i = 0; i < pdfImages.length; i++) {
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32), // Feel free to set to 0 if you want it edge-to-edge
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Attached Photo ${i + 1} of ${pdfImages.length}',
+                    style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900)),
+                pw.Divider(color: PdfColors.blue900),
+                pw.SizedBox(height: 20),
+                // Expanded ensures the image fills the maximum remaining space on the page
+                pw.Expanded(
+                  child: pw.Center(
+                    child: pw.Image(pdfImages[i], fit: pw.BoxFit.contain),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
+    // 5. Prompt user to download/save/print the generated PDF
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: 'Issue_Report_${widget.issueId}.pdf',
