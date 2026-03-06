@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
-// --- NEW IMPORTS FOR PDF GENERATION ---
+// --- IMPORTS FOR PDF GENERATION ---
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -94,7 +95,8 @@ class ViewIssuesPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA), // Light background for contrast
       appBar: AppBar(
-        title: const Text('All Reported Issues', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('All Reported Issues',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black87),
         elevation: 1,
@@ -102,7 +104,8 @@ class ViewIssuesPage extends StatelessWidget {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200), // Max width for large screens
+          constraints: const BoxConstraints(
+              maxWidth: 1200), // Max width for large screens
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('issues')
@@ -126,7 +129,7 @@ class ViewIssuesPage extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 500, // Cards will be up to 500px wide
-                  mainAxisExtent: 130,     // Fixed height to prevent overflow
+                  mainAxisExtent: 130, // Fixed height to prevent overflow
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                 ),
@@ -171,7 +174,8 @@ class ViewIssuesPage extends StatelessWidget {
                                 color: statusColor.withOpacity(0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.warning_amber_rounded, color: statusColor, size: 28),
+                              child: Icon(Icons.warning_amber_rounded,
+                                  color: statusColor, size: 28),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -183,22 +187,27 @@ class ViewIssuesPage extends StatelessWidget {
                                     issueTitle,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     schoolName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: Colors.black54),
+                                    style:
+                                        const TextStyle(color: Colors.black54),
                                   ),
                                   const SizedBox(height: 8),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: statusColor.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: statusColor.withOpacity(0.5)),
+                                      border: Border.all(
+                                          color: statusColor.withOpacity(0.5)),
                                     ),
                                     child: Text(
                                       status.toUpperCase(),
@@ -211,7 +220,8 @@ class ViewIssuesPage extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                            const Icon(Icons.arrow_forward_ios,
+                                size: 16, color: Colors.grey),
                           ],
                         ),
                       ),
@@ -234,11 +244,8 @@ class IssueDetailPage extends StatefulWidget {
   final String issueId;
   final String currentUserNic; // Current logged-in user NIC
 
-  const IssueDetailPage({
-    super.key, 
-    required this.issueId, 
-    required this.currentUserNic
-  });
+  const IssueDetailPage(
+      {super.key, required this.issueId, required this.currentUserNic});
 
   @override
   State<IssueDetailPage> createState() => _IssueDetailPageState();
@@ -264,20 +271,23 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to $newStatus'), backgroundColor: Colors.green),
+          SnackBar(
+              content: Text('Status updated to $newStatus'),
+              backgroundColor: Colors.green),
         );
         Navigator.pop(context); // Close dialog
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to update status: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // --- Fixed Submit Review Function ---
   Future<void> _submitReview(String? principalNic, String? issueTitle) async {
     String reviewText = _reviewController.text.trim();
     if (reviewText.isEmpty) return;
@@ -294,15 +304,16 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // 2. Trigger notification to the Principal (Only if principalNic is valid)
+      // 2. Trigger notification to the Principal
       if (principalNic != null && principalNic.isNotEmpty) {
         await FirebaseFirestore.instance.collection('notifications').add({
           'title': 'New Review Added',
-          'subtitle': 'An official reviewed your issue: ${issueTitle ?? "No Title"}',
+          'subtitle':
+              'An official reviewed your issue: ${issueTitle ?? "No Title"}',
           'type': 'review',
           'issueId': widget.issueId,
-          'targetNic': principalNic, 
-          'addedByNic': widget.currentUserNic, 
+          'targetNic': principalNic,
+          'addedByNic': widget.currentUserNic,
           'timestamp': FieldValue.serverTimestamp(),
           'isRead': false,
         });
@@ -312,28 +323,56 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
         _reviewController.clear();
         Navigator.pop(context); // Close Review Dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Review added successfully!'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Review added successfully!'),
+              backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add review: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to add review: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // --- NEW PDF GENERATION LOGIC ---
-  Future<void> _generateAndDownloadPdf(Map<String, dynamic> data, String dateReported) async {
-    // Show loading indicator
+  // --- PDF Status Color Helper ---
+  PdfColor _getPdfStatusColor(String status) {
+    switch (status) {
+      case 'Pending':
+      case 'New':
+        return PdfColors.orange700;
+      case 'Processing':
+      case 'In Progress':
+        return PdfColors.blue700;
+      case 'Processed':
+      case 'Resolved':
+        return PdfColors.green700;
+      case 'Closed':
+        return PdfColors.red700;
+      default:
+        return PdfColors.grey600;
+    }
+  }
+
+  // --- NEW: EYE-CATCHING OFFICIAL PDF GENERATION LOGIC ---
+  Future<void> _generateAndDownloadPdf(Map<String, dynamic> data,
+      String dateReported, List<String> imageUrls) async {
+    // Show a loading indicator since downloading images over the network takes time
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Generating PDF Report...'), duration: Duration(seconds: 1)),
+      const SnackBar(
+        content: Text('Fetching photos and generating official PDF report...'),
+        duration: Duration(seconds: 3),
+        backgroundColor: Colors.teal,
+      ),
     );
 
     final pdf = pw.Document();
 
-    // Fetch reviews to include in the PDF
+    // 1. Fetch official reviews
     final reviewsSnap = await FirebaseFirestore.instance
         .collection('issues')
         .doc(widget.issueId)
@@ -341,95 +380,238 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
         .orderBy('timestamp', descending: true)
         .get();
 
-    // Build PDF content
+    // 2. Safely Fetch Images from network to MemoryImages for PDF
+    List<pw.MemoryImage> pdfImages = [];
+    for (String url in imageUrls) {
+      try {
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          final netImage = pw.MemoryImage(response.bodyBytes);
+          pdfImages.add(netImage);
+        }
+      } catch (e) {
+        debugPrint('Failed to load image for PDF: $e');
+        // We continue so a single dead image link doesn't crash the whole PDF
+      }
+    }
+
+    final String statusStr = data['status'] ?? 'Pending';
+    final PdfColor statusPdfColor = _getPdfStatusColor(statusStr);
+
+    // 3. Build the PDF layout
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) {
-          return [
-            // HEADER
-            pw.Header(
-              level: 0,
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('BuildCare Issue Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(DateFormat('yyyy-MM-dd').format(DateTime.now()), style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-                ]
-              )
-            ),
-            pw.SizedBox(height: 20),
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          header: (context) {
+            return pw.Column(children: [
+              pw.Container(
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.blue900,
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('OFFICIAL ISSUE REPORT',
+                        style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold)),
+                    pw.Text(
+                        'BUILDCARE SYSTEM\n${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
+                        textAlign: pw.TextAlign.right,
+                        style:
+                            pw.TextStyle(color: PdfColors.white, fontSize: 10)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+            ]);
+          },
+          build: (pw.Context context) {
+            return [
+              // ISSUE TITLE & STATUS BADGE
+              pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Text(data['issueTitle'] ?? 'N/A',
+                          style: pw.TextStyle(
+                              fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: pw.BoxDecoration(
+                        color: statusPdfColor,
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: pw.Text(statusStr.toUpperCase(),
+                          style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 12)),
+                    ),
+                  ]),
+              pw.SizedBox(height: 20),
 
-            // ISSUE DETAILS
-            pw.Text(data['issueTitle'] ?? 'N/A', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 10),
-            _buildPdfRow('Status:', data['status'] ?? 'Pending'),
-            _buildPdfRow('Date Reported:', dateReported),
-            _buildPdfRow('Issue Type:', data['issueType'] ?? 'N/A'),
-            _buildPdfRow('School Name:', data['schoolName'] ?? 'N/A'),
-            _buildPdfRow('School ID:', data['schoolId'] ?? 'N/A'),
-            _buildPdfRow('Reporter NIC:', data['addedByNic'] ?? 'N/A'),
-            
-            pw.SizedBox(height: 20),
-            
-            // DESCRIPTION
-            pw.Text('Description:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 5),
-            pw.Text(data['description'] ?? 'No description provided.', style: const pw.TextStyle(fontSize: 12)),
-            
-            pw.SizedBox(height: 30),
-            pw.Divider(),
-            pw.SizedBox(height: 10),
-
-            // REVIEWS
-            pw.Text('Official Reviews & Remarks', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 10),
-            if (reviewsSnap.docs.isEmpty)
-              pw.Text('No reviews added yet.', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey))
-            else
-              ...reviewsSnap.docs.map((doc) {
-                final rData = doc.data();
-                final Timestamp? tStamp = rData['timestamp'] as Timestamp?;
-                final rTime = tStamp != null ? DateFormat('MMM dd, yyyy @ hh:mm a').format(tStamp.toDate()) : 'Unknown Date';
-                return pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 10),
-                  padding: const pw.EdgeInsets.all(10),
+              // DETAILS TABLE
+              pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
                   decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
                     border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                    borderRadius: pw.BorderRadius.circular(8),
                   ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text('Reviewer NIC: ${rData['reviewerNic'] ?? 'Unknown'}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
-                      pw.Text(rTime, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
-                      pw.SizedBox(height: 5),
-                      pw.Text(rData['reviewText'] ?? '', style: const pw.TextStyle(fontSize: 12)),
-                    ]
-                  )
-                );
-              }),
-          ];
-        },
-      ),
+                  child: pw.Column(children: [
+                    _buildPdfTableRow('Issue ID', widget.issueId),
+                    pw.Divider(color: PdfColors.grey300),
+                    _buildPdfTableRow('Date Reported', dateReported),
+                    pw.Divider(color: PdfColors.grey300),
+                    _buildPdfTableRow(
+                        'School Name', data['schoolName'] ?? 'N/A'),
+                    pw.Divider(color: PdfColors.grey300),
+                    _buildPdfTableRow('School ID', data['schoolId'] ?? 'N/A'),
+                    pw.Divider(color: PdfColors.grey300),
+                    _buildPdfTableRow('Issue Type', data['issueType'] ?? 'N/A'),
+                    pw.Divider(color: PdfColors.grey300),
+                    _buildPdfTableRow(
+                        'Reporter NIC', data['addedByNic'] ?? 'N/A'),
+                  ])),
+              pw.SizedBox(height: 20),
+
+              // DESCRIPTION
+              pw.Text('Description',
+                  style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900)),
+              pw.Divider(color: PdfColors.blue900),
+              pw.SizedBox(height: 5),
+              pw.Text(data['description'] ?? 'No description provided.',
+                  style: const pw.TextStyle(fontSize: 12, lineSpacing: 1.5)),
+
+              pw.SizedBox(height: 30),
+
+              // ATTACHED PHOTOS (Pulled directly from Server)
+              if (pdfImages.isNotEmpty) ...[
+                pw.Text('Attached Photos',
+                    style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900)),
+                pw.Divider(color: PdfColors.blue900),
+                pw.SizedBox(height: 10),
+                // Wrap handles putting images side-by-side and moving to next line
+                pw.Wrap(
+                  spacing: 15,
+                  runSpacing: 15,
+                  children: pdfImages.map((img) {
+                    return pw.Container(
+                      width: 150,
+                      height: 150,
+                      decoration: pw.BoxDecoration(
+                          border:
+                              pw.Border.all(color: PdfColors.grey400, width: 2),
+                          borderRadius: pw.BorderRadius.circular(8),
+                          image: pw.DecorationImage(
+                              image: img, fit: pw.BoxFit.cover)),
+                    );
+                  }).toList(),
+                ),
+                pw.SizedBox(height: 30),
+              ],
+
+              // REVIEWS
+              pw.Text('Official Reviews & Remarks',
+                  style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900)),
+              pw.Divider(color: PdfColors.blue900),
+              pw.SizedBox(height: 10),
+              if (reviewsSnap.docs.isEmpty)
+                pw.Text('No official reviews added to this issue yet.',
+                    style:
+                        const pw.TextStyle(fontSize: 12, color: PdfColors.grey))
+              else
+                ...reviewsSnap.docs.map((doc) {
+                  final rData = doc.data();
+                  final Timestamp? tStamp = rData['timestamp'] as Timestamp?;
+                  final rTime = tStamp != null
+                      ? DateFormat('MMM dd, yyyy @ hh:mm a')
+                          .format(tStamp.toDate())
+                      : 'Unknown Date';
+
+                  return pw.Container(
+                      margin: const pw.EdgeInsets.only(bottom: 12),
+                      padding: const pw.EdgeInsets.all(12),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.blue50,
+                        border: pw.Border.all(color: PdfColors.blue200),
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Row(
+                                mainAxisAlignment:
+                                    pw.MainAxisAlignment.spaceBetween,
+                                children: [
+                                  pw.Text(
+                                      'Reviewer NIC: ${rData['reviewerNic'] ?? 'Unknown'}',
+                                      style: pw.TextStyle(
+                                          fontWeight: pw.FontWeight.bold,
+                                          fontSize: 11,
+                                          color: PdfColors.blue900)),
+                                  pw.Text(rTime,
+                                      style: const pw.TextStyle(
+                                          fontSize: 10,
+                                          color: PdfColors.grey700)),
+                                ]),
+                            pw.SizedBox(height: 8),
+                            pw.Text(rData['reviewText'] ?? '',
+                                style: const pw.TextStyle(
+                                    fontSize: 12, lineSpacing: 1.3)),
+                          ]));
+                }),
+            ];
+          },
+          footer: (context) {
+            return pw.Container(
+              alignment: pw.Alignment.centerRight,
+              margin: const pw.EdgeInsets.only(top: 10),
+              child: pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style:
+                      const pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+            );
+          }),
     );
 
-    // Prompt user to download/save/print the generated PDF
+    // 4. Prompt user to download/save/print the generated PDF
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: 'Issue_Report_${widget.issueId}.pdf',
     );
   }
 
-  // Helper widget for PDF layout
-  pw.Widget _buildPdfRow(String label, String value) {
+  // Helper widget for the PDF Detail Table
+  pw.Widget _buildPdfTableRow(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
       child: pw.Row(
         children: [
-          pw.SizedBox(width: 100, child: pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12))),
-          pw.Expanded(child: pw.Text(value, style: const pw.TextStyle(fontSize: 12))),
+          pw.SizedBox(
+              width: 120,
+              child: pw.Text(label,
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold, fontSize: 12))),
+          pw.Expanded(
+              child: pw.Text(value, style: const pw.TextStyle(fontSize: 12))),
         ],
       ),
     );
@@ -456,36 +638,46 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Issue Details', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Issue Details',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.black87),
         elevation: 1,
         centerTitle: true,
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('issues').doc(widget.issueId).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('issues')
+            .doc(widget.issueId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Error loading details: ${snapshot.error}'));
+            return Center(
+                child: Text('Error loading details: ${snapshot.error}'));
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Issue not found or deleted.', style: TextStyle(fontSize: 18)));
+            return const Center(
+                child: Text('Issue not found or deleted.',
+                    style: TextStyle(fontSize: 18)));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
-          final String? issueTitle = data['issueTitle']; 
+          final String? issueTitle = data['issueTitle'];
           final String issueType = data['issueType'] ?? 'N/A';
-          final String description = data['description'] ?? 'No description provided.';
+          final String description =
+              data['description'] ?? 'No description provided.';
           final String status = data['status'] ?? 'Pending';
           final String schoolName = data['schoolName'] ?? 'N/A';
           final String schoolId = data['schoolId'] ?? 'N/A';
-          final String? addedByNic = data['addedByNic']; 
+          final String? addedByNic = data['addedByNic'];
 
           final List<String> imageUrls =
-              (data['imageUrls'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+              (data['imageUrls'] as List<dynamic>? ?? [])
+                  .map((e) => e.toString())
+                  .toList();
 
           final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
           final dateReported = timestamp != null
@@ -496,7 +688,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
 
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900), 
+              constraints: const BoxConstraints(maxWidth: 900),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -507,7 +699,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: statusColor.withOpacity(0.5), width: 1.5),
+                        side: BorderSide(
+                            color: statusColor.withOpacity(0.5), width: 1.5),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
@@ -520,12 +713,16 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                 children: [
                                   Text(
                                     issueTitle ?? 'N/A',
-                                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                                    style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87),
                                   ),
                                   const SizedBox(height: 12),
                                   Row(
                                     children: [
-                                      Icon(Icons.circle, color: statusColor, size: 14),
+                                      Icon(Icons.circle,
+                                          color: statusColor, size: 14),
                                       const SizedBox(width: 8),
                                       Text(
                                         status.toUpperCase(),
@@ -552,14 +749,18 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                       FutureBuilder<QuerySnapshot>(
                         future: _fetchUserDetails(addedByNic),
                         builder: (context, userSnapshot) {
-                          if (userSnapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
+                          if (userSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
                           }
-                          if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                          if (!userSnapshot.hasData ||
+                              userSnapshot.data!.docs.isEmpty) {
                             return const SizedBox.shrink();
                           }
 
-                          final userData = userSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                          final userData = userSnapshot.data!.docs.first.data()
+                              as Map<String, dynamic>;
                           final reporterName = userData['name'] ?? 'Unknown';
                           final reporterRole = userData['userType'] ?? 'Staff';
 
@@ -579,28 +780,41 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                   children: [
                                     CircleAvatar(
                                       backgroundColor: Colors.blue.shade200,
-                                      backgroundImage: userData['profile_image'] != null
-                                          ? NetworkImage(userData['profile_image'])
-                                          : null,
+                                      backgroundImage:
+                                          userData['profile_image'] != null
+                                              ? NetworkImage(
+                                                  userData['profile_image'])
+                                              : null,
                                       child: userData['profile_image'] == null
-                                          ? const Icon(Icons.person, color: Colors.white)
+                                          ? const Icon(Icons.person,
+                                              color: Colors.white)
                                           : null,
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text("Reported By:", style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                                          const Text("Reported By:",
+                                              style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.blueGrey)),
                                           Text(
                                             "$reporterName ($reporterRole)",
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16),
                                           ),
-                                          const Text("Tap to view details", style: TextStyle(fontSize: 11, color: Colors.blue)),
+                                          const Text("Tap to view details",
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.blue)),
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.info_outline, color: Colors.blue),
+                                    const Icon(Icons.info_outline,
+                                        color: Colors.blue),
                                   ],
                                 ),
                               ),
@@ -622,7 +836,10 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                     if (imageUrls.isNotEmpty) ...[
                       const Text(
                         "Attached Photos",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87),
                       ),
                       const SizedBox(height: 12),
                       Wrap(
@@ -637,7 +854,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => FullScreenImageViewer(images: imageUrls, initialIndex: index),
+                                  builder: (_) => FullScreenImageViewer(
+                                      images: imageUrls, initialIndex: index),
                                 ),
                               );
                             },
@@ -648,13 +866,15 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                 width: 140,
                                 height: 140,
                                 fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
                                   if (loadingProgress == null) return child;
                                   return Container(
                                     width: 140,
                                     height: 140,
                                     color: Colors.grey.shade200,
-                                    child: const Center(child: CircularProgressIndicator()),
+                                    child: const Center(
+                                        child: CircularProgressIndicator()),
                                   );
                                 },
                                 errorBuilder: (context, error, stackTrace) {
@@ -662,7 +882,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                     width: 140,
                                     height: 140,
                                     color: Colors.grey.shade200,
-                                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                                    child: const Icon(Icons.broken_image,
+                                        color: Colors.grey),
                                   );
                                 },
                               ),
@@ -676,20 +897,45 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                     // ---------------- Details Grid ----------------
                     const Text(
                       "Details",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87),
                     ),
                     const SizedBox(height: 12),
                     LayoutBuilder(
                       builder: (context, constraints) {
-                        final cardWidth = constraints.maxWidth > 600 ? (constraints.maxWidth / 2) - 8 : constraints.maxWidth;
+                        final cardWidth = constraints.maxWidth > 600
+                            ? (constraints.maxWidth / 2) - 8
+                            : constraints.maxWidth;
                         return Wrap(
                           spacing: 16,
                           runSpacing: 0,
                           children: [
-                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Issue Type', value: issueType, icon: Icons.category_outlined)),
-                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'Reported On', value: dateReported, icon: Icons.access_time_outlined)),
-                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'School Name', value: schoolName, icon: Icons.school_outlined)),
-                            SizedBox(width: cardWidth, child: _buildDetailSection(title: 'School ID', value: schoolId, icon: Icons.vpn_key_outlined)),
+                            SizedBox(
+                                width: cardWidth,
+                                child: _buildDetailSection(
+                                    title: 'Issue Type',
+                                    value: issueType,
+                                    icon: Icons.category_outlined)),
+                            SizedBox(
+                                width: cardWidth,
+                                child: _buildDetailSection(
+                                    title: 'Reported On',
+                                    value: dateReported,
+                                    icon: Icons.access_time_outlined)),
+                            SizedBox(
+                                width: cardWidth,
+                                child: _buildDetailSection(
+                                    title: 'School Name',
+                                    value: schoolName,
+                                    icon: Icons.school_outlined)),
+                            SizedBox(
+                                width: cardWidth,
+                                child: _buildDetailSection(
+                                    title: 'School ID',
+                                    value: schoolId,
+                                    icon: Icons.vpn_key_outlined)),
                           ],
                         );
                       },
@@ -702,56 +948,68 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                       children: [
                         const Text(
                           "Engineer Reviews",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87),
                         ),
                         ElevatedButton.icon(
-                          onPressed: () => _showAddReviewDialog(addedByNic, issueTitle),
+                          onPressed: () =>
+                              _showAddReviewDialog(addedByNic, issueTitle),
                           icon: const Icon(Icons.add_comment, size: 18),
                           label: const Text("Add Review"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.teal.shade600,
                             foregroundColor: Colors.white,
                           ),
-                         )
+                        )
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildReviewsList(), 
+                    _buildReviewsList(),
                     const SizedBox(height: 30),
 
                     // ---------------- BUTTONS SECTION ----------------
-                    
+
                     // Update Status Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => _showStatusChangeDialog(status),
                         icon: const Icon(Icons.edit, size: 20),
-                        label: const Text('Update Status', style: TextStyle(fontSize: 16)),
+                        label: const Text('Update Status',
+                            style: TextStyle(fontSize: 16)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue.shade700,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           elevation: 2,
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 12),
 
-                    // Download PDF Button
+                    // NEW: Download PDF Button
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => _generateAndDownloadPdf(data, dateReported),
+                        // Make sure to pass imageUrls here!
+                        onPressed: () => _generateAndDownloadPdf(
+                            data, dateReported, imageUrls),
                         icon: const Icon(Icons.picture_as_pdf, size: 20),
-                        label: const Text('Download PDF Report', style: TextStyle(fontSize: 16)),
+                        label: const Text('Download Official PDF Report',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.blueGrey.shade800,
+                          foregroundColor: Colors.blueGrey.shade900,
                           padding: const EdgeInsets.symmetric(vertical: 18),
-                          side: BorderSide(color: Colors.blueGrey.shade300, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          side: BorderSide(
+                              color: Colors.blueGrey.shade400, width: 2),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
@@ -791,12 +1049,14 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
           physics: const NeverScrollableScrollPhysics(),
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
-            var reviewData = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+            var reviewData =
+                snapshot.data!.docs[index].data() as Map<String, dynamic>;
             String reviewerNic = reviewData['reviewerNic'] ?? 'Unknown';
             String reviewText = reviewData['reviewText'] ?? '';
             Timestamp? timestamp = reviewData['timestamp'] as Timestamp?;
-            String timeString = timestamp != null 
-                ? DateFormat('MMM dd, yyyy @ hh:mm a').format(timestamp.toDate()) 
+            String timeString = timestamp != null
+                ? DateFormat('MMM dd, yyyy @ hh:mm a')
+                    .format(timestamp.toDate())
                 : 'Just now';
 
             return Card(
@@ -814,36 +1074,43 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.person_pin, color: Colors.teal.shade700, size: 20),
+                        Icon(Icons.person_pin,
+                            color: Colors.teal.shade700, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: FutureBuilder<QuerySnapshot>(
-                            future: _fetchUserDetails(reviewerNic),
-                            builder: (context, userSnap) {
-                              if (userSnap.hasData && userSnap.data!.docs.isNotEmpty) {
-                                var usr = userSnap.data!.docs.first.data() as Map<String, dynamic>;
+                              future: _fetchUserDetails(reviewerNic),
+                              builder: (context, userSnap) {
+                                if (userSnap.hasData &&
+                                    userSnap.data!.docs.isNotEmpty) {
+                                  var usr = userSnap.data!.docs.first.data()
+                                      as Map<String, dynamic>;
+                                  return Text(
+                                    "${usr['name'] ?? 'Vihanga Manodhya'} (${usr['userType'] ?? 'Provincial Engineer'})",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.teal.shade900),
+                                  );
+                                }
                                 return Text(
-                                  "${usr['name'] ?? 'Vihanga Manodhya'} (${usr['userType'] ?? 'Provincial Engineer'})",
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade900),
-                                );
-                              }
-                              return Text(
-                                "Vihanga Manodhya (Provincial Engineer)", 
-                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade900)
-                              );
-                            }
-                          ),
+                                    "Vihanga Manodhya (Provincial Engineer)",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.teal.shade900));
+                              }),
                         ),
                         Text(
                           timeString,
-                          style: TextStyle(fontSize: 12, color: Colors.teal.shade700),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.teal.shade700),
                         ),
                       ],
                     ),
                     const Divider(),
                     Text(
                       reviewText,
-                      style: const TextStyle(fontSize: 15, color: Colors.black87),
+                      style:
+                          const TextStyle(fontSize: 15, color: Colors.black87),
                     ),
                   ],
                 ),
@@ -881,7 +1148,10 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black54),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black54),
                   ),
                 ),
               ],
@@ -908,14 +1178,16 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Add Review'),
           content: TextField(
             controller: _reviewController,
             maxLines: 4,
             decoration: InputDecoration(
               hintText: 'Type your review or remarks here...',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
           actions: [
@@ -929,7 +1201,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
             ElevatedButton(
               onPressed: () => _submitReview(principalNic, issueTitle),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              child: const Text('Submit Review', style: TextStyle(color: Colors.white)),
+              child: const Text('Submit Review',
+                  style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -943,7 +1216,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Select New Status'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -971,11 +1245,15 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
       margin: const EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: isSelected ? color : Colors.grey.shade300, width: isSelected ? 2 : 1),
+        side: BorderSide(
+            color: isSelected ? color : Colors.grey.shade300,
+            width: isSelected ? 2 : 1),
       ),
       child: ListTile(
-        leading: Icon(isSelected ? Icons.check_circle : Icons.circle_outlined, color: color, size: 20),
-        title: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+        leading: Icon(isSelected ? Icons.check_circle : Icons.circle_outlined,
+            color: color, size: 20),
+        title: Text(status,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold)),
         onTap: () {
           if (!isSelected) {
             _updateStatus(status);
@@ -994,7 +1272,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1010,7 +1289,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
               const SizedBox(height: 16),
               Text(
                 userData['name'] ?? 'Unknown',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               Text(
