@@ -32,6 +32,7 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
   final TextEditingController _contactController = TextEditingController();
 
   bool _isEditMode = false;
+  bool _isLoading = false; // Added to prevent double-taps while checking DB
 
   @override
   void initState() {
@@ -66,18 +67,62 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
   Future<void> _saveContractor() async {
     // 1. Validate the form fields
     if (_formKey.currentState!.validate()) {
-      // 2. Prepare data 
-      final Map<String, dynamic> contractorData = {
-        'companyName': _companyNameController.text.trim(),
-        'cidaNo': _cidaController.text.trim(), 
-        'contractorName': _contractorNameController.text.trim(),
-        'nic': _nicController.text.trim(), 
-        'contact': _contactController.text.trim(), 
-      };
+      setState(() {
+        _isLoading = true; // Show loading state
+      });
+
+      final cidaInput = _cidaController.text.trim();
 
       try {
+        // --- 2. CHECK FOR DUPLICATE CIDA NUMBER ---
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('contractor_details')
+            .where('cidaNo', isEqualTo: cidaInput)
+            .get();
+
+        bool isDuplicate = false;
+
+        if (querySnapshot.docs.isNotEmpty) {
+          if (_isEditMode) {
+            // In Edit mode, it's only a duplicate if a DIFFERENT document has this CIDA
+            for (var doc in querySnapshot.docs) {
+              if (doc.id != widget.contractorId) {
+                isDuplicate = true;
+                break;
+              }
+            }
+          } else {
+            // In Add mode, ANY match is a duplicate
+            isDuplicate = true;
+          }
+        }
+
+        if (isDuplicate) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Error: This CIDA Registration Number is already added.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() {
+            _isLoading = false;
+          });
+          return; // Stop the save process here
+        }
+
+        // --- 3. Prepare data ---
+        final Map<String, dynamic> contractorData = {
+          'companyName': _companyNameController.text.trim(),
+          'cidaNo': cidaInput, 
+          'contractorName': _contractorNameController.text.trim(),
+          'nic': _nicController.text.trim(), 
+          'contact': _contactController.text.trim(), 
+        };
+
+        // --- 4. Save to Database ---
         if (_isEditMode) {
-          // --- UPDATE Logic ---
           contractorData['updatedAt'] = FieldValue.serverTimestamp(); 
           await FirebaseFirestore.instance
               .collection('contractor_details')
@@ -94,7 +139,6 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
             Navigator.of(context).pop();
           }
         } else {
-          // --- ADD (New) Logic ---
           contractorData['updatedAt'] = FieldValue.serverTimestamp();
           await FirebaseFirestore.instance
               .collection('contractor_details')
@@ -115,6 +159,12 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Failed to save data: $e')),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
         }
       }
     }
@@ -279,7 +329,8 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _saveContractor,
+                      // Disable button while loading to prevent double submission
+                      onPressed: _isLoading ? null : _saveContractor,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimaryBlue,
                         foregroundColor: Colors.white,
@@ -289,11 +340,17 @@ class _AddContractorScreenState extends State<AddContractorScreen> {
                         ),
                         elevation: 5,
                       ),
-                      child: Text(
-                        _isEditMode ? 'Update Details' : 'Save Details',
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                      child: _isLoading 
+                        ? const SizedBox(
+                            height: 24, 
+                            width: 24, 
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                          )
+                        : Text(
+                            _isEditMode ? 'Update Details' : 'Save Details',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
                     ),
                   ),
                 ],

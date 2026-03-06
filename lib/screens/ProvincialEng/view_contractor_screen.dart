@@ -28,6 +28,13 @@ class ViewContractorScreen extends StatelessWidget {
     if (value is num) {
       return NumberFormat.currency(locale: 'en_US', symbol: 'LKR ').format(value);
     }
+    // Handle string values that might be numbers in the DB
+    if (value is String) {
+      final parsedValue = double.tryParse(value);
+      if (parsedValue != null) {
+        return NumberFormat.currency(locale: 'en_US', symbol: 'LKR ').format(parsedValue);
+      }
+    }
     return 'LKR 0.00';
   }
 
@@ -82,9 +89,9 @@ class ViewContractorScreen extends StatelessWidget {
             onPressed: () => Navigator.of(ctx).pop(false),
           ),
           TextButton(
-            child: const Text('Yes, Delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Yes, Delete'),
           ),
         ],
       ),
@@ -244,7 +251,8 @@ class ViewContractorScreen extends StatelessWidget {
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('contracts')
-                .where('cidaRegisterNumber', isEqualTo: cidaRegNo) // Matching the fields from your DB images
+                // FIXED: Changed from 'cidaRegisterNumber' to 'cidaNo' to match your DB
+                .where('cidaNo', isEqualTo: cidaRegNo) 
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -291,7 +299,8 @@ class ViewContractorScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                contractData['typeOfContract']?.toString().toUpperCase() ?? 'CONTRACT',
+                                // FIXED: Changed from 'typeOfContract' to 'projectType'
+                                contractData['projectType']?.toString().toUpperCase() ?? 'CONTRACT',
                                 style: TextStyle(
                                   color: Colors.indigo.shade700,
                                   fontWeight: FontWeight.bold,
@@ -299,7 +308,8 @@ class ViewContractorScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                _formatCurrency(contractData['contractValue']),
+                                // FIXED: Changed from 'contractValue' to 'value'
+                                _formatCurrency(contractData['value']),
                                 style: const TextStyle(
                                   color: Colors.teal,
                                   fontWeight: FontWeight.bold,
