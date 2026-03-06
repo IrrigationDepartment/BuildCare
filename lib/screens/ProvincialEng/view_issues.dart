@@ -596,7 +596,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                             backgroundColor: Colors.teal.shade600,
                             foregroundColor: Colors.white,
                           ),
-                        )
+                         )
                       ],
                     ),
                     const SizedBox(height: 12),

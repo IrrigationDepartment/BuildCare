@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart'; // Added for user logic
 import 'package:intl/intl.dart';
 
 // Updated imports to match your provided file names
-import 'issue_report_details_screen.dart'; 
+import 'view_issues.dart'; // Replaced issue_report_details_screen.dart with this
 import 'school_details_page.dart';   
 import 'view_contractor_screen.dart';      
 
@@ -122,10 +122,9 @@ class NotificationPage extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => IssueReportDetailsScreen(
+                                builder: (context) => IssueDetailPage(
                                   issueId: issueId, 
-                                  userNic: userNic,
-                                  isAdminView: true, 
+                                  currentUserNic: userNic, // Passed the nic here
                                 ),
                               ),
                             );
