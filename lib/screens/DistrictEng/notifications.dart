@@ -90,7 +90,7 @@ class _NotificationPageState extends State<NotificationPage> {
 
                           if (!context.mounted) return;
 
-                          // මෙතැන තමයි වෙනස් කළේ: 'issue' සහ 'new_issue' දෙකම අල්ලගන්නවා
+            
                           if ((type == 'issue' || type == 'new_issue') && issueId != null) {
                             Navigator.push(context, MaterialPageRoute(builder: (context) => DamageDetailsDialog(issueId: issueId)));
                           } else if (type == 'contract' && contractId != null) {
@@ -187,7 +187,7 @@ class _NotificationPageState extends State<NotificationPage> {
 
     switch (type) {
       case 'issue':
-      case 'new_issue': // Icon එක වැටෙන්න මේකත් එකතු කළා
+      case 'new_issue':
         badgeIcon = Icons.report_problem;
         break;
       case 'contract':
