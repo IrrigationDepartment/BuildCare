@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+// --- NEW IMPORTS FOR PDF GENERATION ---
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+
 // ============================================================================
 // FULL SCREEN IMAGE VIEWER
 // ============================================================================
@@ -319,6 +324,117 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
     }
   }
 
+  // --- NEW PDF GENERATION LOGIC ---
+  Future<void> _generateAndDownloadPdf(Map<String, dynamic> data, String dateReported) async {
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Generating PDF Report...'), duration: Duration(seconds: 1)),
+    );
+
+    final pdf = pw.Document();
+
+    // Fetch reviews to include in the PDF
+    final reviewsSnap = await FirebaseFirestore.instance
+        .collection('issues')
+        .doc(widget.issueId)
+        .collection('reviews')
+        .orderBy('timestamp', descending: true)
+        .get();
+
+    // Build PDF content
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // HEADER
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('BuildCare Issue Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(DateFormat('yyyy-MM-dd').format(DateTime.now()), style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
+                ]
+              )
+            ),
+            pw.SizedBox(height: 20),
+
+            // ISSUE DETAILS
+            pw.Text(data['issueTitle'] ?? 'N/A', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 10),
+            _buildPdfRow('Status:', data['status'] ?? 'Pending'),
+            _buildPdfRow('Date Reported:', dateReported),
+            _buildPdfRow('Issue Type:', data['issueType'] ?? 'N/A'),
+            _buildPdfRow('School Name:', data['schoolName'] ?? 'N/A'),
+            _buildPdfRow('School ID:', data['schoolId'] ?? 'N/A'),
+            _buildPdfRow('Reporter NIC:', data['addedByNic'] ?? 'N/A'),
+            
+            pw.SizedBox(height: 20),
+            
+            // DESCRIPTION
+            pw.Text('Description:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 5),
+            pw.Text(data['description'] ?? 'No description provided.', style: const pw.TextStyle(fontSize: 12)),
+            
+            pw.SizedBox(height: 30),
+            pw.Divider(),
+            pw.SizedBox(height: 10),
+
+            // REVIEWS
+            pw.Text('Official Reviews & Remarks', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 10),
+            if (reviewsSnap.docs.isEmpty)
+              pw.Text('No reviews added yet.', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey))
+            else
+              ...reviewsSnap.docs.map((doc) {
+                final rData = doc.data();
+                final Timestamp? tStamp = rData['timestamp'] as Timestamp?;
+                final rTime = tStamp != null ? DateFormat('MMM dd, yyyy @ hh:mm a').format(tStamp.toDate()) : 'Unknown Date';
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 10),
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.grey300),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Reviewer NIC: ${rData['reviewerNic'] ?? 'Unknown'}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10)),
+                      pw.Text(rTime, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+                      pw.SizedBox(height: 5),
+                      pw.Text(rData['reviewText'] ?? '', style: const pw.TextStyle(fontSize: 12)),
+                    ]
+                  )
+                );
+              }),
+          ];
+        },
+      ),
+    );
+
+    // Prompt user to download/save/print the generated PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Issue_Report_${widget.issueId}.pdf',
+    );
+  }
+
+  // Helper widget for PDF layout
+  pw.Widget _buildPdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      child: pw.Row(
+        children: [
+          pw.SizedBox(width: 100, child: pw.Text(label, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12))),
+          pw.Expanded(child: pw.Text(value, style: const pw.TextStyle(fontSize: 12))),
+        ],
+      ),
+    );
+  }
+
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Pending':
@@ -603,7 +719,9 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                     _buildReviewsList(), 
                     const SizedBox(height: 30),
 
-                    // ---------------- Update Status Button ----------------
+                    // ---------------- BUTTONS SECTION ----------------
+                    
+                    // Update Status Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -619,6 +737,25 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                         ),
                       ),
                     ),
+                    
+                    const SizedBox(height: 12),
+
+                    // Download PDF Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _generateAndDownloadPdf(data, dateReported),
+                        icon: const Icon(Icons.picture_as_pdf, size: 20),
+                        label: const Text('Download PDF Report', style: TextStyle(fontSize: 16)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blueGrey.shade800,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          side: BorderSide(color: Colors.blueGrey.shade300, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
                   ],
                 ),
               ),
@@ -690,7 +827,6 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                   style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade900),
                                 );
                               }
-                              // --- CHANGED FALLBACK TEXT HERE ---
                               return Text(
                                 "Vihanga Manodhya (Provincial Engineer)", 
                                 style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade900)
