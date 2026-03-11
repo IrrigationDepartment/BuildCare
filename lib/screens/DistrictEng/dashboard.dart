@@ -92,7 +92,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTopHeader(),
+              _buildTopHeader(), 
               const SizedBox(height: 32),
               
               DashboardOverview(
@@ -200,60 +200,119 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
       query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
     }
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(child: DashboardHeader(userData: widget.userData)),
-        const SizedBox(width: 16),
-        StreamBuilder<QuerySnapshot>(
-          stream: query.snapshots(),
-          builder: (context, snapshot) {
-            int unreadCount = 0;
-            
-            if (snapshot.hasData) {
+    
+    final userName = widget.userData['name'] ?? 'User';
+    final userType = widget.userData['userType'] ?? 'District Engineer';
 
-              unreadCount = snapshot.data!.docs.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final readBy = data['readBy'] as List<dynamic>? ?? [];
-                return !readBy.contains(currentUserId);
-              }).length;
-            }
-
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Badge(
-                label: Text(
-                  unreadCount > 99 ? '99+' : unreadCount.toString(), 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                isLabelVisible: unreadCount > 0, 
-                backgroundColor: const Color(0xFFE11D48), 
-                offset: const Offset(-4, 4),
-                child: IconButton(
-                  icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF1E3A8A), size: 28),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const NotificationPage()),
-                    );
-                  },
-                ),
-              ),
-            );
-          },
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF5B42F3), 
+            Color(0xFF2A1C9A),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-      ],
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2A1C9A).withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Profile Info Section
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2), 
+                  ),
+                  child: CircleAvatar(
+                    radius: 26,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: const Icon(Icons.person_rounded, size: 30, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Welcome back,',
+                        style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        userName,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        userType,
+                        style: const TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          
+          // Notification Section
+          StreamBuilder<QuerySnapshot>(
+            stream: query.snapshots(),
+            builder: (context, snapshot) {
+              int unreadCount = 0;
+              
+              if (snapshot.hasData) {
+                unreadCount = snapshot.data!.docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final readBy = data['readBy'] as List<dynamic>? ?? [];
+                  return !readBy.contains(currentUserId);
+                }).length;
+              }
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15), 
+                  shape: BoxShape.circle,
+                ),
+                child: Badge(
+                  label: Text(
+                    unreadCount > 99 ? '99+' : unreadCount.toString(), 
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
+                  ),
+                  isLabelVisible: unreadCount > 0, 
+                  backgroundColor: const Color(0xFFE11D48), 
+                  offset: const Offset(-4, 4),
+                  child: IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 28),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NotificationPage()),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
