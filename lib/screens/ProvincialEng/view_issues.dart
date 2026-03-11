@@ -65,7 +65,7 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
 }
 
 // ============================================================================
-// MAIN VIEW ISSUES PAGE (Converted to StatefulWidget for Search & Filter)
+// MAIN VIEW ISSUES PAGE 
 // ============================================================================
 class ViewIssuesPage extends StatefulWidget {
   final String currentUserNic; // Current logged-in user NIC
@@ -77,29 +77,20 @@ class ViewIssuesPage extends StatefulWidget {
 }
 
 class _ViewIssuesPageState extends State<ViewIssuesPage> {
-  // Search and Filter States
-  String _searchQuery = '';
+  // Filter State
   String _selectedSchool = 'All';
-  String _selectedIssueType = 'All';
   
-  // Controllers & Streams
-  final TextEditingController _searchController = TextEditingController();
+  // Streams
   late Stream<QuerySnapshot> _issuesStream;
 
   @override
   void initState() {
     super.initState();
-    // Initialize the stream ONCE so it doesn't rebuild on every keystroke
+    // Initialize the stream ONCE so it doesn't unnecessarily rebuild
     _issuesStream = FirebaseFirestore.instance
         .collection('issues')
         .orderBy('timestamp', descending: true)
         .snapshots();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Color _getStatusColor(String status) {
@@ -152,39 +143,27 @@ class _ViewIssuesPageState extends State<ViewIssuesPage> {
 
               // --- DYNAMICALLY EXTRACT FILTER OPTIONS ---
               final Set<String> schoolsSet = {'All'};
-              final Set<String> issueTypesSet = {'All'};
 
               for (var doc in allIssues) {
                 final data = doc.data() as Map<String, dynamic>;
-                // Checking multiple possible field names just in case
                 final school = (data['schoolName'] ?? data['school'] ?? 'Unknown School').toString();
-                final type = (data['issueType'] ?? data['category'] ?? 'N/A').toString();
-                
                 schoolsSet.add(school);
-                issueTypesSet.add(type);
               }
 
-              // Safety check for dropdown values during build
+              // Safety check for dropdown value during build
               final currentSchoolVal = schoolsSet.contains(_selectedSchool) ? _selectedSchool : 'All';
-              final currentTypeVal = issueTypesSet.contains(_selectedIssueType) ? _selectedIssueType : 'All';
 
-              // --- APPLY SEARCH AND FILTERS ---
+              // --- APPLY FILTERS ---
               final filteredIssues = allIssues.where((doc) {
                 final data = doc.data() as Map<String, dynamic>;
-                final title = (data['issueTitle'] ?? '').toString().toLowerCase();
                 final schoolName = (data['schoolName'] ?? data['school'] ?? 'Unknown School').toString();
-                final issueType = (data['issueType'] ?? data['category'] ?? 'N/A').toString();
 
-                final matchesSearch = title.contains(_searchQuery.toLowerCase());
-                final matchesSchool = currentSchoolVal == 'All' || schoolName == currentSchoolVal;
-                final matchesType = currentTypeVal == 'All' || issueType == currentTypeVal;
-
-                return matchesSearch && matchesSchool && matchesType;
+                return currentSchoolVal == 'All' || schoolName == currentSchoolVal;
               }).toList();
 
               return Column(
                 children: [
-                  // --- SEARCH & FILTER SECTION ---
+                  // --- FILTER SECTION ---
                   Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Card(
@@ -195,107 +174,32 @@ class _ViewIssuesPageState extends State<ViewIssuesPage> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            // Search Bar
-                            TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: 'Search by issue title...',
-                                prefixIcon: const Icon(Icons.search),
-                                filled: true,
-                                fillColor: Colors.grey.shade100,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              onChanged: (value) {
-                                setState(() {
-                                  _searchQuery = value;
-                                });
-                              },
+                        child: DropdownButtonFormField<String>(
+                          decoration: InputDecoration(
+                            labelText: 'Filter by School',
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
                             ),
-                            const SizedBox(height: 16),
-                            // Filters
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                return Wrap(
-                                  spacing: 16,
-                                  runSpacing: 16,
-                                  children: [
-                                    // School Filter
-                                    SizedBox(
-                                      width: constraints.maxWidth > 600 
-                                          ? (constraints.maxWidth / 2) - 8 
-                                          : constraints.maxWidth,
-                                      child: DropdownButtonFormField<String>(
-                                        decoration: InputDecoration(
-                                          labelText: 'Filter by School',
-                                          filled: true,
-                                          fillColor: Colors.grey.shade50,
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: BorderSide(color: Colors.grey.shade300),
-                                          ),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                        ),
-                                        value: currentSchoolVal,
-                                        isExpanded: true,
-                                        items: schoolsSet.map((String school) {
-                                          return DropdownMenuItem<String>(
-                                            value: school,
-                                            child: Text(school, overflow: TextOverflow.ellipsis),
-                                          );
-                                        }).toList(),
-                                        onChanged: (String? newValue) {
-                                          if (newValue != null) {
-                                            setState(() {
-                                              _selectedSchool = newValue;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                    // Issue Type Filter
-                                    SizedBox(
-                                      width: constraints.maxWidth > 600 
-                                          ? (constraints.maxWidth / 2) - 8 
-                                          : constraints.maxWidth,
-                                      child: DropdownButtonFormField<String>(
-                                        decoration: InputDecoration(
-                                          labelText: 'Filter by Issue Type',
-                                          filled: true,
-                                          fillColor: Colors.grey.shade50,
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: BorderSide(color: Colors.grey.shade300),
-                                          ),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                        ),
-                                        value: currentTypeVal,
-                                        isExpanded: true,
-                                        items: issueTypesSet.map((String type) {
-                                          return DropdownMenuItem<String>(
-                                            value: type,
-                                            child: Text(type, overflow: TextOverflow.ellipsis),
-                                          );
-                                        }).toList(),
-                                        onChanged: (String? newValue) {
-                                          if (newValue != null) {
-                                            setState(() {
-                                              _selectedIssueType = newValue;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          ),
+                          value: currentSchoolVal,
+                          isExpanded: true,
+                          items: schoolsSet.map((String school) {
+                            return DropdownMenuItem<String>(
+                              value: school,
+                              child: Text(school, overflow: TextOverflow.ellipsis),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedSchool = newValue;
+                              });
+                            }
+                          },
                         ),
                       ),
                     ),
@@ -304,7 +208,7 @@ class _ViewIssuesPageState extends State<ViewIssuesPage> {
                   // --- ISSUES GRID SECTION ---
                   Expanded(
                     child: filteredIssues.isEmpty
-                        ? const Center(child: Text('No issues match your search/filters.'))
+                        ? const Center(child: Text('No issues match the selected school.'))
                         : GridView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -857,7 +761,6 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final String? issueTitle = data['issueTitle'];
           
-          // UPDATED: Now looks for both issueType and category to prevent N/A
           final String issueType = data['issueType'] ?? data['category'] ?? 'N/A';
           final String description =
               data['description'] ?? 'No description provided.';
