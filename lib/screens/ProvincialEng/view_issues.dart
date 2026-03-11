@@ -65,12 +65,42 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
 }
 
 // ============================================================================
-// MAIN VIEW ISSUES PAGE
+// MAIN VIEW ISSUES PAGE (Converted to StatefulWidget for Search & Filter)
 // ============================================================================
-class ViewIssuesPage extends StatelessWidget {
+class ViewIssuesPage extends StatefulWidget {
   final String currentUserNic; // Current logged-in user NIC
 
   const ViewIssuesPage({super.key, required this.currentUserNic});
+
+  @override
+  State<ViewIssuesPage> createState() => _ViewIssuesPageState();
+}
+
+class _ViewIssuesPageState extends State<ViewIssuesPage> {
+  // Search and Filter States
+  String _searchQuery = '';
+  String _selectedSchool = 'All';
+  String _selectedIssueType = 'All';
+  
+  // Controllers & Streams
+  final TextEditingController _searchController = TextEditingController();
+  late Stream<QuerySnapshot> _issuesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the stream ONCE so it doesn't rebuild on every keystroke
+    _issuesStream = FirebaseFirestore.instance
+        .collection('issues')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Color _getStatusColor(String status) {
     switch (status) {
@@ -104,13 +134,9 @@ class ViewIssuesPage extends StatelessWidget {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-              maxWidth: 1200), // Max width for large screens
+          constraints: const BoxConstraints(maxWidth: 1200), // Max width for large screens
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('issues')
-                .orderBy('timestamp', descending: true)
-                .snapshots(),
+            stream: _issuesStream, // Use the cached stream
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -122,112 +148,268 @@ class ViewIssuesPage extends StatelessWidget {
                 return const Center(child: Text('No issues reported yet.'));
               }
 
-              final issues = snapshot.data!.docs;
+              final allIssues = snapshot.data!.docs;
 
-              // Responsive Grid
-              return GridView.builder(
-                padding: const EdgeInsets.all(16.0),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 500, // Cards will be up to 500px wide
-                  mainAxisExtent: 130, // Fixed height to prevent overflow
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemCount: issues.length,
-                itemBuilder: (context, index) {
-                  final issueDoc = issues[index];
-                  final data = issueDoc.data() as Map<String, dynamic>;
+              // --- DYNAMICALLY EXTRACT FILTER OPTIONS ---
+              final Set<String> schoolsSet = {'All'};
+              final Set<String> issueTypesSet = {'All'};
 
-                  final issueId = issueDoc.id;
-                  final issueTitle = data['issueTitle'] ?? 'No Title';
-                  final schoolName = data['schoolName'] ?? 'Unknown School';
-                  final status = data['status'] ?? 'N/A';
-                  final statusColor = _getStatusColor(status);
+              for (var doc in allIssues) {
+                final data = doc.data() as Map<String, dynamic>;
+                // Checking multiple possible field names just in case
+                final school = (data['schoolName'] ?? data['school'] ?? 'Unknown School').toString();
+                final type = (data['issueType'] ?? data['category'] ?? 'N/A').toString();
+                
+                schoolsSet.add(school);
+                issueTypesSet.add(type);
+              }
 
-                  return Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => IssueDetailPage(
-                              issueId: issueId,
-                              currentUserNic: currentUserNic, // Pass the NIC
-                            ),
-                          ),
-                        );
-                      },
+              // Safety check for dropdown values during build
+              final currentSchoolVal = schoolsSet.contains(_selectedSchool) ? _selectedSchool : 'All';
+              final currentTypeVal = issueTypesSet.contains(_selectedIssueType) ? _selectedIssueType : 'All';
+
+              // --- APPLY SEARCH AND FILTERS ---
+              final filteredIssues = allIssues.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final title = (data['issueTitle'] ?? '').toString().toLowerCase();
+                final schoolName = (data['schoolName'] ?? data['school'] ?? 'Unknown School').toString();
+                final issueType = (data['issueType'] ?? data['category'] ?? 'N/A').toString();
+
+                final matchesSearch = title.contains(_searchQuery.toLowerCase());
+                final matchesSchool = currentSchoolVal == 'All' || schoolName == currentSchoolVal;
+                final matchesType = currentTypeVal == 'All' || issueType == currentTypeVal;
+
+                return matchesSearch && matchesSchool && matchesType;
+              }).toList();
+
+              return Column(
+                children: [
+                  // --- SEARCH & FILTER SECTION ---
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                        child: Column(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: statusColor.withOpacity(0.1),
-                                shape: BoxShape.circle,
+                            // Search Bar
+                            TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: 'Search by issue title...',
+                                prefixIcon: const Icon(Icons.search),
+                                filled: true,
+                                fillColor: Colors.grey.shade100,
+                                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
                               ),
-                              child: Icon(Icons.warning_amber_rounded,
-                                  color: statusColor, size: 28),
+                              onChanged: (value) {
+                                setState(() {
+                                  _searchQuery = value;
+                                });
+                              },
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    issueTitle,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    schoolName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        const TextStyle(color: Colors.black54),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: statusColor.withOpacity(0.5)),
+                            const SizedBox(height: 16),
+                            // Filters
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                return Wrap(
+                                  spacing: 16,
+                                  runSpacing: 16,
+                                  children: [
+                                    // School Filter
+                                    SizedBox(
+                                      width: constraints.maxWidth > 600 
+                                          ? (constraints.maxWidth / 2) - 8 
+                                          : constraints.maxWidth,
+                                      child: DropdownButtonFormField<String>(
+                                        decoration: InputDecoration(
+                                          labelText: 'Filter by School',
+                                          filled: true,
+                                          fillColor: Colors.grey.shade50,
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: BorderSide(color: Colors.grey.shade300),
+                                          ),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                        ),
+                                        value: currentSchoolVal,
+                                        isExpanded: true,
+                                        items: schoolsSet.map((String school) {
+                                          return DropdownMenuItem<String>(
+                                            value: school,
+                                            child: Text(school, overflow: TextOverflow.ellipsis),
+                                          );
+                                        }).toList(),
+                                        onChanged: (String? newValue) {
+                                          if (newValue != null) {
+                                            setState(() {
+                                              _selectedSchool = newValue;
+                                            });
+                                          }
+                                        },
+                                      ),
                                     ),
-                                    child: Text(
-                                      status.toUpperCase(),
-                                      style: TextStyle(
-                                          color: statusColor,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold),
+                                    // Issue Type Filter
+                                    SizedBox(
+                                      width: constraints.maxWidth > 600 
+                                          ? (constraints.maxWidth / 2) - 8 
+                                          : constraints.maxWidth,
+                                      child: DropdownButtonFormField<String>(
+                                        decoration: InputDecoration(
+                                          labelText: 'Filter by Issue Type',
+                                          filled: true,
+                                          fillColor: Colors.grey.shade50,
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: BorderSide(color: Colors.grey.shade300),
+                                          ),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                        ),
+                                        value: currentTypeVal,
+                                        isExpanded: true,
+                                        items: issueTypesSet.map((String type) {
+                                          return DropdownMenuItem<String>(
+                                            value: type,
+                                            child: Text(type, overflow: TextOverflow.ellipsis),
+                                          );
+                                        }).toList(),
+                                        onChanged: (String? newValue) {
+                                          if (newValue != null) {
+                                            setState(() {
+                                              _selectedIssueType = newValue;
+                                            });
+                                          }
+                                        },
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                );
+                              },
                             ),
-                            const Icon(Icons.arrow_forward_ios,
-                                size: 16, color: Colors.grey),
                           ],
                         ),
                       ),
                     ),
-                  );
-                },
+                  ),
+                  
+                  // --- ISSUES GRID SECTION ---
+                  Expanded(
+                    child: filteredIssues.isEmpty
+                        ? const Center(child: Text('No issues match your search/filters.'))
+                        : GridView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 500, // Cards will be up to 500px wide
+                              mainAxisExtent: 130, // Fixed height to prevent overflow
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                            ),
+                            itemCount: filteredIssues.length,
+                            itemBuilder: (context, index) {
+                              final issueDoc = filteredIssues[index];
+                              final data = issueDoc.data() as Map<String, dynamic>;
+
+                              final issueId = issueDoc.id;
+                              final issueTitle = data['issueTitle'] ?? 'No Title';
+                              final schoolName = data['schoolName'] ?? data['school'] ?? 'Unknown School';
+                              final status = data['status'] ?? 'N/A';
+                              final statusColor = _getStatusColor(status);
+
+                              return Card(
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => IssueDetailPage(
+                                          issueId: issueId,
+                                          currentUserNic: widget.currentUserNic, // Pass the NIC
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: statusColor.withOpacity(0.1),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(Icons.warning_amber_rounded,
+                                              color: statusColor, size: 28),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                issueTitle,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                schoolName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(color: Colors.black54),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: statusColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                      color: statusColor.withOpacity(0.5)),
+                                                ),
+                                                child: Text(
+                                                  status.toUpperCase(),
+                                                  style: TextStyle(
+                                                      color: statusColor,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(Icons.arrow_forward_ios,
+                                            size: 16, color: Colors.grey),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
               );
             },
           ),
@@ -476,7 +658,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                     pw.Divider(color: PdfColors.grey300),
                     _buildPdfTableRow('School ID', data['schoolId'] ?? 'N/A'),
                     pw.Divider(color: PdfColors.grey300),
-                    _buildPdfTableRow('Issue Type', data['issueType'] ?? 'N/A'),
+                    _buildPdfTableRow('Issue Type', data['issueType'] ?? data['category'] ?? 'N/A'),
                     pw.Divider(color: PdfColors.grey300),
                     _buildPdfTableRow(
                         'Reporter NIC', data['addedByNic'] ?? 'N/A'),
@@ -575,7 +757,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32), // Feel free to set to 0 if you want it edge-to-edge
+          margin: const pw.EdgeInsets.all(32), 
           build: (pw.Context context) {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -674,11 +856,13 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
           final String? issueTitle = data['issueTitle'];
-          final String issueType = data['issueType'] ?? 'N/A';
+          
+          // UPDATED: Now looks for both issueType and category to prevent N/A
+          final String issueType = data['issueType'] ?? data['category'] ?? 'N/A';
           final String description =
               data['description'] ?? 'No description provided.';
           final String status = data['status'] ?? 'Pending';
-          final String schoolName = data['schoolName'] ?? 'N/A';
+          final String schoolName = data['schoolName'] ?? data['school'] ?? 'N/A';
           final String schoolId = data['schoolId'] ?? 'N/A';
           final String? addedByNic = data['addedByNic'];
 
