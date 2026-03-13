@@ -73,7 +73,7 @@ Future<void> _runImageCleanupProcess() async {
             try {
               // IMPORTANT: You must create a delete_image.php file on your server to handle this POST request
               await http.post(
-                Uri.parse('http://buildcare.atigalle.x10.mx/api/delete_image.php'), 
+                Uri.parse('http://98.94.30.13/api/delete_image.php'), 
                 body: {'file_url': url},
               );
             } catch (e) {
