@@ -124,7 +124,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
 
   Future<List<String>> _uploadImages() async {
     if (_selectedImages.isEmpty) return [];
-    var uri = Uri.parse("https://buildcare.atigalle.x10.mx/index.php");
+    var uri = Uri.parse("http://98.94.30.13/index.php");
     var request = http.MultipartRequest("POST", uri);
 
     for (var imageFile in _selectedImages) {

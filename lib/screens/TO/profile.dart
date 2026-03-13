@@ -41,7 +41,7 @@ class _ProfilePageState extends State<ProfilePage> {
   XFile? _selectedImage;
   String? _selectedImageBase64;
   final ImagePicker _picker = ImagePicker();
-  final String _serverUrl = 'https://buildcare.atigalle.x10.mx/'; // Updated to match your new tech
+  final String _serverUrl = 'http://98.94.30.13/'; // Updated to match your new tech
 
   bool _isLoading = true;
   bool _isUpdating = false;

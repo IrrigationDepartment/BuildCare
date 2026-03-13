@@ -180,7 +180,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
       return [];
     }
     
-    var uri = Uri.parse("https://buildcare.atigalle.x10.mx/");
+    var uri = Uri.parse("http://98.94.30.13/");
     var request = http.MultipartRequest("POST", uri);
 
     for (var imageFile in _selectedImages) {

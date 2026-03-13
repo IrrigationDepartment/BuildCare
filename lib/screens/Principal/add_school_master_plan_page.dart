@@ -103,7 +103,7 @@ class _AddMasterPlanScreenState extends State<AddMasterPlanScreen> {
 
     try {
       if (_pickedFile != null) {
-        var uri = Uri.parse("http://buildcare.atigalle.x10.mx/index.php");
+        var uri = Uri.parse("http://98.94.30.13/index.php");
         var request = http.MultipartRequest("POST", uri);
 
         request.fields['description'] = _descriptionController.text;

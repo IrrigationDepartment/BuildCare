@@ -37,7 +37,7 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   bool _isLoading = false;
   String? _userId;
 
-  final String _serverUrl = 'https://buildcare.atigalle.x10.mx/';
+  final String _serverUrl = 'http://98.94.30.13/';
 
   @override
   void initState() {

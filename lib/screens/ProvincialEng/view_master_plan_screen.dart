@@ -6,7 +6,7 @@ class ViewMasterPlanScreen extends StatelessWidget {
   static const Color kTextColor = Color(0xFF333333);
   
   // Base URL derived from your screenshot
-  final String baseUrl = "https://buildcare.atigalle.x10.mx/MasterPlan/";
+  final String baseUrl = "http://98.94.30.13/MasterPlan/";
 
   // List of filenames seen in your screenshot
   final List<String> masterPlans = const [
