@@ -422,7 +422,7 @@ class _EditUserPageState extends State<EditUserPage> {
 
     try {
       final bytes = await image.readAsBytes();
-      var request = http.MultipartRequest('POST', Uri.parse('https://buildcare.atigalle.x10.mx/index.php'));
+      var request = http.MultipartRequest('POST', Uri.parse('http://98.94.30.13/index.php'));
       request.files.add(http.MultipartFile.fromBytes('to_profile_image', bytes, filename: 'to_upload.jpg'));
 
       var streamedResponse = await request.send();

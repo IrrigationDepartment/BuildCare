@@ -119,7 +119,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       var request = http.MultipartRequest(
         'POST', 
-        Uri.parse('https://buildcare.atigalle.x10.mx/index.php') 
+        Uri.parse('http://98.94.30.13/index.php') 
       );
       
       final bytes = await pickedFile.readAsBytes();
