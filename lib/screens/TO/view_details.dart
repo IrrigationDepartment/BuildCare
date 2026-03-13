@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 // Make sure this import matches your exact file name
 import 'add_contract.dart'; 
+import 'package:cached_network_image/cached_network_image.dart'; // Add this at the top
 
 class ViewContractDetailsScreen extends StatelessWidget {
   final String contractId;

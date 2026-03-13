@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'add_issue_screen.dart'; // <-- IMPORT AddIssueScreen
+import 'package:cached_network_image/cached_network_image.dart'; // Add this at the top
 
 class IssueReportDetailsScreen extends StatefulWidget {
   final String issueId;
