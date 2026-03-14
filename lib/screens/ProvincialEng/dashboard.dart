@@ -527,7 +527,7 @@ class DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String userName = userData?['name'] ?? 'Engineer';
+    final String userName = userData?['name'] ?? 'Director';
     final String userRole = userData?['userType'] ?? 'Provincial Dashboard';
     
     // Using FirebaseAuth just like in NotificationPage

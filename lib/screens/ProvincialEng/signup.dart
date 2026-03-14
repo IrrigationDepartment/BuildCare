@@ -24,7 +24,7 @@ class _ProvincialEngRegistrationPageState
 
   // Controllers
   final _userTypeController =
-      TextEditingController(text: 'Provincial Engineer');
+      TextEditingController(text: 'Provincial Director');
   final _nameController = TextEditingController();
   final _nicController = TextEditingController();
   final _emailController = TextEditingController();
@@ -201,7 +201,7 @@ class _ProvincialEngRegistrationPageState
           'office': _selectedOffice,
           'officePhone': _officePhoneController.text.trim(),
           'mobilePhone': _mobileController.text.trim(),
-          'userType': 'Provincial Engineer',
+          'userType': 'Provincial Director',
           'createdAt': Timestamp.now(),
           'isActive': _initialIsActiveStatus,
           'profile_image': _defaultProfileImageUrl,
@@ -287,7 +287,7 @@ class _ProvincialEngRegistrationPageState
                       const Icon(Icons.architecture_outlined, size: 56, color: Colors.blueAccent),
                       const SizedBox(height: 16),
                       const Text(
-                        'Provincial Engineer Signup',
+                        'Provincial Director Signup',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 26,
@@ -789,7 +789,7 @@ class _ProvincialEngLoginPageState extends State<ProvincialEngLoginPage> {
                       const Icon(Icons.person_pin_circle_outlined, size: 80, color: Colors.blueAccent),
                       const SizedBox(height: 16),
                       const Text(
-                        'Provincial Engineer',
+                        'Provincial Director',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 24,
