@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 
 import 'dashboard.dart';
+import '../../login.dart'; // IMPORTANT: Adjust this path if it shows a red line!
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -108,7 +109,6 @@ class _ProfilePageState extends State<ProfilePage> {
         if (jsonResponse['status'] == 'success') {
           String newImageUrl = jsonResponse['profileImageUrl'];
 
-          
           await FirebaseFirestore.instance
               .collection('users')
               .doc(currentUser!.uid)
@@ -174,6 +174,69 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() => _isUpdating = false);
     }
   }
+
+  // --- NEW LOGOUT LOGIC ---
+  Future<void> _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      
+      if (!mounted) return;
+      
+      // Navigate to your Login Screen and clear the history
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()), // Make sure class name is correct!
+        (route) => false,
+      );
+      
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error logging out: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Logout', 
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+            style: TextStyle(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); 
+                _logout(); 
+              },
+              child: const Text(
+                'Logout', 
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // -------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -275,6 +338,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     
                     const SizedBox(height: 40),
                     
+                    // --- SAVE BUTTON ---
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -290,6 +354,33 @@ class _ProfilePageState extends State<ProfilePage> {
                                 style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                     ),
+
+                    const SizedBox(height: 15),
+
+                    // --- NEW LOGOUT BUTTON ---
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton(
+                        onPressed: _isUpdating ? null : _confirmLogout,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red.shade500,
+                          side: BorderSide(color: Colors.red.shade500, width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.logout_rounded),
+                            SizedBox(width: 8),
+                            Text('Logout', 
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // -------------------------
+                    
                   ],
                 ),
               ),
