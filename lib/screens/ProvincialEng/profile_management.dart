@@ -9,7 +9,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Import the dashboard to use the CustomBottomNavBar
 import 'dashboard.dart' as dashboard;
-import 'app_settings.dart'; // Ensure Settings is imported
+import 'app_settings.dart'; 
+
+// --- THE FIX: Importing your login.dart file based on your folder structure ---
+import '../../login.dart'; 
+// -----------------------------------------------------------------------------
 
 class ProfileManagementPage extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -241,6 +245,65 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       setState(() => _isLoading = false);
     }
   }
+
+  // --- FIXED LOGOUT LOGIC ---
+  Future<void> _logout() async {
+    try {
+      await _auth.signOut();
+      
+      if (!mounted) return;
+      
+      // Directly push the login screen and wipe out the back-button history
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()), 
+        (route) => false,
+      );
+      
+    } catch (e) {
+      _showSnackBar('Error logging out: $e', Colors.red);
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Logout', 
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+            style: TextStyle(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); 
+                _logout(); 
+              },
+              child: const Text(
+                'Logout', 
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // -------------------------
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -662,6 +725,8 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
                 ),
               ),
               const SizedBox(height: 40),
+              
+              // --- SAVE CHANGES BUTTON ---
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -724,7 +789,38 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              
+              const SizedBox(height: 24),
+              
+              // --- NEW LOGOUT BUTTON ---
+              OutlinedButton(
+                onPressed: _isLoading ? null : _confirmLogout,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red.shade600,
+                  side: BorderSide(color: Colors.red.shade600, width: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size(double.infinity, 56),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout_rounded),
+                    SizedBox(width: 8),
+                    Text(
+                      'Logout',
+                      style: TextStyle(
+                        fontSize: 16, 
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // -------------------------
+
+              const SizedBox(height: 40),
             ],
           ),
         ),
