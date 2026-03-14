@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for logout
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 import 'settings_page.dart';
 import 'dashboard.dart';
+import '../../login.dart'; 
 
 class ProfilePage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -210,6 +212,69 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // --- NEW LOGOUT LOGIC ---
+  Future<void> _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      
+      if (!mounted) return;
+      
+      // Navigate to your Login Screen and clear the history
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()), 
+        (route) => false,
+      );
+      
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error logging out: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Logout', 
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+            style: TextStyle(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _logout(); // Call the logout function
+              },
+              child: const Text(
+                'Logout', 
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // -------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -256,6 +321,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                   _buildEditableSection(),
                                   const SizedBox(height: 40),
                                   _buildSaveButton(),
+                                  const SizedBox(height: 16),
+                                  _buildLogoutButton(), // Added Logout Button
                                 ],
                               ),
                             ),
@@ -276,6 +343,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         _buildSystemInfoSection(),
                         const SizedBox(height: 40),
                         _buildSaveButton(),
+                        const SizedBox(height: 16),
+                        _buildLogoutButton(), // Added Logout Button
+                        const SizedBox(height: 20),
                       ],
                     ),
                   );
@@ -343,6 +413,34 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
+  // --- NEW LOGOUT BUTTON WIDGET ---
+  Widget _buildLogoutButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: OutlinedButton(
+        onPressed: _isUpdatingData ? null : _confirmLogout,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.red.shade600,
+          side: BorderSide(color: Colors.red.shade600, width: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.logout_rounded),
+            SizedBox(width: 8),
+            Text(
+              "LOGOUT", 
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // --------------------------------
 
   Widget _buildEditableSection() {
     return Column(
