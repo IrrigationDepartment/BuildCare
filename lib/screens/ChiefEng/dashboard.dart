@@ -11,6 +11,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Added for logout logic
+
+import '../../login.dart'; // IMPORTANT: Adjust this path to your actual login.dart file!
 
 // --- Modern Soft Light Mode Theme ---
 const Color appBackground = Color(0xFFF0F4F8); // Slightly cooler, modern light gray
@@ -104,6 +107,64 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
       }
     }
   }
+
+  // --- NEW LOGOUT LOGIC ---
+  Future<void> _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      
+      if (!mounted) return;
+      
+      // Navigate to your Login Screen and clear the history
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()), // CHANGE to LoginScreen() if your class name is different!
+        (route) => false,
+      );
+      
+    } catch (e) {
+      _showSnackBar('Error logging out: $e', Colors.red);
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Text(
+            'Logout', 
+            style: TextStyle(fontWeight: FontWeight.w800, color: textDark)
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+            style: TextStyle(color: textGrey, fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: textGrey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFEF3F2),
+                foregroundColor: const Color(0xFFD92D20),
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _logout(); // Call the logout function
+              },
+              child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // -------------------------
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -457,10 +518,12 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 const SizedBox(height: 16),
                 _buildSettingsItem(icon: Icons.notifications_none_rounded, title: 'Notifications', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsPage()))),
                 const SizedBox(height: 40),
+                
+                // --- THE UPDATED LOGOUT BUTTON ---
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () {}, 
+                    onPressed: _confirmLogout, // Hooked up to the new confirm logic
                     icon: const Icon(Icons.logout_rounded, size: 20), 
                     label: const Text('Log Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                     style: ElevatedButton.styleFrom(
@@ -472,6 +535,8 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                     ),
                   ),
                 ),
+                // ---------------------------------
+                
               ],
             ),
           ),
@@ -506,7 +571,7 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
                 Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textDark))),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: appBackground, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(color: appBackground, shape: BoxShape.circle),
                   child: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: textGrey)
                 ),
               ],
