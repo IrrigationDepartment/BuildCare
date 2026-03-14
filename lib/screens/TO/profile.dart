@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 // --- Imports ---
 import 'dashboard.dart';
+import '../../login.dart'; 
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -239,6 +240,65 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // --- NEW LOGOUT LOGIC ---
+  Future<void> _logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      
+      if (!mounted) return;
+      
+      // Directly push the login screen and wipe out the back-button history
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()), // CHANGE to LoginScreen() if your class name is different!
+        (route) => false,
+      );
+      
+    } catch (e) {
+      _showSnackBar('Error logging out: $e', Colors.redAccent);
+    }
+  }
+
+  Future<void> _confirmLogout() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            'Logout', 
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+            style: TextStyle(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop(); 
+                _logout(); 
+              },
+              child: const Text(
+                'Logout', 
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // -------------------------
+
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -376,6 +436,35 @@ class _ProfilePageState extends State<ProfilePage> {
                                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        
+                        // --- NEW LOGOUT BUTTON ---
+                        OutlinedButton(
+                          onPressed: _isUpdating ? null : _confirmLogout,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red.shade600,
+                            side: BorderSide(color: Colors.red.shade600, width: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            minimumSize: const Size(double.infinity, 56),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.logout_rounded),
+                              SizedBox(width: 8),
+                              Text(
+                                'Logout',
+                                style: TextStyle(
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // -------------------------
                         const SizedBox(height: 40),
                       ],
                     ),
