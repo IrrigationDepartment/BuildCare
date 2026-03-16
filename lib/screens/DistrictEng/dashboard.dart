@@ -84,7 +84,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
 
     Widget mainContent = SafeArea(
       child: RefreshIndicator(
-        color: Colors.blueAccent, // Login button color එකට ගැලපෙන සේ වෙනස් කරන ලදී
+        color: Colors.blueAccent, 
         onRefresh: _fetchData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -205,7 +205,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
-        // Login button එකේ වර්ණය (Colors.blueAccent) මෙහිදී භාවිතා කර ඇත
         color: Colors.blueAccent, 
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
