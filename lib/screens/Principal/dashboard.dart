@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:intl/intl.dart';
 
-// Your existing imports
+// Import your application pages
 import 'add_school_details_page.dart';
 import 'add_building_issues_page.dart';
 import 'add_school_master_plan_page.dart';
@@ -26,17 +26,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
   static const Color _accentCyan = Color(0xFF00E5FF); 
   int _previousUnreadCount = -1; 
 
-  String _getGreeting() {
-    var hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Good Morning ☀️';
-    } else if (hour < 17) {
-      return 'Good Afternoon 🌤️';
-    } else {
-      return 'Good Evening 🌙';
-    }
-  }
-
+  // Function to show a snackbar when a new notification arrives
   void _triggerNewNotificationAlert(String message) {
     SystemSound.play(SystemSoundType.click);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -62,8 +52,9 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
+  // Handle Bottom Navigation Bar taps
   void _onItemTapped(BuildContext context, int index) {
-    if (index == 1) { // Profile
+    if (index == 1) { // Profile Page
       final String principalId = widget.userData!['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '';
       
       if (principalId.isEmpty) {
@@ -72,7 +63,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       }
       
       Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage(userData: widget.userData!, userId: principalId)));
-    } else if (index == 2) { // Settings
+    } else if (index == 2) { // Settings Page
       Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
     }
   }
@@ -100,10 +91,11 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 10),
-                      // Notice we only pass context and userNic now; the names/images are fetched in real-time
+                      // Real-time Header section with updated "Welcome Back" UI
                       _buildWelcomeHeader(context, userNic),
                       const SizedBox(height: 30),
 
+                      // Quick Action Buttons
                       GridView.count(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -153,19 +145,17 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
+  // Header UI: Displays "Welcome Back", User Profile, and Designation
   Widget _buildWelcomeHeader(BuildContext context, String userNic) {
     final String userId = widget.userData!['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '';
 
-    // Wrap the header in a StreamBuilder pointing to the user's document
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(userId).snapshots(),
       builder: (context, userSnapshot) {
         
-        // Fallback variables matching the initial log-in data
         String fullName = widget.userData!['name'] ?? 'User';
         String? imageUrl = widget.userData!['profile_image'];
 
-        // If real-time data is available, override the fallbacks
         if (userSnapshot.hasData && userSnapshot.data!.exists) {
           final liveData = userSnapshot.data!.data() as Map<String, dynamic>;
           fullName = liveData['name'] ?? fullName;
@@ -182,24 +172,38 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
           child: Row(
             children: [
               CircleAvatar(
-                radius: 30, 
+                radius: 35, // Slightly larger avatar to match larger text
                 backgroundColor: _primaryColor, 
                 backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null, 
-                child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Colors.white) : null
+                child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Colors.white, size: 35) : null
               ),
               const SizedBox(width: 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start, 
                   children: [
-                    Text('Welcome, ${fullName.split(' ')[0]}!', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    // Larger Welcome Text
+                    const Text(
+                      'Welcome Back!', 
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)
+                    ),
+                    const SizedBox(height: 2),
+                    // User's Name
+                    Text(
+                      fullName, 
+                      style: TextStyle(fontSize: 16, color: Colors.grey[700], fontWeight: FontWeight.w500)
+                    ),
                     const SizedBox(height: 4),
-                    Text(_getGreeting(), style: TextStyle(fontSize: 14, color: Colors.blueGrey[600], fontWeight: FontWeight.w500)),
+                    // Principal Designation
+                    const Text(
+                      'Principal', 
+                      style: TextStyle(fontSize: 14, color: _primaryColor, fontWeight: FontWeight.bold)
+                    ),
                   ],
                 ),
               ),
               
-              // Internal StreamBuilder handling unread notification alerts
+              // Notification Icon
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('notifications')
@@ -252,7 +256,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
-  // --- REMAINDER OF HELPER WIDGETS ---
+  // Action card builder
   Widget _buildActionButton({required IconData icon, required String text, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
@@ -270,6 +274,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
+  // List of reported issues
   Widget _buildReportedIssuesSection(String userNic, bool isLargeScreen) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,6 +303,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
+  // Issue card item
   Widget _issueItem(DocumentSnapshot doc) {
     var data = doc.data() as Map<String, dynamic>;
     return Card(
