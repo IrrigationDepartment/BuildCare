@@ -160,7 +160,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                   unselectedIconTheme: IconThemeData(color: Colors.grey.shade500),
                   selectedLabelTextStyle: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
                   destinations: const [
-                    // Mehi Dashboard wenuwata Home icon eka ekathu kara
+                   
                     NavigationRailDestination(icon: Icon(Icons.home_rounded), label: Text('Home')),
                     NavigationRailDestination(icon: Icon(Icons.person_outline), label: Text('Profile')),
                     NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
@@ -176,7 +176,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
               elevation: 12,
               backgroundColor: Colors.white,
               items: const <BottomNavigationBarItem>[
-                // Bottom Navigation eke Dashboard icon eka Home icon ekata maru kara
+              
                 BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
                 BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
                 BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
