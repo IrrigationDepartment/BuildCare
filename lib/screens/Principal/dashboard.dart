@@ -22,7 +22,8 @@ class PrincipalDashboard extends StatefulWidget {
 }
 
 class _PrincipalDashboardState extends State<PrincipalDashboard> {
-  static const Color _primaryColor = Color(0xFF53BDFF);
+  // Using blueAccent consistently across the dashboard
+  static const Color _themeColor = Colors.blueAccent;
   static const Color _accentCyan = Color(0xFF00E5FF); 
   int _previousUnreadCount = -1; 
 
@@ -91,11 +92,11 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 10),
-                      // Real-time Header section with updated "Welcome Back" UI
+                      // Real-time Header section (Blue Accent Background)
                       _buildWelcomeHeader(context, userNic),
                       const SizedBox(height: 30),
 
-                      // Quick Action Buttons
+                      // Quick Action Buttons (Icons updated to Blue Accent)
                       GridView.count(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -105,7 +106,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                         childAspectRatio: isLargeScreen ? 2.5 : 4.5,
                         children: [
                           _buildActionButton(
-                            icon: Icons.add,
+                            icon: Icons.add_circle_outline,
                             text: 'School Details',
                             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AddSchoolDetailsPage(userNic: userNic))),
                           ),
@@ -134,7 +135,8 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0,
-        selectedItemColor: _primaryColor,
+        selectedItemColor: _themeColor, // Bottom navigation home icon color updated
+        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
@@ -145,7 +147,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
-  // Header UI: Displays "Welcome Back", User Profile, and Designation
+  // Header UI: Styled with blueAccent background and white fonts/icons
   Widget _buildWelcomeHeader(BuildContext context, String userNic) {
     final String userId = widget.userData!['uid'] ?? FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -165,15 +167,15 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white, 
+            color: _themeColor, 
             borderRadius: BorderRadius.circular(20), 
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)]
           ),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 35, // Slightly larger avatar to match larger text
-                backgroundColor: _primaryColor, 
+                radius: 35, 
+                backgroundColor: Colors.white24, 
                 backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null, 
                 child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Colors.white, size: 35) : null
               ),
@@ -182,28 +184,24 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start, 
                   children: [
-                    // Larger Welcome Text
                     const Text(
                       'Welcome Back!', 
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)
                     ),
                     const SizedBox(height: 2),
-                    // User's Name
                     Text(
                       fullName, 
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700], fontWeight: FontWeight.w500)
+                      style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.w500)
                     ),
                     const SizedBox(height: 4),
-                    // Principal Designation
                     const Text(
                       'Principal', 
-                      style: TextStyle(fontSize: 14, color: _primaryColor, fontWeight: FontWeight.bold)
+                      style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold)
                     ),
                   ],
                 ),
               ),
               
-              // Notification Icon
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('notifications')
@@ -224,7 +222,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                     return Stack(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.notifications_none, size: 28), 
+                          icon: const Icon(Icons.notifications_none, size: 28, color: Colors.white), 
                           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationScreen(loggedNic: userNic)))
                         ),
                         if (unreadCount > 0)
@@ -234,9 +232,10 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                             child: Container(
                               width: 10,
                               height: 10,
-                              decoration: const BoxDecoration(
-                                color: Colors.red, 
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent, 
                                 shape: BoxShape.circle,
+                                border: Border.all(color: _themeColor, width: 2)
                               ),
                             ),
                           ),
@@ -245,7 +244,7 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
                   }
                   return const Padding(
                     padding: EdgeInsets.all(8.0),
-                    child: Icon(Icons.notifications_none, size: 28),
+                    child: Icon(Icons.notifications_none, size: 28, color: Colors.white),
                   );
                 },
               ),
@@ -256,16 +255,20 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
-  // Action card builder
+  // Updated Action card builder with blueAccent icons
   Widget _buildActionButton({required IconData icon, required String text, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.withOpacity(0.1))),
+        decoration: BoxDecoration(
+          color: Colors.white, 
+          borderRadius: BorderRadius.circular(15), 
+          border: Border.all(color: Colors.grey.withOpacity(0.1))
+        ),
         child: Row(
           children: [
-            Icon(icon, color: _primaryColor, size: 28),
+            Icon(icon, color: _themeColor, size: 28), // Icon color updated to blueAccent
             const SizedBox(width: 15),
             Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
           ],
@@ -274,7 +277,6 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
-  // List of reported issues
   Widget _buildReportedIssuesSection(String userNic, bool isLargeScreen) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,16 +305,16 @@ class _PrincipalDashboardState extends State<PrincipalDashboard> {
     );
   }
 
-  // Issue card item
   Widget _issueItem(DocumentSnapshot doc) {
     var data = doc.data() as Map<String, dynamic>;
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
+        leading: const Icon(Icons.report_problem_outlined, color: _themeColor), // Added icon for visual appeal
         title: Text(data['issueTitle'] ?? 'No Title', style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text("${data['buildingName']} • ${data['status']}"),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: const Icon(Icons.chevron_right, color: _themeColor), // Chevron updated to theme color
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => IssueDetailScreen(issueData: data, issueId: doc.id, userNic: widget.userData!['nic']))),
       ),
     );
