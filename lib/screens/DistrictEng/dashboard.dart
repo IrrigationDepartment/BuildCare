@@ -84,7 +84,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
 
     Widget mainContent = SafeArea(
       child: RefreshIndicator(
-        color: const Color(0xFF1E3A8A),
+        color: Colors.blueAccent, // Login button color එකට ගැලපෙන සේ වෙනස් කරන ලදී
         onRefresh: _fetchData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -155,10 +155,10 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                   onDestinationSelected: _onItemTapped,
                   elevation: 5,
                   useIndicator: true,
-                  indicatorColor: const Color(0xFF1E3A8A).withOpacity(0.1),
-                  selectedIconTheme: const IconThemeData(color: Color(0xFF1E3A8A)),
+                  indicatorColor: Colors.blueAccent.withOpacity(0.1),
+                  selectedIconTheme: const IconThemeData(color: Colors.blueAccent),
                   unselectedIconTheme: IconThemeData(color: Colors.grey.shade500),
-                  selectedLabelTextStyle: const TextStyle(color: Color(0xFF1E3A8A), fontWeight: FontWeight.bold),
+                  selectedLabelTextStyle: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
                   destinations: const [
                     NavigationRailDestination(icon: Icon(Icons.dashboard_rounded), label: Text('Dashboard')),
                     NavigationRailDestination(icon: Icon(Icons.person_outline), label: Text('Profile')),
@@ -180,7 +180,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                 BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
               ],
               currentIndex: _selectedIndex,
-              selectedItemColor: const Color(0xFF1E3A8A),
+              selectedItemColor: Colors.blueAccent,
               unselectedItemColor: Colors.grey.shade400,
               showUnselectedLabels: true,
               type: BottomNavigationBarType.fixed,
@@ -190,7 +190,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
   }
 
   Widget _buildTopHeader() {
-    
     final User? currentUser = FirebaseAuth.instance.currentUser;
     final String currentUserId = currentUser?.uid ?? '';
     final DateTime? userCreationTime = currentUser?.metadata.creationTime;
@@ -200,25 +199,18 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
       query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
     }
 
-    
     final userName = widget.userData['name'] ?? 'User';
     final userType = widget.userData['userType'] ?? 'District Engineer';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF5B42F3), 
-            Color(0xFF2A1C9A),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        // Login button එකේ වර්ණය (Colors.blueAccent) මෙහිදී භාවිතා කර ඇත
+        color: Colors.blueAccent, 
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2A1C9A).withOpacity(0.3),
+            color: Colors.blueAccent.withOpacity(0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           )
