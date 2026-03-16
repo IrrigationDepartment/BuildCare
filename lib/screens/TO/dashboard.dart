@@ -51,10 +51,10 @@ class TODashboard extends StatefulWidget {
 
 class _DashboardScreenState extends State<TODashboard> {
   // ====================================================================
-  // EYE-CATCHING MODERN COLOR PALETTE
+  // UPDATED COLOR PALETTE (Matches Login Button)
   // ====================================================================
-  static const Color kPrimaryColor = Color(0xFF4F46E5); // Indigo 600
-  static const Color kPrimaryDark = Color(0xFF312E81); // Indigo 900
+  static const Color kPrimaryColor = Colors.blueAccent; // Login button color
+  static const Color kPrimaryDark = Color(0xFF2962FF); // Darker shade for gradient depth
   static const Color kAccentColor = Color(0xFFEC4899); // Pink 500 (For badges)
   static const Color kBackgroundColor = Color(0xFFF8FAFC); // Slate 50
   static const Color kCardColor = Colors.white;
@@ -310,7 +310,7 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- STUNNING GRADIENT HEADER ---
+  // --- STUNNING GRADIENT HEADER (Updated to Blue Accent) ---
   Widget _buildWelcomeHeader() {
     String userRole = widget.userData['userType'] ?? 'User';
     String userOffice = widget.userData['office'] ?? '';
@@ -394,7 +394,6 @@ class _DashboardScreenState extends State<TODashboard> {
                 ),
               ),
               
-              // Safe in-memory stream filter to avoid Firestore composite index crashes
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('notifications')
@@ -404,7 +403,6 @@ class _DashboardScreenState extends State<TODashboard> {
                     return const SizedBox();
                   }
 
-                  // Compare timestamps safely inside Dart
                   final userCreationTime = FirebaseAuth.instance.currentUser?.metadata.creationTime;
                   final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
                   int newNotificationsCount = 0;
@@ -414,7 +412,6 @@ class _DashboardScreenState extends State<TODashboard> {
                     final timestamp = data['timestamp'] as Timestamp?;
                     final readByUsers = data['readBy'] as List<dynamic>? ?? [];
                     
-                    // Check if the current user has NOT read it yet
                     if (!readByUsers.contains(currentUserId)) {
                       if (timestamp != null && userCreationTime != null) {
                         if (timestamp.toDate().isAfter(userCreationTime)) {
@@ -426,12 +423,10 @@ class _DashboardScreenState extends State<TODashboard> {
                     }
                   }
 
-                  // If no notifications are new, hide the red dot
                   if (newNotificationsCount == 0) {
                     return const SizedBox();
                   }
 
-                  // Show simple elegant red dot if there are new notifications
                   return Positioned(
                     right: 8,
                     top: 8,
@@ -441,7 +436,7 @@ class _DashboardScreenState extends State<TODashboard> {
                       decoration: BoxDecoration(
                         color: Colors.redAccent,
                         shape: BoxShape.circle,
-                        border: Border.all(color: kPrimaryDark, width: 2.5), // Makes it pop off the background
+                        border: Border.all(color: kPrimaryDark, width: 2.5), 
                       ),
                     ),
                   );
@@ -454,7 +449,6 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // A reusable section title for consistency
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -471,7 +465,6 @@ class _DashboardScreenState extends State<TODashboard> {
     String userRole = widget.userData['userType'] ?? '';
     List<Widget> menuItems = [];
 
-    // --- COMMON ITEMS FOR EVERYONE ---
     menuItems.addAll([
       _buildMenuCard(
           icon: Icons.school_rounded,
@@ -482,14 +475,12 @@ class _DashboardScreenState extends State<TODashboard> {
           title: 'Issues\nReport',
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => IssueReportListScreen(userNic: widget.userData['nic'] ?? '')))),
       
-      // --- NEW ADD ISSUE CARD ---
       _buildMenuCard(
           icon: Icons.add_circle_outline_rounded,
           title: 'Report\nNew Issue',
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AddIssueScreen(userNic: widget.userData['nic'] ?? '')))),
     ]);
 
-    // --- ROLE SPECIFIC ITEMS ---
     if (userRole == 'District Engineer' || userRole == 'Technical Officer') {
       menuItems.addAll([
         _buildMenuCard(
@@ -525,7 +516,6 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- MODERN GLASS/TINTED MENU CARDS ---
   Widget _buildMenuCard(
       {required IconData icon,
       required String title,
@@ -623,7 +613,6 @@ class _DashboardScreenState extends State<TODashboard> {
     );
   }
 
-  // --- MODERN LIST TILES ---
   Widget _buildActivityCard(
       {required String title,
       required String subtitle,
