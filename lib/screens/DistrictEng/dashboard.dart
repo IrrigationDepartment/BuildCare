@@ -160,7 +160,8 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
                   unselectedIconTheme: IconThemeData(color: Colors.grey.shade500),
                   selectedLabelTextStyle: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
                   destinations: const [
-                    NavigationRailDestination(icon: Icon(Icons.dashboard_rounded), label: Text('Dashboard')),
+                    // Mehi Dashboard wenuwata Home icon eka ekathu kara
+                    NavigationRailDestination(icon: Icon(Icons.home_rounded), label: Text('Home')),
                     NavigationRailDestination(icon: Icon(Icons.person_outline), label: Text('Profile')),
                     NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
                   ],
@@ -175,7 +176,8 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
               elevation: 12,
               backgroundColor: Colors.white,
               items: const <BottomNavigationBarItem>[
-                BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
+                // Bottom Navigation eke Dashboard icon eka Home icon ekata maru kara
+                BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
                 BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
                 BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
               ],
@@ -219,7 +221,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Profile Info Section
           Expanded(
             child: Row(
               children: [
@@ -261,8 +262,6 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
             ),
           ),
           const SizedBox(width: 16),
-          
-          // Notification Section
           StreamBuilder<QuerySnapshot>(
             stream: query.snapshots(),
             builder: (context, snapshot) {
