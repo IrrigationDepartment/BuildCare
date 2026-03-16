@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for logout
+import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -32,7 +32,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   List<Map<String, dynamic>> _availableSchools = [];
 
-  static const Color _primaryColor = Color(0xFF53BDFF);
+  // Updated Theme Color to Blue Accent
+  static const Color _primaryColor = Colors.blueAccent;
 
   // Controllers
   late TextEditingController _nameController;
@@ -45,7 +46,6 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Initialize image from the passed userData
     _profileImageUrl = widget.userData['profile_image'];
     
     _nameController = TextEditingController(text: widget.userData['name'] ?? '');
@@ -72,7 +72,7 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  // --- FETCHING ---
+  // --- DATABASE FETCHING ---
   Future<void> _fetchSchoolsForAutocomplete() async {
     try {
       QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('schools').get();
@@ -119,21 +119,10 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isUploadingImage = true);
 
     try {
-      var request = http.MultipartRequest(
-        'POST', 
-        Uri.parse('http://98.94.30.13/index.php') 
-      );
-      
+      var request = http.MultipartRequest('POST', Uri.parse('http://98.94.30.13/index.php'));
       final bytes = await pickedFile.readAsBytes();
       
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'profile_image', 
-          bytes,
-          filename: 'upload.jpg',
-        ),
-      );
-      
+      request.files.add(http.MultipartFile.fromBytes('profile_image', bytes, filename: 'upload.jpg'));
       request.fields['userId'] = widget.userId; 
 
       var streamedResponse = await request.send();
@@ -141,40 +130,28 @@ class _ProfilePageState extends State<ProfilePage> {
       
       if (response.statusCode == 200) {
         Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-
         if (jsonResponse['status'] == 'success') {
           String newImageUrl = jsonResponse['profileImageUrl'];
-
-          DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
-          await userRef.set({
+          await FirebaseFirestore.instance.collection('users').doc(widget.userId).set({
             'profile_image': newImageUrl,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
-          setState(() {
-            _profileImageUrl = newImageUrl;
-          });
+          setState(() => _profileImageUrl = newImageUrl);
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile Photo Updated!"), backgroundColor: Colors.green));
           }
-        } else {
-           throw Exception(jsonResponse['message'] ?? "Server reported failure");
         }
-      } else {
-        throw Exception('Server Error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint("Image upload error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed: $e"), backgroundColor: Colors.red));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload failed: $e"), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isUploadingImage = false);
     }
   }
 
-  // --- DATA UPDATE LOGIC ---
+  // --- PROFILE DATA UPDATE ---
   Future<void> _updateProfileData() async {
     String typedSchoolName = (_autoCompleteController?.text ?? _schoolNameController.text).trim();
 
@@ -186,15 +163,11 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isUpdatingData = true);
 
     try {
-      String typedSchoolPhone = _schoolPhoneController.text.trim();
-
-      DocumentReference userRef = FirebaseFirestore.instance.collection('users').doc(widget.userId);
-      
-      await userRef.set({
+      await FirebaseFirestore.instance.collection('users').doc(widget.userId).set({
         'name': _nameController.text.trim(),
         'mobilePhone': _phoneController.text.trim(),
         'schoolName': typedSchoolName,
-        'officePhone': typedSchoolPhone,
+        'officePhone': _schoolPhoneController.text.trim(),
         'profile_image': _profileImageUrl, 
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -205,32 +178,23 @@ class _ProfilePageState extends State<ProfilePage> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile updated successfully!"), backgroundColor: Colors.green));
       }
     } catch (e) {
-      debugPrint("Update error: $e");
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       if (mounted) setState(() => _isUpdatingData = false);
     }
   }
 
-  // --- NEW LOGOUT LOGIC ---
+  // --- LOGOUT LOGIC ---
   Future<void> _logout() async {
     try {
       await FirebaseAuth.instance.signOut();
-      
       if (!mounted) return;
-      
-      // Navigate to your Login Screen and clear the history
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()), 
         (route) => false,
       );
-      
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error logging out: $e'), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -240,40 +204,20 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text(
-            'Logout', 
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)
-          ),
-          content: const Text(
-            'Are you sure you want to log out of your account?',
-            style: TextStyle(color: Colors.black87),
-          ),
+          title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text('Are you sure you want to log out?'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                _logout(); // Call the logout function
-              },
-              child: const Text(
-                'Logout', 
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
+              onPressed: () { Navigator.pop(context); _logout(); },
+              child: const Text('Logout', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
       },
     );
   }
-  // -------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -289,68 +233,22 @@ class _ProfilePageState extends State<ProfilePage> {
       body: _isLoadingData 
         ? const Center(child: CircularProgressIndicator()) 
         : SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                bool isWideScreen = constraints.maxWidth > 800;
-
-                if (isWideScreen) {
-                  return Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1000),
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(32),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                children: [
-                                  _buildProfileImage(),
-                                  const SizedBox(height: 32),
-                                  _buildSystemInfoSection(),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 48),
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildEditableSection(),
-                                  const SizedBox(height: 40),
-                                  _buildSaveButton(),
-                                  const SizedBox(height: 16),
-                                  _buildLogoutButton(), // Added Logout Button
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                } else {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        _buildProfileImage(),
-                        const SizedBox(height: 32),
-                        _buildEditableSection(),
-                        const SizedBox(height: 24),
-                        _buildSystemInfoSection(),
-                        const SizedBox(height: 40),
-                        _buildSaveButton(),
-                        const SizedBox(height: 16),
-                        _buildLogoutButton(), // Added Logout Button
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  );
-                }
-              },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  _buildProfileImage(),
+                  const SizedBox(height: 32),
+                  _buildEditableSection(),
+                  const SizedBox(height: 24),
+                  _buildSystemInfoSection(),
+                  const SizedBox(height: 40),
+                  _buildSaveButton(),
+                  const SizedBox(height: 16),
+                  _buildLogoutButton(),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
     );
@@ -364,21 +262,15 @@ class _ProfilePageState extends State<ProfilePage> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: _primaryColor, width: 3),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
             ),
             child: CircleAvatar(
               radius: 70,
               backgroundColor: Colors.grey[100],
-              backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) 
-                  ? NetworkImage(_profileImageUrl!) 
-                  : null,
-              child: (_profileImageUrl == null || _profileImageUrl!.isEmpty)
-                  ? const Icon(Icons.person, size: 70, color: Colors.grey)
-                  : null,
+              backgroundImage: (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) ? NetworkImage(_profileImageUrl!) : null,
+              child: (_profileImageUrl == null || _profileImageUrl!.isEmpty) ? const Icon(Icons.person, size: 70, color: Colors.grey) : null,
             ),
           ),
-          if (_isUploadingImage)
-            const Positioned.fill(child: CircularProgressIndicator(strokeWidth: 4)),
           Positioned(
             bottom: 4,
             right: 4,
@@ -386,7 +278,7 @@ class _ProfilePageState extends State<ProfilePage> {
               onTap: _isUploadingImage ? null : _pickAndUploadImage,
               child: const CircleAvatar(
                 radius: 22,
-                backgroundColor: _primaryColor,
+                backgroundColor: _primaryColor, // Camera Icon background
                 child: Icon(Icons.camera_alt, color: Colors.white, size: 20),
               ),
             ),
@@ -403,7 +295,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: ElevatedButton(
         onPressed: _isUpdatingData ? null : _updateProfileData,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _primaryColor,
+          backgroundColor: _primaryColor, // Button color updated
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           elevation: 0,
         ),
@@ -414,13 +306,12 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // --- NEW LOGOUT BUTTON WIDGET ---
   Widget _buildLogoutButton() {
     return SizedBox(
       width: double.infinity,
       height: 55,
       child: OutlinedButton(
-        onPressed: _isUpdatingData ? null : _confirmLogout,
+        onPressed: _confirmLogout,
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.red.shade600,
           side: BorderSide(color: Colors.red.shade600, width: 2),
@@ -431,30 +322,24 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Icon(Icons.logout_rounded),
             SizedBox(width: 8),
-            Text(
-              "LOGOUT", 
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)
-            ),
+            Text("LOGOUT", style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
       ),
     );
   }
-  // --------------------------------
 
   Widget _buildEditableSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("PERSONAL DETAILS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 1.1)),
+        const Text("PERSONAL DETAILS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
         const SizedBox(height: 16),
         _buildTextField("Full Name", _nameController, Icons.person_outline),
         _buildTextField("Mobile Number", _phoneController, Icons.phone_android),
-        
         const SizedBox(height: 12),
-        const Text("SCHOOL DETAILS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 1.1)),
+        const Text("SCHOOL DETAILS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
         const SizedBox(height: 16),
-        
         Autocomplete<Map<String, dynamic>>(
           initialValue: TextEditingValue(text: _schoolNameController.text),
           optionsBuilder: (textValue) => _availableSchools.where((s) => s['schoolName'].toString().toLowerCase().contains(textValue.text.toLowerCase())),
@@ -477,7 +362,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("SYSTEM RECORDS (LOCKED)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12, letterSpacing: 1.1)),
+        const Text("SYSTEM RECORDS (LOCKED)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
         const SizedBox(height: 12),
         _buildLockedCard("Email", widget.userData['email'] ?? 'N/A', Icons.alternate_email),
         _buildLockedCard("NIC Number", widget.userData['nic'] ?? 'N/A', Icons.badge_outlined),
@@ -493,7 +378,7 @@ class _ProfilePageState extends State<ProfilePage> {
         focusNode: focusNode,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: _primaryColor),
+          prefixIcon: Icon(icon, color: _primaryColor), // Icon color updated
           filled: true,
           fillColor: Colors.grey[50],
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[200]!)),
@@ -514,7 +399,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.grey, size: 20),
+          Icon(icon, color: _primaryColor, size: 20), // Icon color updated to Blue Accent
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
