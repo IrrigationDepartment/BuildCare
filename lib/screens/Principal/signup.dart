@@ -23,15 +23,16 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // Focus Node for NIC checking
+  // Focus Nodes
   final _nicFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode(); // Password focus node එක අලුතින් එක් කළා
 
   // Dropdown States
   String? _selectedSchoolType;
   final List<String> _schoolTypes = ['Provincial', 'Government'];
 
   String? _selectedDistrict;
-  final List<String> _districts = ['Galle', 'Matara', 'Hambantota']; 
+  final List<String> _districts = ['Galle', 'Matara', 'Hambantota'];
 
   // Autocomplete Data
   List<String> _availableSchools = [];
@@ -40,13 +41,21 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
-  
+
   // State for NIC Validation
   bool _isCheckingNic = false;
   bool _isNicDuplicate = false;
-  
+
+  // --- Password validation UI state (අලුතින් එක් කළා) ---
+  bool _isPasswordFocused = false;
+  bool _has8Chars = false;
+  bool _hasLowercase = false;
+  bool _hasUppercase = false;
+  bool _hasNumber = false;
+  bool _hasSpecialChar = false;
+
   // Default values
-  final bool _initialIsActiveStatus = false; 
+  final bool _initialIsActiveStatus = false;
   final String _defaultProfileImageUrl =
       'https://t4.ftcdn.net/jpg/00/64/67/63/360_F_64676383_Ldbm8TwlbnL43PId23vLdI3MgqhaNYf5.jpg';
 
@@ -55,6 +64,14 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     super.initState();
     _nicFocusNode.addListener(_onNicFocusChange);
     _fetchSchoolsForAutocomplete();
+
+    // Password validation listeners
+    _passwordController.addListener(_validatePassword);
+    _passwordFocusNode.addListener(() {
+      setState(() {
+        _isPasswordFocused = _passwordFocusNode.hasFocus;
+      });
+    });
   }
 
   @override
@@ -67,20 +84,37 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     _principalMobileController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    
+    _passwordController.removeListener(_validatePassword);
     _nicFocusNode.removeListener(_onNicFocusChange);
     _nicFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
+  }
+
+  // --- PASSWORD VALIDATION LOGIC ---
+  void _validatePassword() {
+    final password = _passwordController.text;
+    setState(() {
+      _has8Chars = password.length >= 8;
+      _hasLowercase = RegExp(r'[a-z]').hasMatch(password);
+      _hasUppercase = RegExp(r'[A-Z]').hasMatch(password);
+      _hasNumber = RegExp(r'[0-9]').hasMatch(password);
+      _hasSpecialChar = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password);
+    });
   }
 
   // --- FETCH SCHOOLS FOR AUTOCOMPLETE ---
   Future<void> _fetchSchoolsForAutocomplete() async {
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('schools').get();
+      QuerySnapshot snapshot =
+          await FirebaseFirestore.instance.collection('schools').get();
       if (mounted) {
         setState(() {
           _availableSchools = snapshot.docs
-              .map((doc) => (doc.data() as Map<String, dynamic>)['schoolName']?.toString() ?? '')
+              .map((doc) =>
+                  (doc.data() as Map<String, dynamic>)['schoolName']
+                      ?.toString() ??
+                  '')
               .where((name) => name.isNotEmpty)
               .toList();
         });
@@ -99,10 +133,9 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
   Future<void> _checkNicDuplication() async {
     final nic = _nicController.text.trim().toUpperCase();
-
     if (nic.isEmpty) return;
     final nicRegex = RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
-    if (!nicRegex.hasMatch(nic)) return; 
+    if (!nicRegex.hasMatch(nic)) return;
 
     setState(() {
       _isCheckingNic = true;
@@ -134,10 +167,22 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
   // --- REGISTRATION LOGIC ---
   Future<void> _registerUser() async {
-    FocusScope.of(context).unfocus(); 
-    
+    FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) {
-      return; 
+      return;
+    }
+
+    // Password requirements check (අලුතින් එක් කළා)
+    if (!_has8Chars ||
+        !_hasLowercase ||
+        !_hasUppercase ||
+        !_hasNumber ||
+        !_hasSpecialChar) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.orange,
+          content: Text('Please ensure the password meets all security requirements.')));
+      return;
     }
 
     await _checkNicDuplication();
@@ -150,7 +195,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       );
       return;
     }
-    
+
     setState(() => _isLoading = true);
 
     try {
@@ -164,22 +209,25 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
       if (uid != null) {
         final userData = {
-          'uid': uid, // FIXED: Added this so the dashboard can identify the unique user
-          'userType': 'Principal', 
+          'uid': uid,
+          'userType': 'Principal',
           'nic': _nicController.text.trim().toUpperCase(),
           'schoolName': _schoolNameController.text.trim(),
           'schoolType': _selectedSchoolType,
-          'office': _selectedDistrict, 
+          'office': _selectedDistrict,
           'email': _schoolEmailController.text.trim(),
           'officePhone': _schoolPhoneController.text.trim(),
           'name': _principalNameController.text.trim(),
           'mobilePhone': _principalMobileController.text.trim(),
           'createdAt': Timestamp.now(),
-          'isActive': _initialIsActiveStatus, 
+          'isActive': _initialIsActiveStatus,
           'profile_image': _defaultProfileImageUrl,
         };
 
-        await FirebaseFirestore.instance.collection('users').doc(uid).set(userData);
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(userData);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -215,11 +263,10 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100, 
+      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -228,9 +275,10 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600), 
+              constraints: const BoxConstraints(maxWidth: 600),
               child: Container(
                 padding: const EdgeInsets.all(40.0),
                 decoration: BoxDecoration(
@@ -249,7 +297,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(Icons.school, size: 56, color: Colors.blueAccent),
+                      const Icon(Icons.school,
+                          size: 56, color: Colors.blueAccent),
                       const SizedBox(height: 16),
                       const Text(
                         'Principal Registration',
@@ -264,50 +313,55 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                       Text(
                         'Register your school and administrative account',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                        style:
+                            TextStyle(fontSize: 15, color: Colors.grey.shade600),
                       ),
                       const SizedBox(height: 32),
 
                       _buildReadOnlyDropdown('User Type', 'Principal'),
-                      
-                      _buildSchoolTypeDropdown(), 
-                      _buildDistrictDropdown(), 
-
+                      _buildSchoolTypeDropdown(),
+                      _buildDistrictDropdown(),
                       _buildSchoolAutocompleteField(),
-                      
+
                       _buildTextFormField(
                         controller: _nicController,
                         labelText: 'Principal NIC Number',
                         icon: Icons.badge_outlined,
                         focusNode: _nicFocusNode,
-                        errorText: _isNicDuplicate ? 'This NIC is already registered' : null,
-                        suffixIcon: _isCheckingNic 
+                        errorText: _isNicDuplicate
+                            ? 'This NIC is already registered'
+                            : null,
+                        suffixIcon: _isCheckingNic
                             ? const Padding(
                                 padding: EdgeInsets.all(14.0),
                                 child: SizedBox(
-                                  width: 16, height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
                                 ),
-                              ) 
+                              )
                             : null,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'This field cannot be empty';
                           }
-                          final nicRegex = RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
+                          final nicRegex =
+                              RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
                           if (!nicRegex.hasMatch(value.trim())) {
                             return 'Enter a valid SL NIC (e.g., 123456789V)';
                           }
                           return null;
                         },
                       ),
-                      
+
                       _buildTextFormField(
                         controller: _principalNameController,
                         labelText: 'Principal Name',
                         icon: Icons.person_outline,
-                        validator: (value) =>
-                            value!.isEmpty ? 'Please enter the principal\'s name' : null,
+                        validator: (value) => value!.isEmpty
+                            ? 'Please enter the principal\'s name'
+                            : null,
                       ),
 
                       _buildTextFormField(
@@ -315,7 +369,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                         labelText: 'Principal\'s Mobile Number',
                         icon: Icons.phone_iphone,
                         keyboardType: TextInputType.phone,
-                          validator: (value) {
+                        validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'This field cannot be empty';
                           }
@@ -353,21 +407,31 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                           if (value == null || value.isEmpty) {
                             return 'This field cannot be empty';
                           }
-                          final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                          final emailRegex = RegExp(
+                              r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
                           if (!emailRegex.hasMatch(value.trim())) {
                             return 'Enter a valid email address';
                           }
                           return null;
                         },
                       ),
-                      
+
                       const Divider(height: 40),
-                      Text('Password & Security', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                      Text('Password & Security',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700)),
                       const SizedBox(height: 16),
 
                       _buildPasswordFormField(),
+                      // Password Validation UI එක මෙතැනට එක් කළා
+                      if (_isPasswordFocused)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0, left: 4.0),
+                          child: _buildPasswordValidationUI(),
+                        ),
                       _buildConfirmPasswordFormField(),
-                      
+
                       const SizedBox(height: 32),
 
                       _isLoading
@@ -377,31 +441,36 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blueAccent,
                                 elevation: 2,
-                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 18),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
-                              child: const Text(
-                                'Complete Registration', 
-                                style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)
-                              ),
+                              child: const Text('Complete Registration',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2)),
                             ),
                       const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Already Registered?", style: TextStyle(color: Colors.grey.shade700)),
+                          Text("Already Registered?",
+                              style: TextStyle(color: Colors.grey.shade700)),
                           const SizedBox(width: 4),
                           TextButton(
-                            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
-                            child: const Text(
-                              'Sign In',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blueAccent),
-                            ),
+                            onPressed: () => Navigator.of(context)
+                                .popUntil((route) => route.isFirst),
+                            style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero),
+                            child: const Text('Sign In',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueAccent)),
                           ),
                         ],
                       )
@@ -416,14 +485,64 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     );
   }
 
-  // --- HELPER WIDGETS ---
+  // --- PASSWORD VALIDATION UI HELPERS ---
+  Widget _buildPasswordValidationUI() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildValidationRow('At least 8 characters', _has8Chars),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains a lowercase letter', _hasLowercase),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains an uppercase letter', _hasUppercase),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains a number', _hasNumber),
+          const SizedBox(height: 4),
+          _buildValidationRow('Contains a special character', _hasSpecialChar),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildValidationRow(String text, bool isValid) {
+    return Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.remove_circle_outline,
+          color: isValid ? Colors.green : Colors.grey.shade500,
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            color: isValid ? Colors.green : Colors.grey.shade600,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- UI COMPONENTS ---
   Widget _buildSchoolAutocompleteField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('School Name', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          const Text('School Name',
+              style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  fontSize: 14)),
           const SizedBox(height: 8),
           Autocomplete<String>(
             optionsBuilder: (TextEditingValue textEditingValue) {
@@ -431,30 +550,36 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                 return const Iterable<String>.empty();
               }
               return _availableSchools.where((String option) {
-                return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                return option
+                    .toLowerCase()
+                    .contains(textEditingValue.text.toLowerCase());
               });
             },
             onSelected: (String selection) {
               _schoolNameController.text = selection;
             },
-            fieldViewBuilder: (BuildContext context, TextEditingController fieldTextEditingController, FocusNode fieldFocusNode, VoidCallback onFieldSubmitted) {
+            fieldViewBuilder: (BuildContext context,
+                TextEditingController fieldTextEditingController,
+                FocusNode fieldFocusNode,
+                VoidCallback onFieldSubmitted) {
               fieldTextEditingController.addListener(() {
                 _schoolNameController.text = fieldTextEditingController.text;
               });
-              
+
               return TextFormField(
                 controller: fieldTextEditingController,
                 focusNode: fieldFocusNode,
                 style: const TextStyle(color: Colors.black87),
                 decoration: _inputDecoration(
-                  icon: Icons.account_balance_outlined,
-                  suffixIcon: const Tooltip(
-                    message: "Select from list or type custom name",
-                    child: Icon(Icons.info_outline, color: Colors.grey, size: 20),
-                  )
-                ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Please enter the school name' : null,
+                    icon: Icons.account_balance_outlined,
+                    suffixIcon: const Tooltip(
+                      message: "Select from list or type custom name",
+                      child:
+                          Icon(Icons.info_outline, color: Colors.grey, size: 20),
+                    )),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter the school name'
+                    : null,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
               );
             },
@@ -465,7 +590,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                   elevation: 4.0,
                   borderRadius: BorderRadius.circular(12),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 200, maxWidth: 450), 
+                    constraints:
+                        const BoxConstraints(maxHeight: 200, maxWidth: 450),
                     child: ListView.builder(
                       padding: EdgeInsets.zero,
                       shrinkWrap: true,
@@ -478,7 +604,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                           },
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
-                            child: Text(option, style: const TextStyle(color: Colors.black87)),
+                            child: Text(option,
+                                style: const TextStyle(color: Colors.black87)),
                           ),
                         );
                       },
@@ -508,14 +635,19 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(labelText, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          Text(labelText,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
             keyboardType: keyboardType,
             focusNode: focusNode,
             style: const TextStyle(color: Colors.black87),
-            decoration: _inputDecoration(icon: icon, suffixIcon: suffixIcon, errorText: errorText),
+            decoration: _inputDecoration(
+                icon: icon, suffixIcon: suffixIcon, errorText: errorText),
             validator: validator,
             autovalidateMode: AutovalidateMode.onUserInteraction,
           ),
@@ -530,22 +662,33 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Principal\'s Password (Min 6 characters)', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          const Text('Principal\'s Password',
+              style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
             controller: _passwordController,
+            focusNode: _passwordFocusNode,
             obscureText: !_isPasswordVisible,
             style: const TextStyle(color: Colors.black87),
             decoration: _inputDecoration(
-              icon: Icons.lock_outline,
-              suffixIcon: IconButton(
-                icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey.shade600),
-                onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-              )
-            ),
+                icon: Icons.lock_outline,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: Colors.grey.shade600),
+                  onPressed: () =>
+                      setState(() => _isPasswordVisible = !_isPasswordVisible),
+                )),
             validator: (value) {
               if (value == null || value.isEmpty) return 'Please enter a password';
-              if (value.length < 6) return 'Password must be at least 6 characters';
+              if (!_has8Chars || !_hasLowercase || !_hasUppercase || !_hasNumber || !_hasSpecialChar) {
+                return 'Please meet all password requirements';
+              }
               return null;
             },
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -561,22 +704,32 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Confirm Password', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          const Text('Confirm Password',
+              style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
             controller: _confirmPasswordController,
             obscureText: !_isConfirmPasswordVisible,
             style: const TextStyle(color: Colors.black87),
             decoration: _inputDecoration(
-              icon: Icons.lock_outline,
-              suffixIcon: IconButton(
-                icon: Icon(_isConfirmPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.grey.shade600),
-                onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
-              )
-            ),
+                icon: Icons.lock_outline,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                      _isConfirmPasswordVisible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: Colors.grey.shade600),
+                  onPressed: () => setState(() =>
+                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                )),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Please confirm your password';
-              if (value != _passwordController.text) return 'Passwords do not match';
+              if (value == null || value.isEmpty)
+                return 'Please confirm your password';
+              if (value != _passwordController.text)
+                return 'Passwords do not match';
               return null;
             },
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -592,7 +745,11 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('School Type', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          const Text('School Type',
+              style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: _selectedSchoolType,
@@ -605,7 +762,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
             items: _schoolTypes.map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(value: value, child: Text(value));
             }).toList(),
-            validator: (value) => value == null ? 'Please select a school type' : null,
+            validator: (value) =>
+                value == null ? 'Please select a school type' : null,
           ),
         ],
       ),
@@ -618,7 +776,11 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('School District', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          const Text('School District',
+              style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: _selectedDistrict,
@@ -631,7 +793,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
             items: _districts.map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(value: value, child: Text(value));
             }).toList(),
-            validator: (value) => value == null ? 'Please select a district' : null,
+            validator: (value) =>
+                value == null ? 'Please select a district' : null,
           ),
         ],
       ),
@@ -644,18 +807,26 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
+          Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
             initialValue: value,
             readOnly: true,
             style: const TextStyle(color: Colors.black54),
             decoration: InputDecoration(
-              prefixIcon: Icon(Icons.work_outline, color: Colors.blueAccent.shade200),
+              prefixIcon:
+                  Icon(Icons.work_outline, color: Colors.blueAccent.shade200),
               filled: true,
               fillColor: Colors.grey.shade100,
-              contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16.0), borderSide: BorderSide.none),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.0),
+                  borderSide: BorderSide.none),
             ),
           ),
         ],
@@ -663,14 +834,18 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     );
   }
 
-  InputDecoration _inputDecoration({IconData? icon, Widget? suffixIcon, String? errorText}) {
+  InputDecoration _inputDecoration(
+      {IconData? icon, Widget? suffixIcon, String? errorText}) {
     return InputDecoration(
-      prefixIcon: icon != null ? Icon(icon, color: Colors.blueAccent.shade200) : null,
+      prefixIcon: icon != null
+          ? Icon(icon, color: Colors.blueAccent.shade200)
+          : null,
       suffixIcon: suffixIcon,
       errorText: errorText,
       filled: true,
       fillColor: Colors.grey.shade50,
-      contentPadding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
+      contentPadding:
+          const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16.0),
         borderSide: BorderSide(color: Colors.grey.shade300),
