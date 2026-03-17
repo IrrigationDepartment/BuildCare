@@ -12,6 +12,8 @@ class PrincipalRegistrationPage extends StatefulWidget {
 
 class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   final _formKey = GlobalKey<FormState>();
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
 
   // Controllers for fields
   final _nicController = TextEditingController();
@@ -25,7 +27,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
 
   // Focus Nodes
   final _nicFocusNode = FocusNode();
-  final _passwordFocusNode = FocusNode(); // Password focus node එක අලුතින් එක් කළා
+  final _passwordFocusNode = FocusNode();
 
   // Dropdown States
   String? _selectedSchoolType;
@@ -42,11 +44,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
-  // State for NIC Validation
-  bool _isCheckingNic = false;
-  bool _isNicDuplicate = false;
-
-  // --- Password validation UI state (අලුතින් එක් කළා) ---
+  // Password validation UI state
   bool _isPasswordFocused = false;
   bool _has8Chars = false;
   bool _hasLowercase = false;
@@ -54,15 +52,17 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
 
+  // NIC Duplicate state
+  bool _isCheckingNic = false;
+  bool _isNicDuplicate = false;
+
   // Default values
-  final bool _initialIsActiveStatus = false;
   final String _defaultProfileImageUrl =
       'https://t4.ftcdn.net/jpg/00/64/67/63/360_F_64676383_Ldbm8TwlbnL43PId23vLdI3MgqhaNYf5.jpg';
 
   @override
   void initState() {
     super.initState();
-    _nicFocusNode.addListener(_onNicFocusChange);
     _fetchSchoolsForAutocomplete();
 
     // Password validation listeners
@@ -71,6 +71,13 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       setState(() {
         _isPasswordFocused = _passwordFocusNode.hasFocus;
       });
+    });
+
+    // NIC focus listener for duplication check
+    _nicFocusNode.addListener(() {
+      if (!_nicFocusNode.hasFocus) {
+        _checkNicExists(_nicController.text.trim());
+      }
     });
   }
 
@@ -84,8 +91,6 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     _principalMobileController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _passwordController.removeListener(_validatePassword);
-    _nicFocusNode.removeListener(_onNicFocusChange);
     _nicFocusNode.dispose();
     _passwordFocusNode.dispose();
     super.dispose();
@@ -106,15 +111,11 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   // --- FETCH SCHOOLS FOR AUTOCOMPLETE ---
   Future<void> _fetchSchoolsForAutocomplete() async {
     try {
-      QuerySnapshot snapshot =
-          await FirebaseFirestore.instance.collection('schools').get();
+      QuerySnapshot snapshot = await _firestore.collection('schools').get();
       if (mounted) {
         setState(() {
           _availableSchools = snapshot.docs
-              .map((doc) =>
-                  (doc.data() as Map<String, dynamic>)['schoolName']
-                      ?.toString() ??
-                  '')
+              .map((doc) => (doc.data() as Map<String, dynamic>)['schoolName']?.toString() ?? '')
               .where((name) => name.isNotEmpty)
               .toList();
         });
@@ -124,140 +125,149 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     }
   }
 
-  // --- NIC CHECK LOGIC ---
-  void _onNicFocusChange() {
-    if (!_nicFocusNode.hasFocus) {
-      _checkNicDuplication();
+  // --- NIC DUPLICATE CHECK LOGIC ---
+  Future<bool> _checkNicExists(String nic) async {
+    if (nic.isEmpty) return false;
+    
+    // Check if it contains lowercase 'v' before firestore call
+    if (nic.contains('v')) {
+      setState(() => _isNicDuplicate = false);
+      return false;
     }
-  }
 
-  Future<void> _checkNicDuplication() async {
-    final nic = _nicController.text.trim().toUpperCase();
-    if (nic.isEmpty) return;
-    final nicRegex = RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
-    if (!nicRegex.hasMatch(nic)) return;
-
-    setState(() {
-      _isCheckingNic = true;
-      _isNicDuplicate = false;
-    });
-
+    setState(() => _isCheckingNic = true);
     try {
-      final query = await FirebaseFirestore.instance
+      final querySnapshot = await _firestore
           .collection('users')
-          .where('nic', isEqualTo: nic)
+          .where('nic', isEqualTo: nic.toUpperCase())
           .limit(1)
           .get();
 
-      if (mounted) {
-        setState(() {
-          _isNicDuplicate = query.docs.isNotEmpty;
-        });
-      }
+      setState(() {
+        _isNicDuplicate = querySnapshot.docs.isNotEmpty;
+        _isCheckingNic = false;
+      });
+      return _isNicDuplicate;
     } catch (e) {
-      debugPrint("Error checking NIC: $e");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCheckingNic = false;
-        });
-      }
+      debugPrint('Error checking NIC: $e');
+      setState(() => _isCheckingNic = false);
+      return false;
     }
+  }
+
+  // --- ERROR DIALOG ---
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 28),
+              const SizedBox(width: 10),
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(message, style: const TextStyle(fontSize: 16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK', style: TextStyle(fontSize: 16, color: Colors.blueAccent)),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          ],
+        );
+      },
+    );
   }
 
   // --- REGISTRATION LOGIC ---
   Future<void> _registerUser() async {
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    // Password requirements check (අලුතින් එක් කළා)
-    if (!_has8Chars ||
-        !_hasLowercase ||
-        !_hasUppercase ||
-        !_hasNumber ||
-        !_hasSpecialChar) {
+    // Check password requirements
+    if (!_has8Chars || !_hasLowercase || !_hasUppercase || !_hasNumber || !_hasSpecialChar) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           backgroundColor: Colors.orange,
           content: Text('Please ensure the password meets all security requirements.')));
       return;
     }
 
-    await _checkNicDuplication();
-    if (_isNicDuplicate) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.redAccent,
-          content: Text('This NIC is already registered. Please check again.'),
-        ),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
-      UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Final NIC Duplicate Check
+      final nicExists = await _checkNicExists(_nicController.text.trim());
+      if (nicExists) {
+        setState(() => _isLoading = false);
+        _showErrorDialog(
+          'NIC Already Exists',
+          'A user with NIC number "${_nicController.text.trim().toUpperCase()}" is already registered.',
+        );
+        return;
+      }
+
+      // Create Firebase Auth Account
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _schoolEmailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      String? uid = userCredential.user?.uid;
+      final String uid = userCredential.user!.uid;
 
-      if (uid != null) {
-        final userData = {
-          'uid': uid,
-          'userType': 'Principal',
-          'nic': _nicController.text.trim().toUpperCase(),
-          'schoolName': _schoolNameController.text.trim(),
-          'schoolType': _selectedSchoolType,
-          'office': _selectedDistrict,
-          'email': _schoolEmailController.text.trim(),
-          'officePhone': _schoolPhoneController.text.trim(),
-          'name': _principalNameController.text.trim(),
-          'mobilePhone': _principalMobileController.text.trim(),
-          'createdAt': Timestamp.now(),
-          'isActive': _initialIsActiveStatus,
-          'profile_image': _defaultProfileImageUrl,
-        };
+      // Update Auth Display Name
+      await userCredential.user!.updateDisplayName(_principalNameController.text.trim());
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .set(userData);
+      // Save to Firestore
+      await _firestore.collection('users').doc(uid).set({
+        'uid': uid,
+        'userType': 'Principal',
+        'nic': _nicController.text.trim().toUpperCase(),
+        'schoolName': _schoolNameController.text.trim(),
+        'schoolType': _selectedSchoolType,
+        'office': _selectedDistrict,
+        'email': _schoolEmailController.text.trim().toLowerCase(),
+        'officePhone': _schoolPhoneController.text.trim(),
+        'name': _principalNameController.text.trim(),
+        'mobilePhone': _principalMobileController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'isActive': false,
+        'profile_image': _defaultProfileImageUrl,
+        'emailVerified': false,
+      });
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                backgroundColor: Colors.green,
-                content: Text(
-                    'Registration successful! Your account is currently pending approval.')),
-          );
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
+      // Send Verification Email
+      await userCredential.user!.sendEmailVerification();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.green,
+            content: Text('✓ Registration Successful! Verification email sent to ${_schoolEmailController.text.trim()}'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        });
       }
     } on FirebaseAuthException catch (e) {
-      String message = 'Registration failed. Please try again.';
-      if (e.code == 'weak-password') {
-        message = 'The password provided is too weak.';
-      } else if (e.code == 'email-already-in-use') {
-        message = 'The email address is already in use by another account.';
-      } else if (e.code == 'invalid-email') {
-        message = 'The email address is not valid.';
+      String errorMessage = 'Registration Failed';
+      String errorDetails = e.message ?? 'An unknown error occurred.';
+
+      if (e.code == 'email-already-in-use') {
+        errorMessage = 'Email Already Registered';
+        errorDetails = 'An account with email "${_schoolEmailController.text.trim()}" already exists.';
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.redAccent, content: Text(message)));
-      }
+
+      _showErrorDialog(errorMessage, errorDetails);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.redAccent,
-            content: Text('Registration failed: $e')));
-      }
+      _showErrorDialog('Registration Failed', 'An unexpected error occurred: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -275,8 +285,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
               child: Container(
@@ -297,24 +306,18 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(Icons.school,
-                          size: 56, color: Colors.blueAccent),
+                      const Icon(Icons.school, size: 56, color: Colors.blueAccent),
                       const SizedBox(height: 16),
                       const Text(
                         'Principal Registration',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Register your school and administrative account',
                         textAlign: TextAlign.center,
-                        style:
-                            TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                       ),
                       const SizedBox(height: 32),
 
@@ -323,33 +326,28 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                       _buildDistrictDropdown(),
                       _buildSchoolAutocompleteField(),
 
+                      // --- UPDATED NIC FIELD ---
                       _buildTextFormField(
                         controller: _nicController,
                         labelText: 'Principal NIC Number',
                         icon: Icons.badge_outlined,
                         focusNode: _nicFocusNode,
-                        errorText: _isNicDuplicate
-                            ? 'This NIC is already registered'
-                            : null,
+                        errorText: _isNicDuplicate ? 'This NIC is already registered' : null,
                         suffixIcon: _isCheckingNic
-                            ? const Padding(
-                                padding: EdgeInsets.all(14.0),
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
-                                ),
-                              )
+                            ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(4.0), child: CircularProgressIndicator(strokeWidth: 2)))
                             : null,
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'This field cannot be empty';
+                          if (value == null || value.isEmpty) return 'NIC cannot be empty';
+                          
+                          // Reject simple 'v' or 'x'
+                          if (value.contains('v') || value.contains('x')) {
+                            return 'Simple "v" or "x" is not allowed. Use Capital "V" or "X"';
                           }
-                          final nicRegex =
-                              RegExp(r'(^(\d{12})|(\d{9}[vVxX])$)');
+
+                          // Regex strictly for Uppercase V/X or 12 digits
+                          final nicRegex = RegExp(r'^(\d{9}[VX]|\d{12})$');
                           if (!nicRegex.hasMatch(value.trim())) {
-                            return 'Enter a valid SL NIC (e.g., 123456789V)';
+                            return 'Invalid format. Use 123456789V or 12 digits';
                           }
                           return null;
                         },
@@ -359,9 +357,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                         controller: _principalNameController,
                         labelText: 'Principal Name',
                         icon: Icons.person_outline,
-                        validator: (value) => value!.isEmpty
-                            ? 'Please enter the principal\'s name'
-                            : null,
+                        validator: (value) => value!.isEmpty ? 'Please enter the principal\'s name' : null,
                       ),
 
                       _buildTextFormField(
@@ -370,13 +366,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                         icon: Icons.phone_iphone,
                         keyboardType: TextInputType.phone,
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'This field cannot be empty';
-                          }
-                          final phoneRegex = RegExp(r'^\d{10}$');
-                          if (!phoneRegex.hasMatch(value.trim())) {
-                            return 'Enter a valid 10-digit mobile number';
-                          }
+                          if (value == null || value.isEmpty) return 'This field cannot be empty';
+                          if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) return 'Enter a valid 10-digit mobile number';
                           return null;
                         },
                       ),
@@ -387,13 +378,8 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'This field cannot be empty';
-                          }
-                          final phoneRegex = RegExp(r'^\d{10}$');
-                          if (!phoneRegex.hasMatch(value.trim())) {
-                            return 'Enter a valid 10-digit phone number';
-                          }
+                          if (value == null || value.isEmpty) return 'This field cannot be empty';
+                          if (!RegExp(r'^\d{10}$').hasMatch(value.trim())) return 'Enter a valid 10-digit phone number';
                           return null;
                         },
                       ),
@@ -404,27 +390,17 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'This field cannot be empty';
-                          }
-                          final emailRegex = RegExp(
-                              r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-                          if (!emailRegex.hasMatch(value.trim())) {
-                            return 'Enter a valid email address';
-                          }
+                          if (value == null || value.isEmpty) return 'This field cannot be empty';
+                          if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) return 'Enter a valid email address';
                           return null;
                         },
                       ),
 
                       const Divider(height: 40),
-                      Text('Password & Security',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade700)),
+                      Text('Password & Security', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
                       const SizedBox(height: 16),
 
                       _buildPasswordFormField(),
-                      // Password Validation UI එක මෙතැනට එක් කළා
                       if (_isPasswordFocused)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16.0, left: 4.0),
@@ -441,36 +417,22 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blueAccent,
                                 elevation: 2,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 18),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 18),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
                               child: const Text('Complete Registration',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.2)),
+                                  style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                             ),
                       const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Already Registered?",
-                              style: TextStyle(color: Colors.grey.shade700)),
+                          Text("Already Registered?", style: TextStyle(color: Colors.grey.shade700)),
                           const SizedBox(width: 4),
                           TextButton(
-                            onPressed: () => Navigator.of(context)
-                                .popUntil((route) => route.isFirst),
-                            style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: Size.zero),
-                            child: const Text('Sign In',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blueAccent)),
+                            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                            child: const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent)),
                           ),
                         ],
                       )
@@ -485,7 +447,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
     );
   }
 
-  // --- PASSWORD VALIDATION UI HELPERS ---
+  // --- Helper Widgets ---
   Widget _buildPasswordValidationUI() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -514,109 +476,10 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   Widget _buildValidationRow(String text, bool isValid) {
     return Row(
       children: [
-        Icon(
-          isValid ? Icons.check_circle : Icons.remove_circle_outline,
-          color: isValid ? Colors.green : Colors.grey.shade500,
-          size: 16,
-        ),
+        Icon(isValid ? Icons.check_circle : Icons.remove_circle_outline, color: isValid ? Colors.green : Colors.grey.shade500, size: 16),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            color: isValid ? Colors.green : Colors.grey.shade600,
-            fontSize: 13,
-          ),
-        ),
+        Text(text, style: TextStyle(color: isValid ? Colors.green : Colors.grey.shade600, fontSize: 13)),
       ],
-    );
-  }
-
-  // --- UI COMPONENTS ---
-  Widget _buildSchoolAutocompleteField() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('School Name',
-              style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  fontSize: 14)),
-          const SizedBox(height: 8),
-          Autocomplete<String>(
-            optionsBuilder: (TextEditingValue textEditingValue) {
-              if (textEditingValue.text.isEmpty) {
-                return const Iterable<String>.empty();
-              }
-              return _availableSchools.where((String option) {
-                return option
-                    .toLowerCase()
-                    .contains(textEditingValue.text.toLowerCase());
-              });
-            },
-            onSelected: (String selection) {
-              _schoolNameController.text = selection;
-            },
-            fieldViewBuilder: (BuildContext context,
-                TextEditingController fieldTextEditingController,
-                FocusNode fieldFocusNode,
-                VoidCallback onFieldSubmitted) {
-              fieldTextEditingController.addListener(() {
-                _schoolNameController.text = fieldTextEditingController.text;
-              });
-
-              return TextFormField(
-                controller: fieldTextEditingController,
-                focusNode: fieldFocusNode,
-                style: const TextStyle(color: Colors.black87),
-                decoration: _inputDecoration(
-                    icon: Icons.account_balance_outlined,
-                    suffixIcon: const Tooltip(
-                      message: "Select from list or type custom name",
-                      child:
-                          Icon(Icons.info_outline, color: Colors.grey, size: 20),
-                    )),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Please enter the school name'
-                    : null,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-              );
-            },
-            optionsViewBuilder: (context, onSelected, options) {
-              return Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  elevation: 4.0,
-                  borderRadius: BorderRadius.circular(12),
-                  child: ConstrainedBox(
-                    constraints:
-                        const BoxConstraints(maxHeight: 200, maxWidth: 450),
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: options.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final String option = options.elementAt(index);
-                        return InkWell(
-                          onTap: () {
-                            onSelected(option);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Text(option,
-                                style: const TextStyle(color: Colors.black87)),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
     );
   }
 
@@ -635,19 +498,13 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(labelText,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  fontSize: 14)),
+          Text(labelText, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
             controller: controller,
             keyboardType: keyboardType,
             focusNode: focusNode,
-            style: const TextStyle(color: Colors.black87),
-            decoration: _inputDecoration(
-                icon: icon, suffixIcon: suffixIcon, errorText: errorText),
+            decoration: _inputDecoration(icon: icon, suffixIcon: suffixIcon, errorText: errorText),
             validator: validator,
             autovalidateMode: AutovalidateMode.onUserInteraction,
           ),
@@ -657,115 +514,47 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   }
 
   Widget _buildPasswordFormField() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Principal\'s Password',
-              style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  fontSize: 14)),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _passwordController,
-            focusNode: _passwordFocusNode,
-            obscureText: !_isPasswordVisible,
-            style: const TextStyle(color: Colors.black87),
-            decoration: _inputDecoration(
-                icon: Icons.lock_outline,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.grey.shade600),
-                  onPressed: () =>
-                      setState(() => _isPasswordVisible = !_isPasswordVisible),
-                )),
-            validator: (value) {
-              if (value == null || value.isEmpty) return 'Please enter a password';
-              if (!_has8Chars || !_hasLowercase || !_hasUppercase || !_hasNumber || !_hasSpecialChar) {
-                return 'Please meet all password requirements';
-              }
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-          ),
-        ],
+    return _buildTextFormField(
+      controller: _passwordController,
+      focusNode: _passwordFocusNode,
+      labelText: 'Principal\'s Password',
+      icon: Icons.lock_outline,
+      suffixIcon: IconButton(
+        icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+        onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
       ),
+      validator: (value) {
+        if (value == null || value.isEmpty) return 'Password cannot be empty';
+        if (!_has8Chars || !_hasLowercase || !_hasUppercase || !_hasNumber || !_hasSpecialChar) {
+          return 'Please meet requirements';
+        }
+        return null;
+      },
     );
   }
 
   Widget _buildConfirmPasswordFormField() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Confirm Password',
-              style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  fontSize: 14)),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: _confirmPasswordController,
-            obscureText: !_isConfirmPasswordVisible,
-            style: const TextStyle(color: Colors.black87),
-            decoration: _inputDecoration(
-                icon: Icons.lock_outline,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                      _isConfirmPasswordVisible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      color: Colors.grey.shade600),
-                  onPressed: () => setState(() =>
-                      _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
-                )),
-            validator: (value) {
-              if (value == null || value.isEmpty)
-                return 'Please confirm your password';
-              if (value != _passwordController.text)
-                return 'Passwords do not match';
-              return null;
-            },
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-          ),
-        ],
+    return _buildTextFormField(
+      controller: _confirmPasswordController,
+      labelText: 'Confirm Password',
+      icon: Icons.lock_outline,
+      suffixIcon: IconButton(
+        icon: Icon(_isConfirmPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+        onPressed: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
       ),
+      validator: (value) => value != _passwordController.text ? 'Passwords do not match' : null,
     );
   }
 
   Widget _buildSchoolTypeDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('School Type',
-              style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  fontSize: 14)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _selectedSchoolType,
-            hint: const Text('Select School Type'),
-            style: const TextStyle(color: Colors.black87, fontSize: 16),
-            decoration: _inputDecoration(icon: Icons.category_outlined),
-            onChanged: (String? newValue) {
-              setState(() => _selectedSchoolType = newValue);
-            },
-            items: _schoolTypes.map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(value: value, child: Text(value));
-            }).toList(),
-            validator: (value) =>
-                value == null ? 'Please select a school type' : null,
-          ),
-        ],
+      child: DropdownButtonFormField<String>(
+        value: _selectedSchoolType,
+        decoration: _inputDecoration(icon: Icons.category_outlined, labelText: 'School Type'),
+        items: _schoolTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+        onChanged: (v) => setState(() => _selectedSchoolType = v),
+        validator: (v) => v == null ? 'Required' : null,
       ),
     );
   }
@@ -773,30 +562,31 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   Widget _buildDistrictDropdown() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('School District',
-              style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  fontSize: 14)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _selectedDistrict,
-            hint: const Text('Select School District'),
-            style: const TextStyle(color: Colors.black87, fontSize: 16),
-            decoration: _inputDecoration(icon: Icons.location_city_outlined),
-            onChanged: (String? newValue) {
-              setState(() => _selectedDistrict = newValue);
-            },
-            items: _districts.map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(value: value, child: Text(value));
-            }).toList(),
-            validator: (value) =>
-                value == null ? 'Please select a district' : null,
-          ),
-        ],
+      child: DropdownButtonFormField<String>(
+        value: _selectedDistrict,
+        decoration: _inputDecoration(icon: Icons.location_city_outlined, labelText: 'District'),
+        items: _districts.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+        onChanged: (v) => setState(() => _selectedDistrict = v),
+        validator: (v) => v == null ? 'Required' : null,
+      ),
+    );
+  }
+
+  Widget _buildSchoolAutocompleteField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Autocomplete<String>(
+        optionsBuilder: (v) => _availableSchools.where((s) => s.toLowerCase().contains(v.text.toLowerCase())),
+        onSelected: (s) => _schoolNameController.text = s,
+        fieldViewBuilder: (ctx, ctrl, focus, onSub) {
+          ctrl.addListener(() => _schoolNameController.text = ctrl.text);
+          return TextFormField(
+            controller: ctrl,
+            focusNode: focus,
+            decoration: _inputDecoration(icon: Icons.account_balance_outlined, labelText: 'School Name'),
+            validator: (v) => v!.isEmpty ? 'Required' : null,
+          );
+        },
       ),
     );
   }
@@ -804,68 +594,24 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   Widget _buildReadOnlyDropdown(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                  fontSize: 14)),
-          const SizedBox(height: 8),
-          TextFormField(
-            initialValue: value,
-            readOnly: true,
-            style: const TextStyle(color: Colors.black54),
-            decoration: InputDecoration(
-              prefixIcon:
-                  Icon(Icons.work_outline, color: Colors.blueAccent.shade200),
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.0),
-                  borderSide: BorderSide.none),
-            ),
-          ),
-        ],
+      child: TextFormField(
+        initialValue: value,
+        readOnly: true,
+        decoration: _inputDecoration(icon: Icons.work_outline, labelText: label, fillColor: Colors.grey.shade100),
       ),
     );
   }
 
-  InputDecoration _inputDecoration(
-      {IconData? icon, Widget? suffixIcon, String? errorText}) {
+  InputDecoration _inputDecoration({IconData? icon, String? labelText, Widget? suffixIcon, String? errorText, Color? fillColor}) {
     return InputDecoration(
-      prefixIcon: icon != null
-          ? Icon(icon, color: Colors.blueAccent.shade200)
-          : null,
+      labelText: labelText,
+      prefixIcon: icon != null ? Icon(icon, color: Colors.blueAccent.shade200) : null,
       suffixIcon: suffixIcon,
       errorText: errorText,
       filled: true,
-      fillColor: Colors.grey.shade50,
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16.0),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16.0),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16.0),
-        borderSide: const BorderSide(color: Colors.blueAccent, width: 2.0),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16.0),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16.0),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 2.0),
-      ),
+      fillColor: fillColor ?? Colors.grey.shade50,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.grey.shade300)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.blueAccent, width: 2)),
     );
   }
 }
