@@ -15,7 +15,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  // Controllers for fields
+  // Form Controllers
   final _nicController = TextEditingController();
   final _schoolNameController = TextEditingController();
   final _schoolEmailController = TextEditingController();
@@ -32,17 +32,18 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   // Dropdown States
   String? _selectedSchoolType;
   final List<String> _schoolTypes = ['Provincial', 'Government'];
-
   String? _selectedDistrict;
   final List<String> _districts = ['Galle', 'Matara', 'Hambantota'];
 
-  // Autocomplete Data
+  // Data for school autocomplete
   List<String> _availableSchools = [];
 
-  // State for UI
+  // General UI States
   bool _isLoading = false;
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
+  bool _isCheckingNic = false;
+  bool _isNicDuplicate = false;
 
   // Password validation UI state
   bool _isPasswordFocused = false;
@@ -51,10 +52,6 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   bool _hasUppercase = false;
   bool _hasNumber = false;
   bool _hasSpecialChar = false;
-
-  // NIC Duplicate state
-  bool _isCheckingNic = false;
-  bool _isNicDuplicate = false;
 
   // Default values
   final String _defaultProfileImageUrl =
@@ -129,7 +126,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
   Future<bool> _checkNicExists(String nic) async {
     if (nic.isEmpty) return false;
     
-    // Check if it contains lowercase 'v' before firestore call
+    // Skip Firestore call if simple 'v' is present to avoid unnecessary reads
     if (nic.contains('v')) {
       setState(() => _isNicDuplicate = false);
       return false;
@@ -326,7 +323,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                       _buildDistrictDropdown(),
                       _buildSchoolAutocompleteField(),
 
-                      // --- UPDATED NIC FIELD ---
+                      // --- NIC FIELD (Strictly Capital V) ---
                       _buildTextFormField(
                         controller: _nicController,
                         labelText: 'Principal NIC Number',
@@ -339,13 +336,13 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
                         validator: (value) {
                           if (value == null || value.isEmpty) return 'NIC cannot be empty';
                           
-                          // Reject simple 'v' or 'x'
-                          if (value.contains('v') || value.contains('x')) {
-                            return 'Simple "v" or "x" is not allowed. Use Capital "V" or "X"';
+                          // Error message for simple 'v'
+                          if (value.contains('v')) {
+                            return 'Simple "v" is not allowed. Use Capital "V"';
                           }
 
-                          // Regex strictly for Uppercase V/X or 12 digits
-                          final nicRegex = RegExp(r'^(\d{9}[VX]|\d{12})$');
+                          // Regex strictly for Uppercase V or 12 digits (Removed X)
+                          final nicRegex = RegExp(r'^(\d{9}V|\d{12})$');
                           if (!nicRegex.hasMatch(value.trim())) {
                             return 'Invalid format. Use 123456789V or 12 digits';
                           }
