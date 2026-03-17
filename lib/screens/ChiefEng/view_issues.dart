@@ -1176,19 +1176,32 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                           child: FutureBuilder<QuerySnapshot>(
                               future: _fetchUserDetails(reviewerNic),
                               builder: (context, userSnap) {
+                                if (userSnap.connectionState == ConnectionState.waiting) {
+                                  return Text(
+                                    "Loading reviewer details...",
+                                    style: TextStyle(
+                                      color: Colors.teal.shade700,
+                                      fontSize: 12,
+                                    ),
+                                  );
+                                }
+                                
                                 if (userSnap.hasData &&
                                     userSnap.data!.docs.isNotEmpty) {
                                   var usr = userSnap.data!.docs.first.data()
                                       as Map<String, dynamic>;
+                                  String name = usr['name'] ?? '';
+                                  String role = usr['userType'] ?? 'Chief Engineer';
+
                                   return Text(
-                                    "${usr['name'] ?? 'Vihanga Manodhya'} (${usr['userType'] ?? 'Chief Engineer'})",
+                                    "$name ($role)",
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.teal.shade900),
                                   );
                                 }
                                 return Text(
-                                    "Vihanga Manodhya (Provincial Engineer)",
+                                    " (Chief Engineer)",
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.teal.shade900));
