@@ -1,542 +1,1360 @@
-import 'package:buildcare/screens/ChiefEng/chief_notification.dart';
-import 'package:buildcare/screens/ChiefEng/contract_details_page.dart';
-import 'package:buildcare/screens/ChiefEng/sample/change_password_chied.dart';
-import 'package:buildcare/screens/ChiefEng/sample/edit_profile_page.dart';
-import 'package:buildcare/screens/ChiefEng/sample/sequrty_question_page.dart';
-import 'package:buildcare/screens/ChiefEng/services_page_chief.dart';
-import 'package:buildcare/screens/ChiefEng/view_contractor_detail.dart';
-import 'package:buildcare/screens/ChiefEng/view_dage_detail_page.dart';
-import 'package:buildcare/screens/ChiefEng/view_school_masterplan_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for logout logic
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rxdart/rxdart.dart';
 
-import '../../login.dart'; // IMPORTANT: Adjust this path to your actual login.dart file!
+// --- PAGE IMPORTS ---
+import 'view_issues.dart';
+import 'contractors_list.dart';
+import 'contract_list.dart';
+import 'notifications.dart'; 
+import 'school_analysis.dart'; 
+import 'schools_directory.dart'; // <-- ADDED: Import for the all schools/directory page
 
-// --- Modern Soft Light Mode Theme ---
-const Color appBackground = Color(0xFFF0F4F8); // Slightly cooler, modern light gray
-const Color primaryBlue = Color(0xFF1877F2);
-const Color primaryBlueDark = Color(0xFF0C56C7); // Added for gradient
-const Color textDark = Color(0xFF111418);
-const Color textGrey = Color(0xFF717680);
+// --- REGISTRATION PAGE IMPORTS ---
+import 'add_ce.dart';
+import 'add_de.dart';
+import 'add_to.dart';
+import 'add_principal.dart';
+import 'add_contractor_screen.dart';
+import 'add_contract.dart';
+import 'profile_management.dart';
+import 'app_settings.dart';
 
-// Sleek modern gradient
-const Gradient primaryGradient = LinearGradient(
-  colors: [primaryBlue, primaryBlueDark],
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-);
+import 'user_management/user_list_page.dart';
 
-class ChiefEngDashboard extends StatefulWidget {
-  final Map<String, dynamic> userData;
-  const ChiefEngDashboard({super.key, required this.userData});
+// -----------------------------------------------------------------------------
+// --- HELPER CLASS: ActivityItem ---
+// -----------------------------------------------------------------------------
+class ActivityItem {
+  final DocumentSnapshot snapshot;
+  final String itemType;
+  final DateTime timestamp;
 
-  @override
-  State<ChiefEngDashboard> createState() => _ChiefEngineerDashboardState();
+  ActivityItem({
+    required this.snapshot,
+    required this.itemType,
+    required this.timestamp,
+  });
 }
 
-class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
-  int _selectedIndex = 0;
-  String? _profileImageUrl;
-  bool _isUploading = false;
-  final ImagePicker _picker = ImagePicker();
+// -----------------------------------------------------------------------------
+// --- Dashboard Screen (Main Dashboard) ---
+// -----------------------------------------------------------------------------
+class ChiefEngDashboard extends StatefulWidget {
+  final Map<String, dynamic>? userData;
+
+  const ChiefEngDashboard({super.key, this.userData});
+
+  @override
+  State<ChiefEngDashboard> createState() =>
+      _ChiefEngDashboardState();
+}
+
+class _ChiefEngDashboardState extends State<ChiefEngDashboard> {
+  late final Stream<List<ActivityItem>> _activityStream;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-    _loadExistingImage();
+    _initializeActivityStream();
   }
 
-  // --- EXISTING LOGIC RETAINED ---
-  Future<void> _loadExistingImage() async {
+  DateTime _safeExtractTimestamp(DocumentSnapshot doc, String fieldName) {
     try {
-      String userId = widget.userData['uid'] ?? '';
-      if (userId.isEmpty) return;
-      DocumentSnapshot doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (doc.exists && doc.data() != null) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        if (data.containsKey('profileImage') && data['profileImage'] != null) {
-          setState(() => _profileImageUrl = data['profileImage']);
-        }
-      }
-    } catch (e) { print('Error loading image: $e'); }
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 500, maxHeight: 500, imageQuality: 80);
-      if (pickedFile != null) await _uploadImageToFirebase(pickedFile);
-    } catch (e) { _showSnackBar('Image can\'t select: $e', Colors.red); }
-  }
-
-  Future<void> _uploadImageToFirebase(XFile pickedFile) async {
-    setState(() => _isUploading = true);
-    try {
-      String userId = widget.userData['uid'] ?? '';
-      if (userId.isEmpty) throw Exception('User ID not found');
-      final bytes = await pickedFile.readAsBytes();
-      String fileName = 'profile_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      Reference storageRef = FirebaseStorage.instance.ref().child('profile_images').child(fileName);
-
-      if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
-        try {
-          Reference oldImageRef = FirebaseStorage.instance.refFromURL(_profileImageUrl!);
-          await oldImageRef.delete();
-        } catch (e) { print('Error deleting old image: $e'); }
-      }
-
-      UploadTask uploadTask = storageRef.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-      TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() {});
-      String downloadUrl = await taskSnapshot.ref.getDownloadURL();
-
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'profileImage': downloadUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        setState(() { _profileImageUrl = downloadUrl; _isUploading = false; });
-        _showSnackBar('Profile image uploaded successfully! ✓', Colors.green);
+      final data = doc.data() as Map<String, dynamic>;
+      if (data.containsKey(fieldName) && data[fieldName] is Timestamp) {
+        return (data[fieldName] as Timestamp).toDate();
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-        _showSnackBar('Upload failed: ${e.toString()}', Colors.red);
-      }
+      debugPrint('Error extracting timestamp: $e');
     }
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  // --- NEW LOGOUT LOGIC ---
-  Future<void> _logout() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      
-      if (!mounted) return;
-      
-      // Navigate to your Login Screen and clear the history
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginPage()), // CHANGE to LoginScreen() if your class name is different!
-        (route) => false,
-      );
-      
-    } catch (e) {
-      _showSnackBar('Error logging out: $e', Colors.red);
-    }
+  void _initializeActivityStream() {
+    Stream<List<ActivityItem>> issuesStream = _firestore
+        .collection('issues')
+        .orderBy('timestamp', descending: true)
+        .limit(5)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              return ActivityItem(
+                snapshot: doc,
+                itemType: 'issue',
+                timestamp: _safeExtractTimestamp(doc, 'timestamp'),
+              );
+            }).toList());
+
+    Stream<List<ActivityItem>> schoolsStream = _firestore
+        .collection('schools')
+        .orderBy('addedAt', descending: true)
+        .limit(5)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              return ActivityItem(
+                snapshot: doc,
+                itemType: 'school',
+                timestamp: _safeExtractTimestamp(doc, 'addedAt'),
+              );
+            }).toList());
+
+    Stream<List<ActivityItem>> usersStream = _firestore
+        .collection('users')
+        .orderBy('createdAt', descending: true)
+        .limit(5)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              return ActivityItem(
+                snapshot: doc,
+                itemType: 'user',
+                timestamp: _safeExtractTimestamp(doc, 'createdAt'),
+              );
+            }).toList());
+
+    _activityStream = CombineLatestStream.list<List<ActivityItem>>([
+      issuesStream,
+      schoolsStream,
+      usersStream,
+    ]).map((List<List<ActivityItem>> allLists) {
+      final List<ActivityItem> combinedList =
+          allLists.expand((list) => list).toList();
+      combinedList.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return combinedList.take(5).toList();
+    }).shareValue();
   }
 
-  Future<void> _confirmLogout() async {
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text(
-            'Logout', 
-            style: TextStyle(fontWeight: FontWeight.w800, color: textDark)
+  void _navigateToDetailPage(BuildContext context, ActivityItem item) {
+    final data = item.snapshot.data() as Map<String, dynamic>;
+    final docId = item.snapshot.id;
+
+    switch (item.itemType) {
+      case 'issue':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => IssueDetailPage(issueId: docId)));
+        break;
+      case 'school':
+        // Note: You can replace this basic SchoolDetailPage with the new one
+        // from schools_directory.dart if you want consistent UI. 
+        // For now, it uses the local one defined at the bottom.
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) =>
+                    SchoolDetailPage(schoolId: docId, schoolData: data)));
+        break;
+      case 'user':
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) =>
+                    UserDetailPage(userId: docId, userData: data)));
+        break;
+      default:
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Details'),
+            content: Text('Details for ${item.itemType}'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'))
+            ],
           ),
-          content: const Text(
-            'Are you sure you want to log out of your account?',
-            style: TextStyle(color: textGrey, fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: textGrey, fontWeight: FontWeight.bold)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFEF3F2),
-                foregroundColor: const Color(0xFFD92D20),
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                _logout(); // Call the logout function
-              },
-              child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
         );
-      },
-    );
+    }
   }
-  // -------------------------
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(fontWeight: FontWeight.w500)), 
-        backgroundColor: color, 
-        duration: const Duration(seconds: 2), 
-        behavior: SnackBarBehavior.floating, 
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(20),
-      )
-    );
-  }
-
-  List<Widget> get _pages => [_buildDashboardPage(), _buildProfilePage(), _buildSettingsPage()];
-  void _onItemTapped(int index) => setState(() => _selectedIndex = index);
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = MediaQuery.of(context).size.width >= 800;
+    const Color pageBackgroundColor = Color(0xFFF4F6F8);
+    double screenWidth = MediaQuery.of(context).size.width;
+    int gridCrossAxisCount =
+        screenWidth > 1000 ? 4 : (screenWidth > 600 ? 3 : 2);
 
     return Scaffold(
-      backgroundColor: appBackground,
-      extendBody: true, // Allows content to scroll behind the floating nav bar
-      body: isDesktop
-          ? Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: _selectedIndex,
-                  onDestinationSelected: _onItemTapped,
-                  labelType: NavigationRailLabelType.all,
-                  selectedIconTheme: const IconThemeData(color: primaryBlue),
-                  selectedLabelTextStyle: const TextStyle(color: primaryBlue, fontWeight: FontWeight.bold),
-                  unselectedIconTheme: const IconThemeData(color: textGrey),
-                  backgroundColor: Colors.white,
-                  elevation: 5,
-                  destinations: const [
-                    NavigationRailDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: Text('Home')),
-                    NavigationRailDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: Text('Profile')),
-                    NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: Text('Settings')),
-                  ],
+      backgroundColor: pageBackgroundColor,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1200),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: DashboardHeader(userData: widget.userData),
                 ),
-                Expanded(child: _pages[_selectedIndex]),
+                SliverPadding(
+                  padding: const EdgeInsets.all(24.0),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildSectionTitle('User Management'),
+                      const SizedBox(height: 16),
+                      GridView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: gridCrossAxisCount,
+                          crossAxisSpacing: 16.0,
+                          mainAxisSpacing: 16.0,
+                          mainAxisExtent: 240,
+                        ),
+                        children: const <Widget>[
+                          UserCountBuilder(
+                            title: 'Chief Engineer',
+                            userType: 'Chief Engineer',
+                            addPage: ChiefEngRegistrationPage(),
+                            icon: Icons.engineering_outlined,
+                            color: Colors.blue,
+                          ),
+                          UserCountBuilder(
+                            title: 'District Engineer',
+                            userType: 'District Engineer',
+                            addPage: DistrictEngRegistrationPage(),
+                            icon: Icons.map_outlined,
+                            color: Colors.green,
+                          ),
+                          UserCountBuilder(
+                            title: 'Technical Officer',
+                            userType: 'Technical Officer',
+                            addPage: TORegistrationPage(),
+                            icon: Icons.handyman_outlined,
+                            color: Colors.orange,
+                          ),
+                          UserCountBuilder(
+                            title: 'Principals',
+                            userType: 'Principal',
+                            addPage: PrincipalRegistrationPage(),
+                            icon: Icons.school_outlined,
+                            color: Colors.purple,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      _buildSectionTitle('Project Management'),
+                      const SizedBox(height: 16),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth > 600) {
+                            return Row(
+                              children: [
+                                Expanded(child: _buildContractorCard(context)),
+                                const SizedBox(width: 16),
+                                Expanded(child: _buildContractCard(context)),
+                              ],
+                            );
+                          } else {
+                            return Column(
+                              children: [
+                                _buildContractorCard(context),
+                                const SizedBox(height: 16),
+                                _buildContractCard(context),
+                                const SizedBox(height: 16),
+                                // --- ADDED: Schools Directory Card ---
+                                _buildSchoolsDirectoryCard(context), 
+                              ],
+                            );
+                          }
+                        },
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      // --- Analytics Section ---
+                      _buildSectionTitle('Analytics & Reports'),
+                      const SizedBox(height: 16),
+                      _buildAnalyticsCard(context),
+
+                      const SizedBox(height: 32),
+                      _buildSectionTitle('System Alerts'),
+                      const SizedBox(height: 16),
+                      const IssueCountBuilder(title: 'Manage Issues'),
+                      const SizedBox(height: 32),
+                     // _buildSectionTitle('Latest Updates'),
+                     // const SizedBox(height: 16),
+                     // _buildLatestUpdates(),
+                    //  const SizedBox(height: 40),
+                    ]),
+                  ),
+                ),
               ],
-            )
-          : _pages[_selectedIndex],
-      bottomNavigationBar: isDesktop
-          ? null
-          : _buildFloatingBottomNav(),
+            ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: const CustomBottomNavBar(currentIndex: 0),
     );
   }
 
-  // Modern Floating Bottom Navigation
-  Widget _buildFloatingBottomNav() {
+  // --- ADDED: Card specifically for routing to All Schools Page ---
+  Widget _buildSchoolsDirectoryCard(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08), 
-            blurRadius: 25, 
-            offset: const Offset(0, 10)
-          )
-        ]
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          selectedItemColor: primaryBlue,
-          unselectedItemColor: textGrey.withOpacity(0.6),
-          backgroundColor: Colors.white,
-          elevation: 0, // Handled by container shadow
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: true,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_outlined, size: 26), activeIcon: Icon(Icons.home, size: 28), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline, size: 26), activeIcon: Icon(Icons.person, size: 28), label: 'Profile'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings_outlined, size: 26), activeIcon: Icon(Icons.settings, size: 28), label: 'Settings'),
-          ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AllSchoolsPage()), 
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16)),
+                  child: const Icon(Icons.account_balance, color: Colors.blue, size: 32),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('School Directory',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B))),
+                      const SizedBox(height: 4),
+                      Text('View all schools, profiles, and master plans',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 20),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDashboardPage() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    int crossAxisCount = screenWidth > 800 ? 3 : 2; 
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.only(bottom: screenWidth > 800 ? 40 : 100), // Padding for floating nav
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Modern Gradient Header
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.only(top: 60, left: 24, right: 24, bottom: 50),
-            decoration: BoxDecoration(
-              gradient: primaryGradient,
-              borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(40), bottomRight: Radius.circular(40)),
-              boxShadow: [BoxShadow(color: primaryBlue.withOpacity(0.3), blurRadius: 25, offset: const Offset(0, 12))],
+  Widget _buildAnalyticsCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const SchoolAnalysisPage()), 
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      color: Colors.deepPurple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16)),
+                  child: const Icon(Icons.analytics_outlined, color: Colors.deepPurple, size: 32),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('School Analysis',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B))),
+                      const SizedBox(height: 4),
+                      Text('View detailed school performance and comparisons',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 20),
+              ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContractorCard(BuildContext context) {
+    return SimpleCountCard(
+      title: 'Contractors',
+      collectionName: 'contractor_details',
+      icon: Icons.construction,
+      color: Colors.teal,
+      onTap: () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const ContractorsListPage()));
+      },
+      onAdd: () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const AddContractorScreen()));
+      },
+    );
+  }
+
+  Widget _buildContractCard(BuildContext context) {
+    return SimpleCountCard(
+      title: 'Contracts',
+      collectionName: 'contracts',
+      icon: Icons.description_outlined,
+      color: Colors.indigo,
+      onTap: () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const ContractListPage()));
+      },
+      onAdd: () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const AddContractScreen()));
+      },
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1E293B),
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildLatestUpdates() {
+    return StreamBuilder<List<ActivityItem>>(
+      stream: _activityStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+              child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            width: double.infinity,
+            decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.shade200)),
+            child: Text('Error loading updates: ${snapshot.error}',
+                style: TextStyle(color: Colors.red.shade700)),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(30),
+            width: double.infinity,
+            decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200)),
+            child: const Column(
+              children: [
+                Icon(Icons.history, size: 48, color: Colors.grey),
+                SizedBox(height: 16),
+                Text('No recent updates found.',
+                    style: TextStyle(color: Colors.grey, fontSize: 16)),
+              ],
+            ),
+          );
+        }
+        final latestActivities = snapshot.data!;
+        return Column(
+          children: latestActivities.map((item) {
+            return ActivityItemCard(
+              item: item,
+              onTap: () => _navigateToDetailPage(context, item),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- DashboardHeader (UPDATED FOR PERFECT NOTIFICATION SYNC) ---
+// -----------------------------------------------------------------------------
+class DashboardHeader extends StatelessWidget {
+  final Map<String, dynamic>? userData;
+  const DashboardHeader({super.key, this.userData});
+
+  @override
+  Widget build(BuildContext context) {
+    final String userName = userData?['name'] ?? 'Director';
+    final String userRole = userData?['userType'] ?? 'Provincial Dashboard';
+    
+    // Using FirebaseAuth just like in NotificationPage
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    final String currentUserId = currentUser?.uid ?? '';
+    final DateTime? userCreationTime = currentUser?.metadata.creationTime;
+
+    // Create the exact same query as NotificationPage
+    Query notificationsQuery = FirebaseFirestore.instance.collection('notifications');
+    if (userCreationTime != null) {
+      notificationsQuery = notificationsQuery.where('timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade800,
+        image: DecorationImage(
+          image: const NetworkImage(
+              'https://www.transparenttextures.com/patterns/cubes.png'),
+          colorFilter: ColorFilter.mode(
+              Colors.black.withOpacity(0.1), BlendMode.dstATop),
+          fit: BoxFit.cover,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.shade900.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
             child: Row(
               children: [
                 StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').doc(widget.userData['uid']).snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(currentUserId)
+                      .snapshots(),
                   builder: (context, snapshot) {
-                    String? imageUrl = (snapshot.hasData && snapshot.data!.exists) ? (snapshot.data!.data() as Map<String, dynamic>)['profileImage'] : null;
-                    return GestureDetector(
-                      onTap: _isUploading ? null : _pickImage,
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 68, height: 68,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9), 
-                              shape: BoxShape.circle, 
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
-                              image: (imageUrl != null && imageUrl.isNotEmpty) ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover) : null,
-                            ),
-                            child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: textGrey, size: 35) : null,
-                          ),
-                          if (_isUploading) Positioned.fill(child: Container(decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle), child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))),
-                        ],
+                    String? imageUrl;
+                    if (snapshot.hasData && snapshot.data!.exists) {
+                      final data =
+                          snapshot.data!.data() as Map<String, dynamic>;
+                      imageUrl = data['profile_image'];
+                    }
+                    return Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle),
+                      child: CircleAvatar(
+                        radius: 36,
+                        backgroundColor: Colors.blue.shade200,
+                        backgroundImage:
+                            (imageUrl != null && imageUrl.isNotEmpty)
+                                ? NetworkImage(imageUrl)
+                                : null,
+                        child: (imageUrl == null || imageUrl.isEmpty)
+                            ? const Icon(Icons.person,
+                                color: Colors.white, size: 40)
+                            : null,
                       ),
                     );
                   },
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Welcome back,',
+                          style: TextStyle(
+                              color: Colors.blue.shade100, fontSize: 16)),
+                      Text(
+                        userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20)),
+                        child: Text(userRole,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // --- NOTIFICATION BELL ---
+          Container(
+            decoration: BoxDecoration(
+                color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            child: StreamBuilder<QuerySnapshot>(
+              // Using the exact query from NotificationPage
+              stream: notificationsQuery.snapshots(),
+              builder: (context, snapshot) {
+                int unreadCount = 0;
+
+                // Syncing the read logic perfectly with your DB structure
+                if (snapshot.hasData && currentUserId.isNotEmpty) {
+                  for (var doc in snapshot.data!.docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    
+                    // Look at the readBy array, just like NotificationPage does
+                    List<dynamic> readByUsers = data['readBy'] ?? [];
+                    bool isRead = readByUsers.contains(currentUserId);
+                    
+                    // If current user is NOT in the readBy array, count it
+                    if (!isRead) {
+                      unreadCount++;
+                    }
+                  }
+                }
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.notifications_active_outlined,
+                          color: Colors.blue.shade800),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const NotificationPage()),
+                        );
+                      },
+                      tooltip: 'Notifications',
+                    ),
+                    
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 1.5), 
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            unreadCount > 9 ? '9+' : unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- UserCountBuilder ---
+// -----------------------------------------------------------------------------
+class UserCountBuilder extends StatelessWidget {
+  final String userType;
+  final String title;
+  final Widget addPage;
+  final IconData icon;
+  final MaterialColor color;
+
+  const UserCountBuilder({
+    super.key,
+    required this.userType,
+    required this.title,
+    required this.addPage,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .where('userType', isEqualTo: userType)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int total = 0;
+        int active = 0;
+        int pending = 0;
+
+        if (snapshot.hasData) {
+          total = snapshot.data!.docs.length;
+          for (var doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            if (data['isActive'] == true) {
+              active++;
+            } else {
+              pending++;
+            }
+          }
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.05),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            UserListPage(userType: userType, title: title)));
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12.0, vertical: 16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                          color: color.shade50, shape: BoxShape.circle),
+                      child: Icon(icon, size: 26, color: color.shade700),
+                    ),
+                    Text(
+                      total.toString(),
+                      style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B)),
+                    ),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600),
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildStatusBadge(active, Colors.green, 'Active'),
+                          const SizedBox(width: 6),
+                          _buildStatusBadge(pending, Colors.orange, 'Pending'),
+                        ],
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(context,
+                            MaterialPageRoute(builder: (context) => addPage));
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: color.shade200),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add, size: 16, color: color.shade700),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Add New',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: color.shade700,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusBadge(int count, Color badgeColor, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: badgeColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Container(
+              width: 6,
+              height: 6,
+              decoration:
+                  BoxDecoration(color: badgeColor, shape: BoxShape.circle)),
+          const SizedBox(width: 4),
+          Text(
+            "$count $label",
+            style: TextStyle(
+                fontSize: 10, fontWeight: FontWeight.bold, color: badgeColor),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- SimpleCountCard ---
+// -----------------------------------------------------------------------------
+class SimpleCountCard extends StatelessWidget {
+  final String title;
+  final String collectionName;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final VoidCallback onAdd;
+
+  const SimpleCountCard({
+    super.key,
+    required this.title,
+    required this.collectionName,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection(collectionName).snapshots(),
+      builder: (context, snapshot) {
+        String count = '...';
+        if (snapshot.hasData) count = snapshot.data!.docs.length.toString();
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4)),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                          color: color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16)),
+                      child: Icon(icon, color: color, size: 32),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700)),
+                          const SizedBox(height: 4),
+                          Text(count,
+                              style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B))),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                        icon: Icon(Icons.add_circle, color: color, size: 32),
+                        onPressed: onAdd,
+                        tooltip: 'Add $title'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- ActivityItemCard ---
+// -----------------------------------------------------------------------------
+class ActivityItemCard extends StatelessWidget {
+  final ActivityItem item;
+  final VoidCallback onTap;
+
+  const ActivityItemCard({super.key, required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = item.snapshot.data() as Map<String, dynamic>;
+
+    IconData icon;
+    Color iconColor;
+    String title;
+    String subtitle;
+
+    switch (item.itemType) {
+      case 'issue':
+        icon = Icons.warning_rounded;
+        iconColor = Colors.orange;
+        title = '${data['schoolName'] ?? 'Unknown'} - Issue';
+        subtitle = '${data['issueTitle'] ?? 'No Title'}';
+        break;
+      case 'school':
+        icon = Icons.domain;
+        iconColor = Colors.blue;
+        title = data['schoolName'] ?? 'New School';
+        subtitle = 'Added to zone: ${data['educationalZone'] ?? 'Unknown'}';
+        break;
+      case 'user':
+        icon = Icons.person_add_alt_1;
+        iconColor = Colors.green;
+        title = data['name'] ?? 'New User';
+        subtitle = 'Role: ${data['userType'] ?? data['role'] ?? 'N/A'}';
+        break;
+      default:
+        icon = Icons.notifications;
+        iconColor = Colors.grey;
+        title = 'Activity';
+        subtitle = 'Update received';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2))
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.1),
+                      shape: BoxShape.circle),
+                  child: Icon(icon, color: iconColor, size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Good to see you,', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14, fontWeight: FontWeight.w500)),
+                      Text(title,
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1E293B))),
                       const SizedBox(height: 4),
-                      Text(widget.userData['name'] ?? 'Chief Engineer', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)),
+                      Text(subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 14, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
-                const DashboardNotificationButton(),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(_formatTimeAgo(item.timestamp),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 14, color: Colors.grey.shade400),
+                  ],
+                ),
               ],
             ),
           ),
-          
-          const SizedBox(height: 24),
+        ),
+      ),
+    );
+  }
 
-          // Content Area
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
+  String _formatTimeAgo(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays > 365) return '${(difference.inDays / 365).floor()}y ago';
+    if (difference.inDays > 30) return '${(difference.inDays / 30).floor()}mo ago';
+    if (difference.inDays > 0) return '${difference.inDays}d ago';
+    if (difference.inHours > 0) return '${difference.inHours}h ago';
+    if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
+    return 'Just now';
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- IssueCountBuilder ---
+// -----------------------------------------------------------------------------
+class IssueCountBuilder extends StatelessWidget {
+  final String title;
+  const IssueCountBuilder({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('issues').snapshots(),
+      builder: (context, snapshot) {
+        int total = 0;
+        if (snapshot.hasData) total = snapshot.data!.docs.length;
+
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: [Colors.red.shade50, Colors.white],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.red.shade100),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.red.withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5))
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => ViewIssuesPage(currentUserNic: FirebaseAuth.instance.currentUser?.uid ?? '')));
+              },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.all(16),
+                child: Row(
                   children: [
-                    const Text('User Management', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textDark, letterSpacing: -0.5)),
-                    const SizedBox(height: 20),
-                    
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 20,
-                      mainAxisSpacing: 20,
-                      childAspectRatio: 1.35, // Slightly wider for elegance
-                      children: const [
-                        TechnicalOfficerDashboardCardStream(),
-                        DistrictEngineerDashboardCardStream(),
-                        SchoolsDashboardCard(),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                          color: Colors.red.shade100, shape: BoxShape.circle),
+                      child: Icon(Icons.warning_amber_rounded,
+                          color: Colors.red.shade700, size: 32),
                     ),
-                    
-                    const SizedBox(height: 40),
-                    
-                    const Text('Project Management', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textDark, letterSpacing: -0.5)),
-                    const SizedBox(height: 20),
-
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 20,
-                      mainAxisSpacing: 20,
-                      childAspectRatio: 1.35,
-                      children: const [
-                        IssuesDashboardCardStream(),
-                        MasterPlansDashboardCardStream(),
-                        ContractDetailsDashboardCardStream(),
-                        ContractorDetailsDashboardCardStream(),
-                      ],
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B))),
+                          const SizedBox(height: 4),
+                          Text('$total issues need attention',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.red.shade700,
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 30),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                          color: Colors.red.shade600,
+                          borderRadius: BorderRadius.circular(20)),
+                      child: const Text('View All',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
+}
 
-  Widget _buildProfilePage() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 100),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Container(
-            margin: const EdgeInsets.only(top: 60, left: 24, right: 24), 
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white, 
-              borderRadius: BorderRadius.circular(32), 
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 25, offset: const Offset(0, 10))]
-            ),
-            child: Column(
-              children: [
-                StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').doc(widget.userData['uid']).snapshots(),
-                  builder: (context, snapshot) {
-                    String? imageUrl = (snapshot.hasData && snapshot.data!.exists) ? (snapshot.data!.data() as Map<String, dynamic>)['profileImage'] : null;
-                    return GestureDetector(
-                      onTap: _isUploading ? null : _pickImage,
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 140, height: 140,
-                            decoration: BoxDecoration(
-                              color: appBackground, 
-                              shape: BoxShape.circle, 
-                              border: Border.all(color: Colors.white, width: 6), 
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 8))], 
-                              image: (imageUrl != null && imageUrl.isNotEmpty) ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover) : null
-                            ),
-                            child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, size: 65, color: textGrey) : null,
-                          ),
-                          if (!_isUploading) 
-                            Positioned(
-                              bottom: 4, right: 4, 
-                              child: Container(
-                                padding: const EdgeInsets.all(10), 
-                                decoration: BoxDecoration(
-                                  gradient: primaryGradient, 
-                                  shape: BoxShape.circle, 
-                                  border: Border.all(color: Colors.white, width: 3),
-                                  boxShadow: [BoxShadow(color: primaryBlue.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 4))]
-                                ), 
-                                child: const Icon(Icons.camera_alt, size: 22, color: Colors.white)
-                              )
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                Text(widget.userData['name'] ?? 'Chief Engineer', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: textDark, letterSpacing: -0.5)),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(color: primaryBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                  child: Text(widget.userData['email'] ?? 'chief@example.com', style: const TextStyle(fontSize: 15, color: primaryBlueDark, fontWeight: FontWeight.w600)),
-                ),
-                const SizedBox(height: 40),
-                _buildProfileCard(icon: Icons.person_outline, title: 'Full Name', value: widget.userData['name'] ?? 'N/A'),
-                _buildProfileCard(icon: Icons.phone_outlined, title: 'Phone', value: widget.userData['mobilePhone'] ?? 'N/A'),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: primaryGradient,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [BoxShadow(color: primaryBlue.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfilePage(userData: widget.userData))),
-                      icon: const Icon(Icons.edit_rounded, size: 20), 
-                      label: const Text('Edit Profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent, 
-                        foregroundColor: Colors.white, 
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 20), 
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+// -----------------------------------------------------------------------------
+// --- CustomBottomNavBar ---
+// -----------------------------------------------------------------------------
+class CustomBottomNavBar extends StatelessWidget {
+  final int currentIndex;
+  const CustomBottomNavBar({super.key, required this.currentIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 20,
+              offset: const Offset(0, -5))
+        ],
+      ),
+      child: SafeArea(
+        child: BottomNavigationBar(
+          currentIndex: currentIndex,
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.blue.shade800,
+          unselectedItemColor: Colors.grey.shade400,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          onTap: (index) => _onTabTapped(context, index),
+          items: const [
+            BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard_outlined),
+                activeIcon: Icon(Icons.dashboard),
+                label: 'Home'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                activeIcon: Icon(Icons.person),
+                label: 'Profile'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.settings_outlined),
+                activeIcon: Icon(Icons.settings),
+                label: 'Settings'),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileCard({required IconData icon, required String title, required String value}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16), 
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      decoration: BoxDecoration(color: appBackground, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white, width: 2)),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12), 
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)]), 
-            child: Icon(icon, color: primaryBlue, size: 26)
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, 
-              children: [
-                Text(title, style: const TextStyle(fontSize: 13, color: textGrey, fontWeight: FontWeight.w600, letterSpacing: 0.5)), 
-                const SizedBox(height: 4), 
-                Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textDark))
-              ]
-            )
-          ),
-        ],
+  void _onTabTapped(BuildContext context, int index) {
+    if (currentIndex == index) return;
+
+    Widget destination;
+    switch (index) {
+      case 0:
+        destination = const ChiefEngDashboard();
+        break;
+      case 1:
+        destination = const ProfileManagementPage();
+        break;
+      case 2:
+        destination = const SettingsScreen();
+        break;
+      default:
+        return;
+    }
+
+    if (index == 0) {
+      Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+          (route) => false);
+    } else {
+      Navigator.push(
+          context, MaterialPageRoute(builder: (context) => destination));
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// --- LOCAL DETAIL PAGES FOR ACTIVITY FEED FALLBACK ---
+// -----------------------------------------------------------------------------
+class IssueDetailPage extends StatelessWidget {
+  final String issueId;
+  const IssueDetailPage({super.key, required this.issueId});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Issue Details")),
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('issues')
+            .doc(issueId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData || !snapshot.data!.exists) return const Center(child: Text('Issue not found'));
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(data['issueTitle'] ?? 'No Title',
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text('School: ${data['schoolName'] ?? 'Unknown'}',
+                        style:
+                            const TextStyle(fontSize: 16, color: Colors.grey)),
+                    const SizedBox(height: 16),
+                    Text(data['description'] ?? 'No description available',
+                        style: const TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+}
 
-  Widget _buildSettingsPage() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 100),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+class SchoolDetailPage extends StatelessWidget {
+  final String schoolId;
+  final Map<String, dynamic> schoolData;
+  const SchoolDetailPage(
+      {super.key, required this.schoolId, required this.schoolData});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("School Details")),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Card(
           child: Padding(
-            padding: const EdgeInsets.only(top: 60, left: 24, right: 24),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Settings', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: textDark, letterSpacing: -1)),
-                const SizedBox(height: 30),
-                _buildSettingsItem(icon: Icons.lock_outline_rounded, title: 'Change Password', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ChangePasswordPageChief()))),
-                _buildSettingsItem(icon: Icons.security_rounded, title: 'Security Questions', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => SecurityQuestionsScreen()))),
+                Text(schoolData['schoolName'] ?? 'Unknown School',
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                _buildSettingsItem(icon: Icons.notifications_none_rounded, title: 'Notifications', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsPage()))),
-                const SizedBox(height: 40),
-                
-                // --- THE UPDATED LOGOUT BUTTON ---
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _confirmLogout, // Hooked up to the new confirm logic
-                    icon: const Icon(Icons.logout_rounded, size: 20), 
-                    label: const Text('Log Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFEF3F2), 
-                      foregroundColor: const Color(0xFFD92D20), 
-                      elevation: 0, 
-                      padding: const EdgeInsets.symmetric(vertical: 20), 
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))
-                    ),
-                  ),
-                ),
-                // ---------------------------------
-                
+                _buildDetailRow(
+                    'Zone:', schoolData['educationalZone'] ?? 'N/A'),
+                _buildDetailRow('Address:', schoolData['address'] ?? 'N/A'),
+                _buildDetailRow(
+                    'Contact:', schoolData['contactNumber'] ?? 'N/A'),
               ],
             ),
           ),
@@ -545,39 +1363,84 @@ class _ChiefEngineerDashboardState extends State<ChiefEngDashboard> {
     );
   }
 
-  Widget _buildSettingsItem({required IconData icon, required String title, required VoidCallback onTap}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white, 
-        borderRadius: BorderRadius.circular(24), 
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 20, offset: const Offset(0, 8))]
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+              width: 120,
+              child: Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.grey))),
+          Expanded(child: Text(value)),
+        ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: onTap,
+    );
+  }
+}
+
+class UserDetailPage extends StatelessWidget {
+  final String userId;
+  final Map<String, dynamic> userData;
+  const UserDetailPage(
+      {super.key, required this.userId, required this.userData});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("User Details")),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Card(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12), 
-                  decoration: BoxDecoration(color: appBackground, borderRadius: BorderRadius.circular(16)), 
-                  child: Icon(icon, color: primaryBlue, size: 24)
+                Center(
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundImage: userData['profile_image'] != null
+                        ? NetworkImage(userData['profile_image']!)
+                        : null,
+                    child: userData['profile_image'] == null
+                        ? const Icon(Icons.person, size: 40)
+                        : null,
+                  ),
                 ),
-                const SizedBox(width: 20),
-                Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textDark))),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(color: appBackground, shape: BoxShape.circle),
-                  child: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: textGrey)
-                ),
+                const SizedBox(height: 16),
+                Center(
+                    child: Text(userData['name'] ?? 'Unknown User',
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.bold))),
+                const SizedBox(height: 16),
+                _buildDetailRow('User Type:', userData['userType'] ?? 'N/A'),
+                _buildDetailRow('Email:', userData['email'] ?? 'N/A'),
+                _buildDetailRow('Status:',
+                    userData['isActive'] == true ? 'Active' : 'Inactive'),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+              width: 100,
+              child: Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.grey))),
+          Expanded(child: Text(value)),
+        ],
       ),
     );
   }
