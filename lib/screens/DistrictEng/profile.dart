@@ -44,7 +44,6 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  // පරිශීලක දත්ත ලබා ගැනීම
   Future<void> _fetchUserData() async {
     if (currentUser == null) return;
     try {
