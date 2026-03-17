@@ -1201,7 +1201,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                   );
                                 }
                                 return Text(
-                                    " (Chief Engineer)",
+                                    "(Chief Engineer)",
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.teal.shade900));
