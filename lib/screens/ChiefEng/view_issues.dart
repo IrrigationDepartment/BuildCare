@@ -1181,7 +1181,7 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                   var usr = userSnap.data!.docs.first.data()
                                       as Map<String, dynamic>;
                                   return Text(
-                                    "${usr['name'] ?? 'Vihanga Manodhya'} (${usr['userType'] ?? 'Provincial Engineer'})",
+                                    "${usr['name'] ?? 'Vihanga Manodhya'} (${usr['userType'] ?? 'Chief Engineer'})",
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.teal.shade900),
