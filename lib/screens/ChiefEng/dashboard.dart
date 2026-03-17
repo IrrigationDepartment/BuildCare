@@ -203,13 +203,13 @@ class _ChiefEngDashboardState extends State<ChiefEngDashboard> {
                           mainAxisExtent: 240,
                         ),
                         children: const <Widget>[
-                          UserCountBuilder(
+                          /*UserCountBuilder(
                             title: 'Chief Engineer',
                             userType: 'Chief Engineer',
                             addPage: ChiefEngRegistrationPage(),
                             icon: Icons.engineering_outlined,
                             color: Colors.blue,
-                          ),
+                          ),*/
                           UserCountBuilder(
                             title: 'District Engineer',
                             userType: 'District Engineer',

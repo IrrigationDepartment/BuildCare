@@ -73,7 +73,11 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
           _mobilePhoneController.text = data?['mobilePhone'] ?? data?['mobitaphone'] ?? '';
           _officeController.text = data?['office'] ?? '';
           _officePhoneController.text = data?['officePhone'] ?? '';
-          _profileImageUrl = data?['profile_image'];
+          
+          // Ensure we grab the latest image URL from Firestore
+          if (data?['profile_image'] != null && data!['profile_image'].toString().isNotEmpty) {
+            _profileImageUrl = data['profile_image'];
+          }
         });
       }
     } catch (e) {
@@ -138,7 +142,7 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
         }
       } else {
         imageBytes = await _selectedImage!.readAsBytes();
-      } 
+      }
       
       var request = http.MultipartRequest('POST', Uri.parse(_serverUrl));
       
@@ -151,21 +155,25 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       request.fields['user_id'] = userId;
       request.fields['email'] = email;
       request.fields['action'] = 'upload_profile_image';
-      
+      request.fields['upload_type'] = 'chiefe';
+
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
       
       if (response.statusCode == 200) {
         try {
           var jsonResponse = jsonDecode(response.body);
+          debugPrint('Upload Response: $jsonResponse'); // Added debugging
           if (jsonResponse['success'] == true || jsonResponse['status'] == 'success') {
-            return jsonResponse['image_url'] ?? jsonResponse['url'] ?? jsonResponse['file_url'];
+            return jsonResponse['image_url'] ?? jsonResponse['url'] ?? jsonResponse['profileImageUrl'] ?? jsonResponse['file_url'];
           } else if (jsonResponse['image_url'] != null) {
             return jsonResponse['image_url'];
           }
         } catch (e) {
-          debugPrint('Error parsing JSON: $e');
+          debugPrint('Error parsing JSON: $e | Body: ${response.body}');
         }
+      } else {
+        debugPrint('Server returned status code: ${response.statusCode}');
       }
       
       return null;
@@ -246,14 +254,12 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     }
   }
 
-  // --- FIXED LOGOUT LOGIC ---
   Future<void> _logout() async {
     try {
       await _auth.signOut();
       
       if (!mounted) return;
       
-      // Directly push the login screen and wipe out the back-button history
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()), 
         (route) => false,
@@ -303,7 +309,6 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       },
     );
   }
-  // -------------------------
 
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -392,46 +397,69 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   }
 
   Widget _buildImagePreview() {
+    // 1. Show the locally picked image if one exists
     if (_selectedImage != null) {
       if (kIsWeb && _selectedImageBase64 != null) {
         return Image.memory(
           base64Decode(_selectedImageBase64!.split(',').last),
           fit: BoxFit.cover,
+          width: 126, // Added explicit sizing to fix rendering inside ClipOval
+          height: 126,
           errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
         );
       } else if (!kIsWeb) {
         return Image.file(
           File(_selectedImage!.path),
           fit: BoxFit.cover,
+          width: 126, // Added explicit sizing
+          height: 126,
           errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
         );
       }
     }
     
+    // 2. Show the network image from Firestore
     if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
       return Image.network(
         _profileImageUrl!,
         fit: BoxFit.cover,
+        width: 126, // Added explicit sizing
+        height: 126,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           return Center(
-            child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                  : null,
-              color: Colors.blue,
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                color: Colors.blue,
+                strokeWidth: 2,
+              ),
             ),
           );
         },
-        errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
+        errorBuilder: (context, error, stackTrace) {
+          // ADDED LOGGING HERE: This will tell you exactly why the image isn't loading
+          debugPrint('=== IMAGE LOAD ERROR ===');
+          debugPrint('Attempted URL: $_profileImageUrl');
+          debugPrint('Error details: $error');
+          debugPrint('========================');
+          return _buildDefaultAvatar();
+        },
       );
     }
     
+    // 3. Fallback to default avatar
     return _buildDefaultAvatar();
   }
 
   Widget _buildDefaultAvatar() {
     return Container(
+      width: 126,
+      height: 126,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -792,7 +820,7 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
               
               const SizedBox(height: 24),
               
-              // --- NEW LOGOUT BUTTON ---
+              // --- LOGOUT BUTTON ---
               OutlinedButton(
                 onPressed: _isLoading ? null : _confirmLogout,
                 style: OutlinedButton.styleFrom(
@@ -818,7 +846,6 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
                   ],
                 ),
               ),
-              // -------------------------
 
               const SizedBox(height: 40),
             ],
