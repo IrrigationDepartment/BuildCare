@@ -163,7 +163,7 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
       if (response.statusCode == 200) {
         try {
           var jsonResponse = jsonDecode(response.body);
-          debugPrint('Upload Response: $jsonResponse'); // Added debugging
+          debugPrint('Upload Response: $jsonResponse'); 
           if (jsonResponse['success'] == true || jsonResponse['status'] == 'success') {
             return jsonResponse['image_url'] ?? jsonResponse['url'] ?? jsonResponse['profileImageUrl'] ?? jsonResponse['file_url'];
           } else if (jsonResponse['image_url'] != null) {
@@ -324,6 +324,8 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     );
   }
 
+  // --- UI WIDGET BUILDERS ---
+
   Widget _buildProfileImage() {
     return GestureDetector(
       onTap: _pickImage,
@@ -397,13 +399,12 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
   }
 
   Widget _buildImagePreview() {
-    // 1. Show the locally picked image if one exists
     if (_selectedImage != null) {
       if (kIsWeb && _selectedImageBase64 != null) {
         return Image.memory(
           base64Decode(_selectedImageBase64!.split(',').last),
           fit: BoxFit.cover,
-          width: 126, // Added explicit sizing to fix rendering inside ClipOval
+          width: 126, 
           height: 126,
           errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
         );
@@ -411,19 +412,18 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
         return Image.file(
           File(_selectedImage!.path),
           fit: BoxFit.cover,
-          width: 126, // Added explicit sizing
+          width: 126, 
           height: 126,
           errorBuilder: (context, error, stackTrace) => _buildDefaultAvatar(),
         );
       }
     }
     
-    // 2. Show the network image from Firestore
     if (_profileImageUrl != null && _profileImageUrl!.isNotEmpty) {
       return Image.network(
         _profileImageUrl!,
         fit: BoxFit.cover,
-        width: 126, // Added explicit sizing
+        width: 126, 
         height: 126,
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
@@ -442,17 +442,14 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
           );
         },
         errorBuilder: (context, error, stackTrace) {
-          // ADDED LOGGING HERE: This will tell you exactly why the image isn't loading
           debugPrint('=== IMAGE LOAD ERROR ===');
           debugPrint('Attempted URL: $_profileImageUrl');
           debugPrint('Error details: $error');
-          debugPrint('========================');
           return _buildDefaultAvatar();
         },
       );
     }
     
-    // 3. Fallback to default avatar
     return _buildDefaultAvatar();
   }
 
@@ -606,6 +603,226 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
     );
   }
 
+  // --- SEPARATED LAYOUT SECTIONS FOR RESPONSIVENESS ---
+
+  Widget _buildProfileInfoSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildProfileImage(),
+        const SizedBox(height: 16),
+        Text(
+          'Tap to change photo',
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_selectedImage != null)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.green.shade100,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  size: 16,
+                  color: Colors.green.shade600,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'New image selected',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 40),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Account Information',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey.shade800,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildInfoItem('Email', _emailController.text),
+        if (_officeController.text.isNotEmpty)
+          _buildInfoItem('Office', _officeController.text),
+      ],
+    );
+  }
+
+  Widget _buildEditFormSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Update Information',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey.shade800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              _buildInputField(
+                label: 'Full Name',
+                controller: _nameController,
+                prefixIcon: Icons.person_outline_rounded,
+                hintText: 'Enter your full name',
+              ),
+              _buildInputField(
+                label: 'Mobile Phone',
+                controller: _mobilePhoneController,
+                keyboardType: TextInputType.phone,
+                prefixIcon: Icons.phone_iphone_rounded,
+                hintText: 'Enter mobile number',
+              ),
+              _buildInputField(
+                label: 'Office Phone',
+                controller: _officePhoneController,
+                keyboardType: TextInputType.phone,
+                prefixIcon: Icons.phone_rounded,
+                hintText: 'Enter office number (optional)',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 40),
+        
+        // --- SAVE CHANGES BUTTON ---
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              colors: [
+                Colors.blue.shade600,
+                Colors.purple.shade600,
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _isLoading ? null : _updateProfile,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isLoading)
+                      const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    else ...[
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Save Changes',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        
+        // --- LOGOUT BUTTON ---
+        OutlinedButton(
+          onPressed: _isLoading ? null : _confirmLogout,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red.shade600,
+            side: BorderSide(color: Colors.red.shade600, width: 2),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            minimumSize: const Size(double.infinity, 56),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.logout_rounded),
+              SizedBox(width: 8),
+              Text(
+                'Logout',
+                style: TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -633,223 +850,51 @@ class _ProfileManagementPageState extends State<ProfileManagementPage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Column(
-                  children: [
-                    _buildProfileImage(),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Tap to change photo',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_selectedImage != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.green.shade100,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle,
-                              size: 16,
-                              color: Colors.green.shade600,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'New image selected',
-                              style: TextStyle(
-                                color: Colors.green.shade700,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-              Text(
-                'Account Information',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildInfoItem('Email', _emailController.text),
-              if (_officeController.text.isNotEmpty)
-                _buildInfoItem('Office', _officeController.text),
-              const SizedBox(height: 40),
-              Text(
-                'Update Information',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildInputField(
-                      label: 'Full Name',
-                      controller: _nameController,
-                      prefixIcon: Icons.person_outline_rounded,
-                      hintText: 'Enter your full name',
-                    ),
-                    _buildInputField(
-                      label: 'Mobile Phone',
-                      controller: _mobilePhoneController,
-                      keyboardType: TextInputType.phone,
-                      prefixIcon: Icons.phone_iphone_rounded,
-                      hintText: 'Enter mobile number',
-                    ),
-                    _buildInputField(
-                      label: 'Office Phone',
-                      controller: _officePhoneController,
-                      keyboardType: TextInputType.phone,
-                      prefixIcon: Icons.phone_rounded,
-                      hintText: 'Enter office number (optional)',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-              
-              // --- SAVE CHANGES BUTTON ---
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.blue.shade600,
-                      Colors.purple.shade600,
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _isLoading ? null : _updateProfile,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (_isLoading)
-                            const SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          else ...[
-                            const Icon(
-                              Icons.check_circle_outline_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Save Changes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // --- LOGOUT BUTTON ---
-              OutlinedButton(
-                onPressed: _isLoading ? null : _confirmLogout,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red.shade600,
-                  side: BorderSide(color: Colors.red.shade600, width: 2),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  minimumSize: const Size(double.infinity, 56),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.logout_rounded),
-                    SizedBox(width: 8),
-                    Text(
-                      'Logout',
-                      style: TextStyle(
-                        fontSize: 16, 
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Determine if it's a large screen (e.g., tablet/desktop)
+            bool isDesktop = constraints.maxWidth >= 800;
 
-              const SizedBox(height: 40),
-            ],
-          ),
+            return SingleChildScrollView(
+              child: Center(
+                child: ConstrainedBox(
+                  // Max width set to keep things clean on ultra-wide screens
+                  constraints: const BoxConstraints(maxWidth: 1000), 
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: isDesktop
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Left Column: Profile Info
+                              Expanded(
+                                flex: 4,
+                                child: _buildProfileInfoSection(),
+                              ),
+                              const SizedBox(width: 48),
+                              // Right Column: Edit Form & Actions
+                              Expanded(
+                                flex: 6,
+                                child: _buildEditFormSection(),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Single Column (Mobile Layout)
+                              _buildProfileInfoSection(),
+                              const SizedBox(height: 40),
+                              _buildEditFormSection(),
+                              const SizedBox(height: 40),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
       bottomNavigationBar: const dashboard.CustomBottomNavBar(currentIndex: 1),
