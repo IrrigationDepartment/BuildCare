@@ -7,9 +7,9 @@ import 'package:rxdart/rxdart.dart';
 import 'view_issues.dart';
 import 'contractors_list.dart';
 import 'contract_list.dart';
-import 'notifications.dart'; 
-import 'school_analysis.dart'; 
-import 'schools_directory.dart'; // <-- ADDED: Import for the all schools/directory page
+import 'notifications.dart';
+import 'school_analysis.dart';
+import 'schools_directory.dart';
 
 // --- REGISTRATION PAGE IMPORTS ---
 import 'add_ce.dart';
@@ -132,26 +132,29 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     switch (item.itemType) {
       case 'issue':
         Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => IssueDetailPage(issueId: docId)));
+          context,
+          MaterialPageRoute(
+            builder: (context) => IssueDetailPage(issueId: docId),
+          ),
+        );
         break;
       case 'school':
-        // Note: You can replace this basic SchoolDetailPage with the new one
-        // from schools_directory.dart if you want consistent UI. 
-        // For now, it uses the local one defined at the bottom.
         Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) =>
-                    SchoolDetailPage(schoolId: docId, schoolData: data)));
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                SchoolDetailPage(schoolId: docId, schoolData: data),
+          ),
+        );
         break;
       case 'user':
         Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) =>
-                    UserDetailPage(userId: docId, userData: data)));
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                UserDetailPage(userId: docId, userData: data),
+          ),
+        );
         break;
       default:
         showDialog(
@@ -161,8 +164,9 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
             content: Text('Details for ${item.itemType}'),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'))
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              )
             ],
           ),
         );
@@ -172,13 +176,15 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
   @override
   Widget build(BuildContext context) {
     const Color pageBackgroundColor = Color(0xFFF4F6F8);
-    double screenWidth = MediaQuery.of(context).size.width;
-    int gridCrossAxisCount =
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final int gridCrossAxisCount =
         screenWidth > 1000 ? 4 : (screenWidth > 600 ? 3 : 2);
 
     return Scaffold(
       backgroundColor: pageBackgroundColor,
+      extendBody: false,
       body: SafeArea(
+        bottom: false,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1200),
@@ -239,11 +245,17 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                       LayoutBuilder(
                         builder: (context, constraints) {
                           if (constraints.maxWidth > 600) {
-                            return Row(
+                            return Column(
                               children: [
-                                Expanded(child: _buildContractorCard(context)),
-                                const SizedBox(width: 16),
-                                Expanded(child: _buildContractCard(context)),
+                                Row(
+                                  children: [
+                                    Expanded(child: _buildContractorCard(context)),
+                                    const SizedBox(width: 16),
+                                    Expanded(child: _buildContractCard(context)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                _buildSchoolsDirectoryCard(context),
                               ],
                             );
                           } else {
@@ -253,29 +265,21 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                                 const SizedBox(height: 16),
                                 _buildContractCard(context),
                                 const SizedBox(height: 16),
-                                // --- ADDED: Schools Directory Card ---
-                                _buildSchoolsDirectoryCard(context), 
+                                _buildSchoolsDirectoryCard(context),
                               ],
                             );
                           }
                         },
                       ),
-                      
                       const SizedBox(height: 32),
-                      // --- Analytics Section ---
                       _buildSectionTitle('Analytics & Reports'),
                       const SizedBox(height: 16),
                       _buildAnalyticsCard(context),
-
                       const SizedBox(height: 32),
                       _buildSectionTitle('System Alerts'),
                       const SizedBox(height: 16),
                       const IssueCountBuilder(title: 'Manage Issues'),
-                      const SizedBox(height: 32),
-                     // _buildSectionTitle('Latest Updates'),
-                     // const SizedBox(height: 16),
-                     // _buildLatestUpdates(),
-                    //  const SizedBox(height: 40),
+                      const SizedBox(height: 24),
                     ]),
                   ),
                 ),
@@ -288,7 +292,6 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
     );
   }
 
-  // --- ADDED: Card specifically for routing to All Schools Page ---
   Widget _buildSchoolsDirectoryCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
@@ -297,9 +300,10 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4)),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Material(
@@ -309,7 +313,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const AllSchoolsPage()), 
+              MaterialPageRoute(builder: (context) => const AllSchoolsPage()),
             );
           },
           child: Padding(
@@ -319,30 +323,45 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16)),
-                  child: const Icon(Icons.account_balance, color: Colors.blue, size: 32),
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance,
+                    color: Colors.blue,
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('School Directory',
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B))),
+                      const Text(
+                        'School Directory',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('View all schools, profiles, and master plans',
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade600)),
+                      Text(
+                        'View all schools, profiles, and master plans',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 20),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
               ],
             ),
           ),
@@ -359,9 +378,10 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4)),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Material(
@@ -372,7 +392,8 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const SchoolAnalysisPage()), 
+                builder: (context) => const SchoolAnalysisPage(),
+              ),
             );
           },
           child: Padding(
@@ -382,30 +403,45 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                      color: Colors.deepPurple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16)),
-                  child: const Icon(Icons.analytics_outlined, color: Colors.deepPurple, size: 32),
+                    color: Colors.deepPurple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.analytics_outlined,
+                    color: Colors.deepPurple,
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('School Analysis',
-                          style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B))),
+                      const Text(
+                        'School Analysis',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('View detailed school performance and comparisons',
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade600)),
+                      Text(
+                        'View detailed school performance and comparisons',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 20),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
               ],
             ),
           ),
@@ -422,15 +458,19 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       color: Colors.teal,
       onTap: () {
         Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const ContractorsListPage()));
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ContractorsListPage(),
+          ),
+        );
       },
       onAdd: () {
         Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const AddContractorScreen()));
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AddContractorScreen(),
+          ),
+        );
       },
     );
   }
@@ -442,12 +482,20 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       icon: Icons.description_outlined,
       color: Colors.indigo,
       onTap: () {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const ContractListPage()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ContractListPage(),
+          ),
+        );
       },
       onAdd: () {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const AddContractScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AddContractScreen(),
+          ),
+        );
       },
     );
   }
@@ -470,20 +518,25 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: CircularProgressIndicator()));
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
         if (snapshot.hasError) {
           return Container(
             padding: const EdgeInsets.all(20),
             width: double.infinity,
             decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.red.shade200)),
-            child: Text('Error loading updates: ${snapshot.error}',
-                style: TextStyle(color: Colors.red.shade700)),
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Text(
+              'Error loading updates: ${snapshot.error}',
+              style: TextStyle(color: Colors.red.shade700),
+            ),
           );
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -491,15 +544,18 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
             padding: const EdgeInsets.all(30),
             width: double.infinity,
             decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200)),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
             child: const Column(
               children: [
                 Icon(Icons.history, size: 48, color: Colors.grey),
                 SizedBox(height: 16),
-                Text('No recent updates found.',
-                    style: TextStyle(color: Colors.grey, fontSize: 16)),
+                Text(
+                  'No recent updates found.',
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
               ],
             ),
           );
@@ -519,7 +575,7 @@ class _ProvincialEngineerDashboardState extends State<ProvincialEngDashboard> {
 }
 
 // -----------------------------------------------------------------------------
-// --- DashboardHeader (UPDATED FOR PERFECT NOTIFICATION SYNC) ---
+// --- DashboardHeader ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -529,17 +585,18 @@ class DashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final String userName = userData?['name'] ?? 'Director';
     final String userRole = userData?['userType'] ?? 'Provincial Dashboard';
-    
-    // Using FirebaseAuth just like in NotificationPage
+
     final User? currentUser = FirebaseAuth.instance.currentUser;
     final String currentUserId = currentUser?.uid ?? '';
     final DateTime? userCreationTime = currentUser?.metadata.creationTime;
 
-    // Create the exact same query as NotificationPage
-    Query notificationsQuery = FirebaseFirestore.instance.collection('notifications');
+    Query notificationsQuery =
+        FirebaseFirestore.instance.collection('notifications');
     if (userCreationTime != null) {
-      notificationsQuery = notificationsQuery.where('timestamp',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime));
+      notificationsQuery = notificationsQuery.where(
+        'timestamp',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(userCreationTime),
+      );
     }
 
     return Container(
@@ -549,9 +606,12 @@ class DashboardHeader extends StatelessWidget {
         color: Colors.blue.shade800,
         image: DecorationImage(
           image: const NetworkImage(
-              'https://www.transparenttextures.com/patterns/cubes.png'),
+            'https://www.transparenttextures.com/patterns/cubes.png',
+          ),
           colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.1), BlendMode.dstATop),
+            Colors.black.withOpacity(0.1),
+            BlendMode.dstATop,
+          ),
           fit: BoxFit.cover,
         ),
         borderRadius: const BorderRadius.only(
@@ -587,8 +647,9 @@ class DashboardHeader extends StatelessWidget {
                     return Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle),
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
                       child: CircleAvatar(
                         radius: 36,
                         backgroundColor: Colors.blue.shade200,
@@ -597,8 +658,11 @@ class DashboardHeader extends StatelessWidget {
                                 ? NetworkImage(imageUrl)
                                 : null,
                         child: (imageUrl == null || imageUrl.isEmpty)
-                            ? const Icon(Icons.person,
-                                color: Colors.white, size: 40)
+                            ? const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                                size: 40,
+                              )
                             : null,
                       ),
                     );
@@ -609,31 +673,42 @@ class DashboardHeader extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Welcome back,',
-                          style: TextStyle(
-                              color: Colors.blue.shade100, fontSize: 16)),
+                      Text(
+                        'Welcome back,',
+                        style: TextStyle(
+                          color: Colors.blue.shade100,
+                          fontSize: 16,
+                        ),
+                      ),
                       Text(
                         userName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5),
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20)),
-                        child: Text(userRole,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500)),
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          userRole,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -641,27 +716,22 @@ class DashboardHeader extends StatelessWidget {
               ],
             ),
           ),
-          
-          // --- NOTIFICATION BELL ---
           Container(
             decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(16)),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: StreamBuilder<QuerySnapshot>(
-              // Using the exact query from NotificationPage
               stream: notificationsQuery.snapshots(),
               builder: (context, snapshot) {
                 int unreadCount = 0;
 
-                // Syncing the read logic perfectly with your DB structure
                 if (snapshot.hasData && currentUserId.isNotEmpty) {
                   for (var doc in snapshot.data!.docs) {
                     final data = doc.data() as Map<String, dynamic>;
-                    
-                    // Look at the readBy array, just like NotificationPage does
-                    List<dynamic> readByUsers = data['readBy'] ?? [];
-                    bool isRead = readByUsers.contains(currentUserId);
-                    
-                    // If current user is NOT in the readBy array, count it
+                    final List<dynamic> readByUsers = data['readBy'] ?? [];
+                    final bool isRead = readByUsers.contains(currentUserId);
+
                     if (!isRead) {
                       unreadCount++;
                     }
@@ -672,18 +742,20 @@ class DashboardHeader extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     IconButton(
-                      icon: Icon(Icons.notifications_active_outlined,
-                          color: Colors.blue.shade800),
+                      icon: Icon(
+                        Icons.notifications_active_outlined,
+                        color: Colors.blue.shade800,
+                      ),
                       onPressed: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => const NotificationPage()),
+                            builder: (context) => const NotificationPage(),
+                          ),
                         );
                       },
                       tooltip: 'Notifications',
                     ),
-                    
                     if (unreadCount > 0)
                       Positioned(
                         right: 8,
@@ -693,7 +765,10 @@ class DashboardHeader extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white, width: 1.5), 
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 1.5,
+                            ),
                           ),
                           constraints: const BoxConstraints(
                             minWidth: 16,
@@ -754,7 +829,7 @@ class UserCountBuilder extends StatelessWidget {
 
         if (snapshot.hasData) {
           total = snapshot.data!.docs.length;
-          for (var doc in snapshot.data!.docs) {
+          for (final doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
             if (data['isActive'] == true) {
               active++;
@@ -783,29 +858,36 @@ class UserCountBuilder extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               onTap: () {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            UserListPage(userType: userType, title: title)));
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        UserListPage(userType: userType, title: title),
+                  ),
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0, vertical: 16.0),
+                  horizontal: 12.0,
+                  vertical: 16.0,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                          color: color.shade50, shape: BoxShape.circle),
+                        color: color.shade50,
+                        shape: BoxShape.circle,
+                      ),
                       child: Icon(icon, size: 26, color: color.shade700),
                     ),
                     Text(
                       total.toString(),
                       style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B)),
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
                     ),
                     Text(
                       title,
@@ -813,9 +895,10 @@ class UserCountBuilder extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade600),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade600,
+                      ),
                     ),
                     FittedBox(
                       fit: BoxFit.scaleDown,
@@ -830,8 +913,10 @@ class UserCountBuilder extends StatelessWidget {
                     ),
                     InkWell(
                       onTap: () {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (context) => addPage));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => addPage),
+                        );
                       },
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
@@ -849,9 +934,10 @@ class UserCountBuilder extends StatelessWidget {
                             Text(
                               'Add New',
                               style: TextStyle(
-                                  fontSize: 12,
-                                  color: color.shade700,
-                                  fontWeight: FontWeight.bold),
+                                fontSize: 12,
+                                color: color.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -877,15 +963,21 @@ class UserCountBuilder extends StatelessWidget {
       child: Row(
         children: [
           Container(
-              width: 6,
-              height: 6,
-              decoration:
-                  BoxDecoration(color: badgeColor, shape: BoxShape.circle)),
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: badgeColor,
+              shape: BoxShape.circle,
+            ),
+          ),
           const SizedBox(width: 4),
           Text(
             "$count $label",
             style: TextStyle(
-                fontSize: 10, fontWeight: FontWeight.bold, color: badgeColor),
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: badgeColor,
+            ),
           ),
         ],
       ),
@@ -929,9 +1021,10 @@ class SimpleCountCard extends StatelessWidget {
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4)),
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
           child: Material(
@@ -946,8 +1039,9 @@ class SimpleCountCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(16)),
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Icon(icon, color: color, size: 32),
                     ),
                     const SizedBox(width: 20),
@@ -955,24 +1049,31 @@ class SimpleCountCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title,
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade700)),
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text(count,
-                              style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B))),
+                          Text(
+                            count,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     IconButton(
-                        icon: Icon(Icons.add_circle, color: color, size: 32),
-                        onPressed: onAdd,
-                        tooltip: 'Add $title'),
+                      icon: Icon(Icons.add_circle, color: color, size: 32),
+                      onPressed: onAdd,
+                      tooltip: 'Add $title',
+                    ),
                   ],
                 ),
               ),
@@ -1036,9 +1137,10 @@ class ActivityItemCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
         ],
       ),
       child: Material(
@@ -1053,8 +1155,9 @@ class ActivityItemCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: iconColor.withOpacity(0.1),
-                      shape: BoxShape.circle),
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
                   child: Icon(icon, color: iconColor, size: 24),
                 ),
                 const SizedBox(width: 16),
@@ -1062,17 +1165,24 @@ class ActivityItemCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title,
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1E293B))),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text(subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 14, color: Colors.grey.shade600)),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1080,14 +1190,20 @@ class ActivityItemCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(_formatTimeAgo(item.timestamp),
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
-                            fontWeight: FontWeight.w500)),
+                    Text(
+                      _formatTimeAgo(item.timestamp),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Icon(Icons.arrow_forward_ios,
-                        size: 14, color: Colors.grey.shade400),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: Colors.grey.shade400,
+                    ),
                   ],
                 ),
               ],
@@ -1102,8 +1218,12 @@ class ActivityItemCard extends StatelessWidget {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
 
-    if (difference.inDays > 365) return '${(difference.inDays / 365).floor()}y ago';
-    if (difference.inDays > 30) return '${(difference.inDays / 30).floor()}mo ago';
+    if (difference.inDays > 365) {
+      return '${(difference.inDays / 365).floor()}y ago';
+    }
+    if (difference.inDays > 30) {
+      return '${(difference.inDays / 30).floor()}mo ago';
+    }
     if (difference.inDays > 0) return '${difference.inDays}d ago';
     if (difference.inHours > 0) return '${difference.inHours}h ago';
     if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
@@ -1129,16 +1249,18 @@ class IssueCountBuilder extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-                colors: [Colors.red.shade50, Colors.white],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight),
+              colors: [Colors.red.shade50, Colors.white],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.red.shade100),
             boxShadow: [
               BoxShadow(
-                  color: Colors.red.withOpacity(0.05),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5))
+                color: Colors.red.withOpacity(0.05),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              )
             ],
           ),
           child: Material(
@@ -1147,9 +1269,14 @@ class IssueCountBuilder extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               onTap: () {
                 Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => ViewIssuesPage(currentUserNic: FirebaseAuth.instance.currentUser?.uid ?? '')));
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ViewIssuesPage(
+                      currentUserNic:
+                          FirebaseAuth.instance.currentUser?.uid ?? '',
+                    ),
+                  ),
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -1158,39 +1285,56 @@ class IssueCountBuilder extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          color: Colors.red.shade100, shape: BoxShape.circle),
-                      child: Icon(Icons.warning_amber_rounded,
-                          color: Colors.red.shade700, size: 32),
+                        color: Colors.red.shade100,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.red.shade700,
+                        size: 32,
+                      ),
                     ),
                     const SizedBox(width: 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title,
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B))),
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text('$total issues need attention',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.red.shade700,
-                                  fontWeight: FontWeight.w500)),
+                          Text(
+                            '$total issues need attention',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.red.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                          color: Colors.red.shade600,
-                          borderRadius: BorderRadius.circular(20)),
-                      child: const Text('View All',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
+                        color: Colors.red.shade600,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'View All',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -1204,7 +1348,7 @@ class IssueCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- CustomBottomNavBar ---
+// --- Bottom Navigation Bar (Screenshot Style) ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -1213,38 +1357,83 @@ class CustomBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 20,
-              offset: const Offset(0, -5))
-        ],
+      decoration: const BoxDecoration(
+        color: Color(0xFFF3F4F6),
+        border: Border(
+          top: BorderSide(
+            color: Color(0xFFE5E7EB),
+            width: 1,
+          ),
+        ),
       ),
       child: SafeArea(
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          backgroundColor: Colors.white,
-          selectedItemColor: Colors.blue.shade800,
-          unselectedItemColor: Colors.grey.shade400,
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          onTap: (index) => _onTabTapped(context, index),
-          items: const [
-            BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard_outlined),
-                activeIcon: Icon(Icons.dashboard),
-                label: 'Home'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline),
-                activeIcon: Icon(Icons.person),
-                label: 'Profile'),
-            BottomNavigationBarItem(
-                icon: Icon(Icons.settings_outlined),
-                activeIcon: Icon(Icons.settings),
-                label: 'Settings'),
-          ],
+        top: false,
+        child: SizedBox(
+          height: 72,
+          child: Row(
+            children: [
+              _buildNavItem(
+                context,
+                index: 0,
+                icon: Icons.home_rounded,
+                label: 'Home',
+              ),
+              _buildNavItem(
+                context,
+                index: 1,
+                icon: Icons.person_rounded,
+                label: 'Profile',
+              ),
+              _buildNavItem(
+                context,
+                index: 2,
+                icon: Icons.settings_rounded,
+                label: 'Settings',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    BuildContext context, {
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
+    final bool isSelected = currentIndex == index;
+
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onTabTapped(context, index),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 24,
+                color: isSelected
+                    ? const Color(0xFF3B82F6)
+                    : const Color(0xFF9CA3AF),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight:
+                      isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? const Color(0xFF3B82F6)
+                      : const Color(0xFF9CA3AF),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1270,12 +1459,15 @@ class CustomBottomNavBar extends StatelessWidget {
 
     if (index == 0) {
       Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => destination),
-          (route) => false);
+        context,
+        MaterialPageRoute(builder: (context) => destination),
+        (route) => false,
+      );
     } else {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => destination));
+        context,
+        MaterialPageRoute(builder: (context) => destination),
+      );
     }
   }
 }
@@ -1286,18 +1478,21 @@ class CustomBottomNavBar extends StatelessWidget {
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
   const IssueDetailPage({super.key, required this.issueId});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Issue Details")),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('issues')
-            .doc(issueId)
-            .snapshots(),
+        stream:
+            FirebaseFirestore.instance.collection('issues').doc(issueId).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || !snapshot.data!.exists) return const Center(child: Text('Issue not found'));
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('Issue not found'));
+          }
           final data = snapshot.data!.data() as Map<String, dynamic>;
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -1307,16 +1502,26 @@ class IssueDetailPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(data['issueTitle'] ?? 'No Title',
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(
+                      data['issueTitle'] ?? 'No Title',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text('School: ${data['schoolName'] ?? 'Unknown'}',
-                        style:
-                            const TextStyle(fontSize: 16, color: Colors.grey)),
+                    Text(
+                      'School: ${data['schoolName'] ?? 'Unknown'}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
                     const SizedBox(height: 16),
-                    Text(data['description'] ?? 'No description available',
-                        style: const TextStyle(fontSize: 16)),
+                    Text(
+                      data['description'] ?? 'No description available',
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ],
                 ),
               ),
@@ -1331,8 +1536,11 @@ class IssueDetailPage extends StatelessWidget {
 class SchoolDetailPage extends StatelessWidget {
   final String schoolId;
   final Map<String, dynamic> schoolData;
-  const SchoolDetailPage(
-      {super.key, required this.schoolId, required this.schoolData});
+  const SchoolDetailPage({
+    super.key,
+    required this.schoolId,
+    required this.schoolData,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1346,15 +1554,26 @@ class SchoolDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(schoolData['schoolName'] ?? 'Unknown School',
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(
+                  schoolData['schoolName'] ?? 'Unknown School',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _buildDetailRow(
-                    'Zone:', schoolData['educationalZone'] ?? 'N/A'),
-                _buildDetailRow('Address:', schoolData['address'] ?? 'N/A'),
+                  'Zone:',
+                  schoolData['educationalZone'] ?? 'N/A',
+                ),
                 _buildDetailRow(
-                    'Contact:', schoolData['contactNumber'] ?? 'N/A'),
+                  'Address:',
+                  schoolData['address'] ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Contact:',
+                  schoolData['contactNumber'] ?? 'N/A',
+                ),
               ],
             ),
           ),
@@ -1370,10 +1589,15 @@ class SchoolDetailPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-              width: 120,
-              child: Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.grey))),
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
           Expanded(child: Text(value)),
         ],
       ),
@@ -1384,8 +1608,11 @@ class SchoolDetailPage extends StatelessWidget {
 class UserDetailPage extends StatelessWidget {
   final String userId;
   final Map<String, dynamic> userData;
-  const UserDetailPage(
-      {super.key, required this.userId, required this.userData});
+  const UserDetailPage({
+    super.key,
+    required this.userId,
+    required this.userData,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1403,7 +1630,7 @@ class UserDetailPage extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 40,
                     backgroundImage: userData['profile_image'] != null
-                        ? NetworkImage(userData['profile_image']!)
+                        ? NetworkImage(userData['profile_image'])
                         : null,
                     child: userData['profile_image'] == null
                         ? const Icon(Icons.person, size: 40)
@@ -1412,14 +1639,21 @@ class UserDetailPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Center(
-                    child: Text(userData['name'] ?? 'Unknown User',
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.bold))),
+                  child: Text(
+                    userData['name'] ?? 'Unknown User',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _buildDetailRow('User Type:', userData['userType'] ?? 'N/A'),
                 _buildDetailRow('Email:', userData['email'] ?? 'N/A'),
-                _buildDetailRow('Status:',
-                    userData['isActive'] == true ? 'Active' : 'Inactive'),
+                _buildDetailRow(
+                  'Status:',
+                  userData['isActive'] == true ? 'Active' : 'Inactive',
+                ),
               ],
             ),
           ),
@@ -1435,10 +1669,15 @@ class UserDetailPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-              width: 100,
-              child: Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.grey))),
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ),
           Expanded(child: Text(value)),
         ],
       ),
