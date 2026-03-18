@@ -54,9 +54,10 @@ class _ChiefEngDashboardState extends State<ChiefEngDashboard> {
   late final Stream<List<ActivityItem>> _activityStream;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Ultra-modern background color (Soft airy blue/gray)
-  final Color pageBackgroundColor = const Color(0xFFF3F6F9); 
-  final Color textPrimary = const Color(0xFF111827); // Deep Charcoal
+  // Premium SaaS Color Palette
+  final Color bgColor = const Color(0xFFF8FAFC); // Very light slate
+  final Color textDark = const Color(0xFF0F172A); // Slate 900
+  final Color textMuted = const Color(0xFF64748B); // Slate 500
 
   @override
   void initState() {
@@ -101,81 +102,88 @@ class _ChiefEngDashboardState extends State<ChiefEngDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: pageBackgroundColor,
+      backgroundColor: bgColor,
+      extendBody: true, // Allows content to scroll behind floating nav bar
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
           slivers: [
-            // Floating Clean Header
+            // HEADER
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              padding: const EdgeInsets.fromLTRB(24.0, 32.0, 24.0, 16.0),
               sliver: SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1400),
+                    constraints: const BoxConstraints(maxWidth: 1200),
                     child: DashboardHeader(userData: widget.userData),
                   ),
                 ),
               ),
             ),
             
-            // Bento Box Style Main Content
+            // MAIN CONTENT GRIDS
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               sliver: SliverToBoxAdapter(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1400),
+                    constraints: const BoxConstraints(maxWidth: 1200),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         
-                        // --- 1. SYSTEM ALERTS (Top priority, full width) ---
-                        const IssueCountBuilder(title: 'Critical Issues'),
+                        // --- ALERTS CARD ---
+                        const IssueCountBuilder(title: 'Action Required'),
                         const SizedBox(height: 32),
 
-                        _buildSectionTitle('Staff Overview'),
+                        _buildSectionTitle('Staff & Personnel'),
                         const SizedBox(height: 16),
 
-                        // --- 2. USER STATS (Dark gradient bento cards) ---
+                        // --- UNIFIED STAFF CARDS ---
                         LayoutBuilder(
                           builder: (context, constraints) {
                             double width = constraints.maxWidth;
-                            double itemWidth = width > 900 ? (width - 40) / 3 : (width > 600 ? (width - 20) / 2 : width);
+                            // 1 col on mobile, 3 cols on desktop
+                            double itemWidth = width > 800 ? (width - 40) / 3 : width; 
+                            
                             return Wrap(
                               spacing: 20,
                               runSpacing: 20,
                               children: [
-                                SizedBox(width: itemWidth, child: _buildPremiumStatCard('District Engineer', 'District Engineer', const DistrictEngRegistrationPage(), const Color(0xFF0F2027), const Color(0xFF203A43))),
-                                SizedBox(width: itemWidth, child: _buildPremiumStatCard('Technical Officer', 'Technical Officer', const TORegistrationPage(), const Color(0xFFF2994A), const Color(0xFFF2C94C))),
-                                SizedBox(width: itemWidth, child: _buildPremiumStatCard('Principals', 'Principal', const PrincipalRegistrationPage(), const Color(0xFF4A00E0), const Color(0xFF8E2DE2))),
+                                SizedBox(width: itemWidth, child: _buildUnifiedStatCard('District Engineer', 'District Engineer', const DistrictEngRegistrationPage(), const Color(0xFF0EA5E9))), // Sky Blue
+                                SizedBox(width: itemWidth, child: _buildUnifiedStatCard('Technical Officer', 'Technical Officer', const TORegistrationPage(), const Color(0xFFF59E0B))), // Amber
+                                SizedBox(width: itemWidth, child: _buildUnifiedStatCard('Principals', 'Principal', const PrincipalRegistrationPage(), const Color(0xFF8B5CF6))), // Violet
                               ],
                             );
                           }
                         ),
 
                         const SizedBox(height: 40),
-                        _buildSectionTitle('Workspace'),
+                        _buildSectionTitle('Project Hub'),
                         const SizedBox(height: 16),
 
-                        // --- 3. QUICK ACTIONS (White floating tiles) ---
+                        // --- UNIFIED ACTION TILES ---
                         LayoutBuilder(
                           builder: (context, constraints) {
                             double width = constraints.maxWidth;
-                            double itemWidth = width > 900 ? (width - 40) / 3 : (width > 600 ? (width - 20) / 2 : width);
+                            // 2 cols on mobile, 4 cols on desktop
+                            double itemWidth = width > 800 ? (width - 60) / 4 : (width - 20) / 2;
+                            
                             return Wrap(
                               spacing: 20,
                               runSpacing: 20,
                               children: [
-                                SizedBox(width: itemWidth, child: _buildActionTile('Contractors', 'contractor_details', Icons.architecture_rounded, Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractorsListPage())))),
-                                SizedBox(width: itemWidth, child: _buildActionTile('Contracts', 'contracts', Icons.description_rounded, Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractListPage())))),
-                                SizedBox(width: itemWidth, child: _buildSimpleActionTile('School Directory', 'View Master Plans', Icons.account_balance_rounded, Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AllSchoolsPage())))),
-                                SizedBox(width: itemWidth, child: _buildSimpleActionTile('Analytics', 'Data & Reports', Icons.pie_chart_rounded, Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SchoolAnalysisPage())))),
+                                SizedBox(width: itemWidth, child: _buildActionTile('Contractors', 'contractor_details', Icons.engineering_rounded, const Color(0xFF10B981), () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractorsListPage())))),
+                                SizedBox(width: itemWidth, child: _buildActionTile('Contracts', 'contracts', Icons.description_rounded, const Color(0xFF3B82F6), () => Navigator.push(context, MaterialPageRoute(builder: (context) => const ContractListPage())))),
+                                SizedBox(width: itemWidth, child: _buildSimpleActionTile('Directory', Icons.corporate_fare_rounded, const Color(0xFF6366F1), () => Navigator.push(context, MaterialPageRoute(builder: (context) => const AllSchoolsPage())))),
+                                SizedBox(width: itemWidth, child: _buildSimpleActionTile('Analytics', Icons.insights_rounded, const Color(0xFFEC4899), () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SchoolAnalysisPage())))),
                               ],
                             );
                           }
                         ),
 
-                        const SizedBox(height: 60), // Bottom padding
+                        const SizedBox(height: 120), // Large bottom padding for floating nav bar
                       ],
                     ),
                   ),
@@ -192,100 +200,34 @@ class _ChiefEngDashboardState extends State<ChiefEngDashboard> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textPrimary, letterSpacing: -1.0),
+      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textDark, letterSpacing: -0.5),
     );
   }
 
-  // A sleek, borderless tile for standard routing (Analytics, Directory)
-  Widget _buildSimpleActionTile(String title, String subtitle, IconData icon, MaterialColor color, VoidCallback onTap) {
+  // --- STANDARD CARD CONTAINER ---
+  Widget _buildCardContainer({required Widget child, required VoidCallback onTap}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.05), blurRadius: 30, offset: const Offset(0, 15))],
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 24, offset: const Offset(0, 10)),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(28),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(color: color.shade50, borderRadius: BorderRadius.circular(24)),
-                  child: Icon(icon, color: color.shade600, size: 32),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
-                      const SizedBox(height: 4),
-                      Text(subtitle, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey.shade500)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          child: child,
         ),
       ),
     );
   }
 
-  // Action Tile with Count (Contracts, Contractors)
-  Widget _buildActionTile(String title, String collectionName, IconData icon, MaterialColor color, VoidCallback onTap) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection(collectionName).snapshots(),
-      builder: (context, snapshot) {
-        String count = snapshot.hasData ? snapshot.data!.docs.length.toString() : '...';
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [BoxShadow(color: color.withOpacity(0.05), blurRadius: 30, offset: const Offset(0, 15))],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(32),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(color: color.shade50, borderRadius: BorderRadius.circular(24)),
-                      child: Icon(icon, color: color.shade600, size: 32),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade500)),
-                          Text(count, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF111827))),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_rounded, color: Colors.grey.shade300),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Premium Dark Gradient Stat Cards (User Counts)
-  Widget _buildPremiumStatCard(String title, String userType, Widget addPage, Color colorStart, Color colorEnd) {
+  // --- UNIFIED STAFF STAT CARD ---
+  Widget _buildUnifiedStatCard(String title, String userType, Widget addPage, Color accentColor) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').where('userType', isEqualTo: userType).snapshots(),
       builder: (context, snapshot) {
@@ -298,65 +240,120 @@ class _ChiefEngDashboardState extends State<ChiefEngDashboard> {
           }
         }
 
-        return Container(
-          height: 220,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [colorStart, colorEnd], begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [BoxShadow(color: colorStart.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(32),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => UserListPage(userType: userType, title: title))),
-              child: Padding(
-                padding: const EdgeInsets.all(28.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        return _buildCardContainer(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => UserListPage(userType: userType, title: title))),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                          child: Row(
-                            children: [
-                              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
-                              const SizedBox(width: 6),
-                              Text('$active Active', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline, color: Colors.white70),
-                          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => addPage)),
-                        )
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: accentColor.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                      child: Icon(Icons.people_alt_rounded, color: accentColor, size: 24),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(total.toString(), style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0, letterSpacing: -2)),
-                        const SizedBox(height: 8),
-                        Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.7), letterSpacing: 1.5)),
-                      ],
-                    ),
+                    IconButton(
+                      icon: Icon(Icons.add_circle_rounded, color: Colors.grey.shade300, size: 32),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => addPage)),
+                    )
                   ],
                 ),
-              ),
+                const SizedBox(height: 24),
+                Text(total.toString(), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: textDark, height: 1.0, letterSpacing: -1.5)),
+                const SizedBox(height: 8),
+                Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: textMuted)),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    _buildStatusPill(active, 'Active', const Color(0xFF10B981)),
+                    const SizedBox(width: 8),
+                    _buildStatusPill(pending, 'Pending', const Color(0xFFF59E0B)),
+                  ],
+                )
+              ],
             ),
           ),
         );
       },
     );
   }
+
+  Widget _buildStatusPill(int count, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+          Text('$count $label', style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  // --- SQUARE ACTION TILES (For Hub) ---
+  Widget _buildActionTile(String title, String collectionName, IconData icon, Color color, VoidCallback onTap) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection(collectionName).snapshots(),
+      builder: (context, snapshot) {
+        String count = snapshot.hasData ? snapshot.data!.docs.length.toString() : '-';
+        return _buildCardContainer(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                  child: Icon(icon, color: color, size: 28),
+                ),
+                const SizedBox(height: 20),
+                Text(count, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: textDark, height: 1.0)),
+                const SizedBox(height: 4),
+                Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textMuted)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSimpleActionTile(String title, IconData icon, Color color, VoidCallback onTap) {
+    return _buildCardContainer(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 20),
+            const Text('View', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.transparent, height: 1.0)), // Spacer hack for alignment
+            const SizedBox(height: 4),
+            Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textDark)),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // -----------------------------------------------------------------------------
-// --- Modern Header (Clean, floating style with Dynamic Time) ---
+// --- Premium Header (Dynamic Time) ---
 // -----------------------------------------------------------------------------
 class DashboardHeader extends StatelessWidget {
   final Map<String, dynamic>? userData;
@@ -364,19 +361,15 @@ class DashboardHeader extends StatelessWidget {
 
   String _getGreeting() {
     var hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Good Morning,';
-    } else if (hour < 17) {
-      return 'Good Afternoon,';
-    } else {
-      return 'Good Evening,';
-    }
+    if (hour < 12) return 'Good Morning,';
+    if (hour < 17) return 'Good Afternoon,';
+    return 'Good Evening,';
   }
 
   @override
   Widget build(BuildContext context) {
     final String userName = userData?['name'] ?? 'Chief Engineer';
-    final String userRole = userData?['userType'] ?? 'Dashboard';
+    final String userRole = userData?['userType'] ?? 'System Dashboard';
     
     final User? currentUser = FirebaseAuth.instance.currentUser;
     final String currentUserId = currentUser?.uid ?? '';
@@ -389,26 +382,33 @@ class DashboardHeader extends StatelessWidget {
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_getGreeting(), style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+              Text(_getGreeting(), style: TextStyle(color: Colors.grey.shade500, fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(userName, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -1.0)),
               const SizedBox(height: 4),
-              Text(userName, style: const TextStyle(color: Color(0xFF111827), fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: -1.5)),
-              const SizedBox(height: 4),
-              Text(userRole, style: const TextStyle(color: Color(0xFF4F46E5), fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(8)),
+                child: Text(userRole.toUpperCase(), style: const TextStyle(color: Color(0xFF475569), fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.0)),
+              ),
             ],
           ),
         ),
         
         Row(
           children: [
-            // Floating Notification Bell
+            // Notifications
             Container(
-              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))]),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                shape: BoxShape.circle, 
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]
+              ),
               child: StreamBuilder<QuerySnapshot>(
                 stream: notificationsQuery.snapshots(),
                 builder: (context, snapshot) {
@@ -423,16 +423,16 @@ class DashboardHeader extends StatelessWidget {
                     clipBehavior: Clip.none,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.notifications_outlined, color: Color(0xFF111827), size: 28),
+                        icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF0F172A), size: 26),
                         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationPage())),
                       ),
                       if (unreadCount > 0)
                         Positioned(
-                          right: 4, top: 4,
+                          right: 2, top: 2,
                           child: Container(
                             padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(color: Color(0xFFF43F5E), shape: BoxShape.circle),
-                            child: Text(unreadCount > 9 ? '9+' : unreadCount.toString(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                            decoration: BoxDecoration(color: const Color(0xFFEF4444), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                            child: Text(unreadCount > 9 ? '9+' : unreadCount.toString(), style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                           ),
                         ),
                     ],
@@ -441,19 +441,20 @@ class DashboardHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            // Profile Pic
+            // Profile Image
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance.collection('users').doc(currentUserId).snapshots(),
               builder: (context, snapshot) {
                 String? imageUrl;
                 if (snapshot.hasData && snapshot.data!.exists) imageUrl = (snapshot.data!.data() as Map<String, dynamic>)['profile_image'];
                 return Container(
-                  decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))]),
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFFE2E8F0), width: 2)),
                   child: CircleAvatar(
-                    radius: 28,
-                    backgroundColor: const Color(0xFFE0E7FF),
+                    radius: 24,
+                    backgroundColor: const Color(0xFFF1F5F9),
                     backgroundImage: (imageUrl != null && imageUrl.isNotEmpty) ? NetworkImage(imageUrl) : null,
-                    child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person, color: Color(0xFF4F46E5), size: 30) : null,
+                    child: (imageUrl == null || imageUrl.isEmpty) ? const Icon(Icons.person_rounded, color: Color(0xFF94A3B8), size: 24) : null,
                   ),
                 );
               },
@@ -466,7 +467,7 @@ class DashboardHeader extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- Issue Banner (Glowing, Attention-Grabbing) ---
+// --- Alert Banner (Soft Red Unified Card) ---
 // -----------------------------------------------------------------------------
 class IssueCountBuilder extends StatelessWidget {
   final String title;
@@ -481,40 +482,37 @@ class IssueCountBuilder extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF1F2), // Very soft rose
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [BoxShadow(color: const Color(0xFFF43F5E).withOpacity(0.15), blurRadius: 30, offset: const Offset(0, 15))],
+            color: const Color(0xFFFEF2F2), // Soft red background
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFFECACA), width: 1.5),
+            boxShadow: [BoxShadow(color: const Color(0xFFEF4444).withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(32),
+              borderRadius: BorderRadius.circular(28),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ViewIssuesPage(currentUserNic: FirebaseAuth.instance.currentUser?.uid ?? ''))),
               child: Padding(
-                padding: const EdgeInsets.all(28),
+                padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: const BoxDecoration(color: Color(0xFFF43F5E), shape: BoxShape.circle), // Rose 500
-                      child: const Icon(Icons.error_outline_rounded, color: Colors.white, size: 36),
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle),
+                      child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
                     ),
-                    const SizedBox(width: 24),
+                    const SizedBox(width: 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF881337))), // Rose 900
-                          const SizedBox(height: 6),
-                          Text('$total active reports require your attention.', style: const TextStyle(fontSize: 15, color: Color(0xFFBE123C), fontWeight: FontWeight.w500)), // Rose 700
+                          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF991B1B))), 
+                          const SizedBox(height: 4),
+                          Text('$total active reports require attention', style: const TextStyle(fontSize: 14, color: Color(0xFFDC2626), fontWeight: FontWeight.w500)),
                         ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
-                      child: const Text('Review', style: TextStyle(color: Color(0xFFF43F5E), fontWeight: FontWeight.w900, fontSize: 16)),
-                    ),
+                    const Icon(Icons.arrow_forward_rounded, color: Color(0xFFEF4444)),
                   ],
                 ),
               ),
@@ -527,7 +525,7 @@ class IssueCountBuilder extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// --- Minimalist Floating Bottom Nav Bar ---
+// --- Premium Floating Pill Nav Bar ---
 // -----------------------------------------------------------------------------
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -536,28 +534,30 @@ class CustomBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.all(24), // Makes it float
+      margin: const EdgeInsets.only(left: 32, right: 32, bottom: 24),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827), // Dark grey/black
+        color: Colors.white, 
         borderRadius: BorderRadius.circular(40),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 30, offset: const Offset(0, 15))],
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.5),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 30, offset: const Offset(0, 10))],
       ),
       child: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: BottomNavigationBar(
             currentIndex: currentIndex,
             backgroundColor: Colors.transparent,
-            selectedItemColor: Colors.white,
-            unselectedItemColor: Colors.grey.shade600,
+            selectedItemColor: const Color(0xFF0F172A),
+            unselectedItemColor: const Color(0xFF94A3B8),
             showSelectedLabels: true,
             showUnselectedLabels: false,
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             type: BottomNavigationBarType.fixed,
             elevation: 0,
             onTap: (index) => _onTabTapped(context, index),
             items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Dashboard'),
+              BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Home'),
               BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), activeIcon: Icon(Icons.person_rounded), label: 'Profile'),
               BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings_rounded), label: 'Settings'),
             ],
@@ -584,14 +584,12 @@ class CustomBottomNavBar extends StatelessWidget {
   }
 }
 
-// --- LOCAL DETAIL PAGES FOR ACTIVITY FEED FALLBACK (Unchanged layout needed here) ---
+// --- LOCAL DETAIL PAGES FOR ACTIVITY FEED FALLBACK ---
 class IssueDetailPage extends StatelessWidget {
   final String issueId;
   const IssueDetailPage({super.key, required this.issueId});
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text("Issue Details")), body: const Center(child: Text("Issue details placeholder")));
-  }
+  Widget build(BuildContext context) { return Scaffold(appBar: AppBar(title: const Text("Issue Details")), body: const Center(child: Text("Placeholder"))); }
 }
 
 class SchoolDetailPage extends StatelessWidget {
@@ -599,9 +597,7 @@ class SchoolDetailPage extends StatelessWidget {
   final Map<String, dynamic> schoolData;
   const SchoolDetailPage({super.key, required this.schoolId, required this.schoolData});
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text("School Details")), body: const Center(child: Text("School details placeholder")));
-  }
+  Widget build(BuildContext context) { return Scaffold(appBar: AppBar(title: const Text("School Details")), body: const Center(child: Text("Placeholder"))); }
 }
 
 class UserDetailPage extends StatelessWidget {
@@ -609,7 +605,5 @@ class UserDetailPage extends StatelessWidget {
   final Map<String, dynamic> userData;
   const UserDetailPage({super.key, required this.userId, required this.userData});
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text("User Details")), body: const Center(child: Text("User details placeholder")));
-  }
+  Widget build(BuildContext context) { return Scaffold(appBar: AppBar(title: const Text("User Details")), body: const Center(child: Text("Placeholder"))); }
 }
