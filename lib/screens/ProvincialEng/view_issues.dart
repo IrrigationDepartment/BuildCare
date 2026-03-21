@@ -559,8 +559,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                     pw.Divider(color: PdfColors.grey300),
                     _buildPdfTableRow(
                         'School Name', data['schoolName'] ?? 'N/A'),
-                    pw.Divider(color: PdfColors.grey300),
-                    _buildPdfTableRow('School ID', data['schoolId'] ?? 'N/A'),
+                    /*pw.Divider(color: PdfColors.grey300),
+                    _buildPdfTableRow('School ID', data['schoolId'] ?? 'N/A'),*/
                     pw.Divider(color: PdfColors.grey300),
                     _buildPdfTableRow('Issue Type', data['issueType'] ?? data['category'] ?? 'N/A'),
                     pw.Divider(color: PdfColors.grey300),
@@ -1025,12 +1025,12 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                                     title: 'School Name',
                                     value: schoolName,
                                     icon: Icons.school_outlined)),
-                            SizedBox(
+                           /* SizedBox(
                                 width: cardWidth,
                                 child: _buildDetailSection(
                                     title: 'School ID',
                                     value: schoolId,
-                                    icon: Icons.vpn_key_outlined)),
+                                    icon: Icons.vpn_key_outlined)),*/
                           ],
                         );
                       },

@@ -291,12 +291,12 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                                   label: 'Building',
                                   value: _issueData!['buildingName'] ?? 'N/A',
                                 ),
-                                const Divider(height: 24, color: Colors.black12),
-                                _buildDetailRow(
+                                //const Divider(height: 24, color: Colors.black12),
+                                /*_buildDetailRow(
                                   icon: Icons.square_foot_rounded,
                                   label: 'Building Area',
                                   value: _issueData!['buildingArea'] ?? 'N/A',
-                                ),
+                                ),*/
                                 const Divider(height: 24, color: Colors.black12),
                                 _buildDetailRow(
                                   icon: Icons.layers_rounded,
