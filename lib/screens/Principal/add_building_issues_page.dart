@@ -26,8 +26,11 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   final TextEditingController _schoolNameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
+  
+  // --- New Controller for Autocomplete Building Name ---
+  final TextEditingController _buildingNameController = TextEditingController();
+  final FocusNode _buildingNameFocusNode = FocusNode();
 
-  String? _selectedBuilding;
   String? _selectedDamageType;
   DateTime? _selectedDate;
   
@@ -45,11 +48,9 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
   static const Color _bgColor = Color(0xFFF8FAFC);
   static const Color _cardBg = Colors.white;
 
-  final List<String> _buildingTypes = [
-    'Academic Classroom', 'Office', 'Science Lab', 'Technology Lab', 'Library',
-    'Hostel', 'Computer Lab', 'Dahampasala Lab', 'Store Room', 'Auditorium',
-    'Main Hall', 'Changing Room', 'Security Room', 'Wash Room', 'Boundary Wall'
-  ];
+  // --- Dynamic Building Types ---
+  List<String> _buildingTypes = [];
+  String? _schoolDocumentId; // To store the exact school document ID
 
   final List<String> _damageTypes = [
     'Foundation & Wall Damage', 'Roofing Damage', 'Utility Damage (Electricity/Water)',
@@ -63,13 +64,28 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     _initializeData();
   }
 
+  @override
+  void dispose() {
+    _schoolNameController.dispose();
+    _descriptionController.dispose();
+    _dateController.dispose();
+    _buildingNameController.dispose();
+    _buildingNameFocusNode.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeData() async {
     setState(() => _isPageLoading = true);
+    
+    await _fetchSchoolFromUserNic();
+    
     if (_isEditMode) {
       await _loadIssueData();
-    } else {
-      await _fetchSchoolFromUserNic();
     }
+    
+    // Fetch buildings directly from the school's document
+    await _fetchBuildings();
+    
     if (mounted) setState(() => _isPageLoading = false);
   }
 
@@ -87,7 +103,20 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           _schoolNameController.text = userData['schoolName'] ?? 'Not Found';
           _userOffice = userData['office'];
         });
-        debugPrint("Principal office: $_userOffice");
+        
+        // Find the school document ID from the 'schools' collection
+        final String schoolName = _schoolNameController.text.trim();
+        if (schoolName.isNotEmpty && schoolName != 'Not Found') {
+           QuerySnapshot schoolQuery = await FirebaseFirestore.instance
+              .collection('schools')
+              .where('schoolName', isEqualTo: schoolName)
+              .limit(1)
+              .get();
+              
+           if (schoolQuery.docs.isNotEmpty) {
+             _schoolDocumentId = schoolQuery.docs.first.id;
+           }
+        }
       }
     } catch (e) {
       debugPrint("Error fetching user: $e");
@@ -101,7 +130,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         final data = doc.data() as Map<String, dynamic>;
         _schoolNameController.text = data['schoolName'] ?? '';
         _descriptionController.text = data['description'] ?? '';
-        _selectedBuilding = data['buildingName'];
+        _buildingNameController.text = data['buildingName'] ?? '';
         _selectedDamageType = data['damageType'];
         _userOffice = data['office'];
         if (data['dateOfOccurance'] != null) {
@@ -115,6 +144,74 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
+  // --- FIREBASE BUILDING MANAGEMENT ---
+  Future<void> _fetchBuildings() async {
+    if (_schoolDocumentId == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(_schoolDocumentId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        // Get the buildingNames array from the school document
+        List<dynamic> buildingsArray = data['buildingNames'] ?? [];
+        
+        setState(() {
+          _buildingTypes = List<String>.from(buildingsArray)..sort();
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching buildings: $e");
+    }
+  }
+
+  Future<void> _addBuilding(String newName) async {
+    if (newName.isEmpty || _buildingTypes.contains(newName) || _schoolDocumentId == null) return;
+    try {
+      // Add to the buildingNames array in the schools collection
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(_schoolDocumentId)
+          .update({
+            'buildingNames': FieldValue.arrayUnion([newName])
+          });
+          
+      setState(() {
+        _buildingTypes.add(newName);
+        _buildingTypes.sort(); 
+      });
+    } catch (e) {
+      debugPrint("Error adding building: $e");
+    }
+  }
+
+  Future<void> _removeBuilding(String nameToRemove) async {
+    if (_schoolDocumentId == null) return;
+    try {
+      // Remove from the buildingNames array in the schools collection
+      await FirebaseFirestore.instance
+          .collection('schools')
+          .doc(_schoolDocumentId)
+          .update({
+            'buildingNames': FieldValue.arrayRemove([nameToRemove])
+          });
+      
+      setState(() {
+        _buildingTypes.remove(nameToRemove);
+        // Clear text field if the user deleted the building they were currently typing
+        if (_buildingNameController.text.trim() == nameToRemove) {
+          _buildingNameController.clear();
+        }
+      });
+    } catch (e) {
+      debugPrint("Error removing building: $e");
+    }
+  }
+
+  // --- IMAGE UPLOAD & FORM SUBMISSION ---
   Future<void> _pickImages() async {
     final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 70);
     if (pickedFiles.isNotEmpty) {
@@ -151,18 +248,29 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a date.')));
       return;
     }
+    
+    final String finalBuildingName = _buildingNameController.text.trim();
+    if (finalBuildingName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a Building Name.')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
+      // AUTO-SAVE: If the typed building name isn't in the list, save it to the school document!
+      if (!_buildingTypes.contains(finalBuildingName) && _schoolDocumentId != null) {
+        await _addBuilding(finalBuildingName);
+      }
+
       List<String> uploadedImageUrls = await _uploadImages();
       List<String> finalUrls = [..._existingImageUrls, ...uploadedImageUrls];
 
       final issueData = {
         'schoolName': _schoolNameController.text.trim(),
-        'buildingName': _selectedBuilding,
+        'buildingName': finalBuildingName, // Use the autocomplete value
         'damageType': _selectedDamageType,
-        'issueTitle': '$_selectedBuilding - $_selectedDamageType',
+        'issueTitle': '$finalBuildingName - $_selectedDamageType',
         'description': _descriptionController.text.trim(),
         'dateOfOccurance': Timestamp.fromDate(_selectedDate!),
         'imageUrls': finalUrls,
@@ -179,8 +287,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
         await docRef.update(issueData);
       } else {
         docRef = await FirebaseFirestore.instance.collection('issues').add(issueData);
-        // Notifications යවනවා - එකම එක document එකක් විතරයි යවන්නේ
-        await _sendNotificationsToAllRoles(docRef.id);
+        await _sendNotificationsToAllRoles(docRef.id, finalBuildingName);
       }
 
       if (mounted) {
@@ -195,13 +302,11 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     }
   }
 
-  // --- අලුතින් වෙනස් කරපු Notification යවන Function එක ---
-  Future<void> _sendNotificationsToAllRoles(String issueDocId) async {
+  Future<void> _sendNotificationsToAllRoles(String issueDocId, String buildingName) async {
     final String schoolName = _schoolNameController.text.trim();
     final String notifTitle = 'New Building Issue Reported';
-    final String notifBody = '$schoolName reported: $_selectedBuilding - $_selectedDamageType';
+    final String notifBody = '$schoolName reported: $buildingName - $_selectedDamageType';
 
-    // 4ක් වෙනුවට 1 Notification එකක් යවනවා array එකක් පාවිච්චි කරලා
     await FirebaseFirestore.instance.collection('notifications').add({
       'title': notifTitle,
       'subtitle': notifBody,
@@ -220,8 +325,105 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
       ],
       'schoolName': schoolName,
     });
+  }
 
-    debugPrint('✅ 1 Single notification committed to Firestore for all roles!');
+  // --- MANAGE BUILDINGS DIALOG ---
+  void _showManageBuildingsDialog() {
+    if (_schoolDocumentId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error: School data not found.'))
+        );
+        return;
+    }
+  
+    final TextEditingController newBuildingCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text("Manage Buildings", style: TextStyle(fontWeight: FontWeight.bold, color: _primaryColor)),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: newBuildingCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Add New Building',
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _primaryColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.add, color: Colors.white),
+                            onPressed: () async {
+                              if (newBuildingCtrl.text.trim().isNotEmpty) {
+                                await _addBuilding(newBuildingCtrl.text.trim());
+                                newBuildingCtrl.clear();
+                                setDialogState(() {}); 
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    if (_buildingTypes.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text("No buildings added yet.", style: TextStyle(color: Colors.grey)),
+                      ),
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _buildingTypes.length,
+                        itemBuilder: (context, i) {
+                          final bName = _buildingTypes[i];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(bName, style: const TextStyle(fontWeight: FontWeight.w500)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () async {
+                                await _removeBuilding(bName);
+                                setDialogState(() {}); 
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Close", style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -237,7 +439,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
           style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 18)),
       ),
       body: _isPageLoading 
-        ? const Center(child: CircularProgressIndicator()) 
+        ? const Center(child: CircularProgressIndicator(color: _primaryColor)) 
         : LayoutBuilder(
             builder: (context, constraints) {
               bool isWide = constraints.maxWidth > 800;
@@ -260,7 +462,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
                           ),
                           _buildResponsiveRow(
                             isWide: isWide,
-                            child1: _buildDropdown("Building Name", _buildingTypes, _selectedBuilding, (v) => setState(() => _selectedBuilding = v)),
+                            child1: _buildBuildingAutocomplete(constraints.maxWidth), // Updated Autocomplete
                             child2: _buildDropdown("Damage Category", _damageTypes, _selectedDamageType, (v) => setState(() => _selectedDamageType = v)),
                           ),
                         ],
@@ -336,17 +538,111 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     );
   }
 
+  // --- AUTOCOMPLETE BUILDING FIELD ---
+  Widget _buildBuildingAutocomplete(double screenWidth) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: RawAutocomplete<String>(
+              textEditingController: _buildingNameController,
+              focusNode: _buildingNameFocusNode,
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                final query = textEditingValue.text.trim().toLowerCase();
+                if (query.isEmpty) {
+                  return _buildingTypes;
+                }
+                return _buildingTypes.where((b) => b.toLowerCase().contains(query));
+              },
+              onSelected: (String selection) {
+                _buildingNameController.text = selection;
+              },
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                return TextFormField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: InputDecoration(
+                    labelText: "Building Name (Select or Type New)",
+                    prefixIcon: const Icon(Icons.apartment, size: 20, color: _primaryColor),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  validator: (v) => v!.trim().isEmpty ? 'Required' : null,
+                );
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 250),
+                      width: screenWidth > 800 ? 300 : screenWidth - 80, 
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: ListView.separated(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
+                        itemBuilder: (context, index) {
+                          final option = options.elementAt(index);
+                          return ListTile(
+                            title: Text(option, style: const TextStyle(fontSize: 14)),
+                            onTap: () => onSelected(option),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Container(
+              decoration: BoxDecoration(
+                color: _primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _primaryColor.withOpacity(0.3)),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.edit_location_alt, color: _primaryColor),
+                onPressed: _showManageBuildingsDialog,
+                tooltip: "Manage Buildings",
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDropdown(String label, List<String> items, String? val, Function(String?) onChanged) {
+    final safeVal = items.contains(val) ? val : null;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: val,
+        value: safeVal,
         items: items.map((i) => DropdownMenuItem(value: i, child: Text(i, style: const TextStyle(fontSize: 14)))).toList(),
-        onChanged: onChanged,
+        onChanged: items.isEmpty ? null : onChanged, 
         decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: const Icon(Icons.apartment, size: 20, color: _primaryColor),
+          labelText: items.isEmpty ? "No options available" : label,
+          prefixIcon: const Icon(Icons.warning_amber_rounded, size: 20, color: _primaryColor),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: items.isEmpty ? Colors.grey.shade100 : Colors.white,
         ),
         validator: (v) => v == null ? 'Required' : null,
       ),
