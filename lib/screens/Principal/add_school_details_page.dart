@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 
 class AddSchoolDetailsPage extends StatefulWidget {
   final String userNic;
@@ -26,7 +25,8 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
   final TextEditingController _teachersController = TextEditingController();
   final TextEditingController _nonAcademicController = TextEditingController();
 
-  final FocusNode _schoolNameFocusNode = FocusNode();
+  // --- Building controller ---
+  final TextEditingController _buildingNameController = TextEditingController();
 
   // --- School suggestions data ---
   List<Map<String, dynamic>> _availableSchools = [];
@@ -43,9 +43,8 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
   bool _isFetchingData = true;
   String? _existingDocId;
 
-  // --- 6-Month Editing Lock Variables ---
-  bool _isEditable = true;
-  DateTime? _nextEditDate;
+  // --- Building names list ---
+  List<String> _buildingNames = [];
 
   // --- Style Constants ---
   static const Color kPrimaryColor = Color(0xFF0077FF);
@@ -79,7 +78,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     _studentsController.dispose();
     _teachersController.dispose();
     _nonAcademicController.dispose();
-    _schoolNameFocusNode.dispose();
+    _buildingNameController.dispose();
     super.dispose();
   }
 
@@ -105,6 +104,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
           'numTeachers': data['numTeachers'],
           'numNonAcademic': data['numNonAcademic'],
           'infrastructure': data['infrastructure'] ?? {},
+          'buildingNames': data['buildingNames'] ?? [],
         };
       }).where((school) => (school['schoolName'] as String).isNotEmpty).toList();
 
@@ -127,7 +127,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
   // --- Fetch Existing Data Logic ---
   Future<void> _loadExistingSchoolData() async {
     try {
-      // 1. Fetch User Data to get the assigned School Name
       QuerySnapshot userQuery = await FirebaseFirestore.instance
           .collection('users')
           .where('nic', isEqualTo: widget.userNic)
@@ -148,7 +147,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
 
       _schoolNameController.text = userSchoolName;
 
-      // 2. Fetch the School Data using the School Name
       QuerySnapshot schoolQuery = await FirebaseFirestore.instance
           .collection('schools')
           .where('schoolName', isEqualTo: userSchoolName)
@@ -171,18 +169,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         _nonAcademicController.text =
             (data['numNonAcademic'] ?? '').toString();
 
-        if (data.containsKey('lastEditedAt') && data['lastEditedAt'] != null) {
-          final DateTime lastEdited =
-              (data['lastEditedAt'] as Timestamp).toDate();
-          final DateTime now = DateTime.now();
-          final int daysSinceEdit = now.difference(lastEdited).inDays;
-
-          if (daysSinceEdit < 180) {
-            _isEditable = false;
-            _nextEditDate = lastEdited.add(const Duration(days: 180));
-          }
-        }
-
         if (mounted) {
           setState(() {
             final List<String> validTypes = [
@@ -200,6 +186,14 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
             _waterSupply = infra['waterSupply'] ?? false;
             _sanitation = infra['sanitation'] ?? false;
             _communication = infra['communication'] ?? false;
+
+            final buildings = data['buildingNames'];
+            if (buildings is List) {
+              _buildingNames = buildings
+                  .map((e) => e.toString().trim())
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+            }
           });
         }
       }
@@ -208,42 +202,54 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     }
   }
 
-  void _applySelectedSchool(Map<String, dynamic> school) {
+  void _addBuildingName() {
+    final name = _buildingNameController.text.trim();
+    if (name.isEmpty) return;
+
+    final exists = _buildingNames.any(
+      (element) => element.toLowerCase() == name.toLowerCase(),
+    );
+
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This building name already exists.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
-      _schoolNameController.text = school['schoolName']?.toString() ?? '';
-      _schoolAddressController.text = school['schoolAddress']?.toString() ?? '';
-      _schoolEmailController.text = school['schoolEmail']?.toString() ?? '';
-      _phoneController.text = school['schoolPhone']?.toString() ?? '';
-      _educationalZoneController.text =
-          school['educationalZone']?.toString() ?? '';
+      _buildingNames.add(name);
+      _buildingNameController.clear();
+    });
+  }
 
-      final List<String> validTypes = [
-        'Government',
-        'Semi-Government',
-        'Private',
-        'International'
-      ];
-      final selectedType = school['schoolType']?.toString();
-      if (selectedType != null && validTypes.contains(selectedType)) {
-        _schoolType = selectedType;
-      }
+  void _removeBuildingName(int index) {
+    setState(() {
+      _buildingNames.removeAt(index);
+    });
+  }
 
-      _studentsController.text = (school['numStudents'] ?? '').toString();
-      _teachersController.text = (school['numTeachers'] ?? '').toString();
-      _nonAcademicController.text =
-          (school['numNonAcademic'] ?? '').toString();
+  void _moveBuildingUp(int index) {
+    if (index == 0) return;
+    setState(() {
+      final item = _buildingNames.removeAt(index);
+      _buildingNames.insert(index - 1, item);
+    });
+  }
 
-      final infra = school['infrastructure'] ?? {};
-      _electricity = infra['electricity'] ?? false;
-      _waterSupply = infra['waterSupply'] ?? false;
-      _sanitation = infra['sanitation'] ?? false;
-      _communication = infra['communication'] ?? false;
+  void _moveBuildingDown(int index) {
+    if (index == _buildingNames.length - 1) return;
+    setState(() {
+      final item = _buildingNames.removeAt(index);
+      _buildingNames.insert(index + 1, item);
     });
   }
 
   // --- Firestore Save/Update Function ---
   Future<void> _saveSchoolDetails() async {
-    if (!_isEditable) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -261,6 +267,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         'numStudents': int.tryParse(_studentsController.text.trim()) ?? 0,
         'numTeachers': int.tryParse(_teachersController.text.trim()) ?? 0,
         'numNonAcademic': int.tryParse(_nonAcademicController.text.trim()) ?? 0,
+        'buildingNames': _buildingNames,
         'infrastructure': {
           'electricity': _electricity,
           'waterSupply': _waterSupply,
@@ -269,7 +276,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         },
         'addedByNic': widget.userNic,
         'updatedAt': FieldValue.serverTimestamp(),
-        'lastEditedAt': FieldValue.serverTimestamp(),
       };
 
       String currentSchoolId;
@@ -343,32 +349,31 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         ),
         centerTitle: true,
         actions: [
-          if (_isEditable)
-            Padding(
-              padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : ElevatedButton(
-                      onPressed: _isFetchingData ? null : _saveSchoolDetails,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
+          Padding(
+            padding: const EdgeInsets.only(right: 16, top: 10, bottom: 10),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : ElevatedButton(
+                    onPressed: _isFetchingData ? null : _saveSchoolDetails,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kPrimaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        "Save",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      "Save",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-            ),
+                  ),
+          ),
         ],
       ),
       body: SafeArea(
@@ -390,45 +395,13 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (!_isEditable)
-                                Container(
-                                  width: double.infinity,
-                                  margin: const EdgeInsets.only(bottom: 24),
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.shade50,
-                                    border: Border.all(
-                                        color: Colors.orange.shade200),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.lock_clock,
-                                        color: Colors.orange.shade700,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          "Editing is locked. School details can only be updated every 6 months. Next available edit date: ${_nextEditDate != null ? DateFormat.yMMMMd().format(_nextEditDate!) : 'N/A'}.",
-                                          style: TextStyle(
-                                            color: Colors.orange.shade900,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
                               _buildSectionTitle("Basic Details"),
-                              _buildSchoolNameAutocompleteField(),
+                              _buildLockedSchoolNameField(),
 
                               _buildTextField(
                                 "School Address",
                                 "Enter Your School Address",
                                 _schoolAddressController,
-                                readOnly: !_isEditable,
                               ),
 
                               if (isLargeScreen)
@@ -442,7 +415,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                         keyboardType:
                                             TextInputType.emailAddress,
                                         isEmail: true,
-                                        readOnly: !_isEditable,
                                       ),
                                     ),
                                     const SizedBox(width: 24),
@@ -453,7 +425,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                         _phoneController,
                                         keyboardType: TextInputType.phone,
                                         isPhone: true,
-                                        readOnly: !_isEditable,
                                       ),
                                     ),
                                   ],
@@ -465,7 +436,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                   _schoolEmailController,
                                   keyboardType: TextInputType.emailAddress,
                                   isEmail: true,
-                                  readOnly: !_isEditable,
                                 ),
                                 _buildTextField(
                                   "School Phone Number",
@@ -473,7 +443,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                   _phoneController,
                                   keyboardType: TextInputType.phone,
                                   isPhone: true,
-                                  readOnly: !_isEditable,
                                 ),
                               ],
 
@@ -491,7 +460,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                         "Educational Zone",
                                         "Enter Your Educational Zone",
                                         _educationalZoneController,
-                                        readOnly: !_isEditable,
                                       ),
                                     ),
                                   ],
@@ -502,7 +470,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                   "School Educational Zone",
                                   "Enter Your School Educational Zone",
                                   _educationalZoneController,
-                                  readOnly: !_isEditable,
                                 ),
                               ],
 
@@ -518,7 +485,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                         "Total students",
                                         _studentsController,
                                         isNumber: true,
-                                        readOnly: !_isEditable,
                                       ),
                                     ),
                                     const SizedBox(width: 24),
@@ -528,7 +494,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                         "Total Teachers",
                                         _teachersController,
                                         isNumber: true,
-                                        readOnly: !_isEditable,
                                       ),
                                     ),
                                     const SizedBox(width: 24),
@@ -538,7 +503,6 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                         "Total Non-Academic",
                                         _nonAcademicController,
                                         isNumber: true,
-                                        readOnly: !_isEditable,
                                       ),
                                     ),
                                   ],
@@ -549,24 +513,23 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                                   "Enter Total students",
                                   _studentsController,
                                   isNumber: true,
-                                  readOnly: !_isEditable,
                                 ),
                                 _buildTextField(
                                   "Number of Teachers in School",
                                   "Enter Total Teachers",
                                   _teachersController,
                                   isNumber: true,
-                                  readOnly: !_isEditable,
                                 ),
                                 _buildTextField(
                                   "Number of Non-Academic Staff",
                                   "Enter Total Non-Academic",
                                   _nonAcademicController,
                                   isNumber: true,
-                                  readOnly: !_isEditable,
                                 ),
                               ],
 
+                              const SizedBox(height: 16),
+                              _buildBuildingsSection(),
                               const SizedBox(height: 16),
                               _buildInfrastructureSection(),
                             ],
@@ -597,7 +560,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     );
   }
 
-  Widget _buildSchoolNameAutocompleteField() {
+  Widget _buildLockedSchoolNameField() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
@@ -612,191 +575,42 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
             ),
           ),
           const SizedBox(height: 8),
-          !_isEditable
-              ? TextFormField(
-                  controller: _schoolNameController,
-                  readOnly: true,
-                  style: TextStyle(color: Colors.grey.shade700),
-                  decoration: InputDecoration(
-                    hintText: "Enter Your School name",
-                    filled: true,
-                    fillColor: Colors.grey.shade100,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: kPrimaryColor,
-                        width: 1.5,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                    suffixIcon: const Icon(Icons.lock_outline),
-                  ),
-                )
-              : RawAutocomplete<Map<String, dynamic>>(
-                  textEditingController: _schoolNameController,
-                  focusNode: _schoolNameFocusNode,
-                  displayStringForOption: (option) =>
-                      option['schoolName']?.toString() ?? '',
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    final query =
-                        textEditingValue.text.trim().toLowerCase();
-
-                    if (query.isEmpty) {
-                      return const Iterable<Map<String, dynamic>>.empty();
-                    }
-
-                    return _availableSchools.where((school) {
-                      final name =
-                          school['schoolName']?.toString().toLowerCase() ?? '';
-                      return name.contains(query);
-                    }).take(8);
-                  },
-                  onSelected: _applySelectedSchool,
-                  fieldViewBuilder: (
-                    BuildContext context,
-                    TextEditingController controller,
-                    FocusNode focusNode,
-                    VoidCallback onFieldSubmitted,
-                  ) {
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      style: const TextStyle(color: Colors.black),
-                      decoration: InputDecoration(
-                        hintText: _isLoadingSchools
-                            ? "Loading schools..."
-                            : "Enter Your School name",
-                        hintStyle: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: 14,
-                        ),
-                        filled: true,
-                        fillColor: kFieldColor,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                            color: kPrimaryColor,
-                            width: 1.5,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 16,
-                        ),
-                        suffixIcon: _isLoadingSchools
-                            ? const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              )
-                            : controller.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      controller.clear();
-                                      setState(() {});
-                                    },
-                                  )
-                                : const Icon(Icons.search),
-                      ),
-                      onChanged: (_) {
-                        setState(() {});
-                      },
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Field required';
-                        }
-                        return null;
-                      },
-                    );
-                  },
-                  optionsViewBuilder: (
-                    BuildContext context,
-                    AutocompleteOnSelected<Map<String, dynamic>> onSelected,
-                    Iterable<Map<String, dynamic>> options,
-                  ) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 6,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          width: MediaQuery.of(context).size.width > 900
-                              ? 420
-                              : MediaQuery.of(context).size.width - 48,
-                          constraints: const BoxConstraints(maxHeight: 260),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border:
-                                Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shrinkWrap: true,
-                            itemCount: options.length,
-                            separatorBuilder: (_, __) => Divider(
-                              height: 1,
-                              color: Colors.grey.shade200,
-                            ),
-                            itemBuilder: (context, index) {
-                              final option = options.elementAt(index);
-                              final name =
-                                  option['schoolName']?.toString() ?? '';
-                              final zone =
-                                  option['educationalZone']?.toString() ?? '';
-
-                              return ListTile(
-                                leading: const Icon(
-                                  Icons.school_outlined,
-                                  color: kPrimaryColor,
-                                ),
-                                title: Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: zone.isNotEmpty
-                                    ? Text(zone)
-                                    : null,
-                                onTap: () => onSelected(option),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+          TextFormField(
+            controller: _schoolNameController,
+            readOnly: true,
+            style: TextStyle(color: Colors.grey.shade700),
+            decoration: InputDecoration(
+              hintText: "School Name",
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: kPrimaryColor,
+                  width: 1.5,
                 ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              suffixIcon: const Icon(Icons.lock_outline),
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'School name not found';
+              }
+              return null;
+            },
+          ),
         ],
       ),
     );
@@ -861,16 +675,16 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
             ),
             validator: (value) {
               if (readOnly) return null;
-              if (value == null || value.isEmpty) return 'Field required';
+              if (value == null || value.trim().isEmpty) return 'Field required';
               if (isEmail &&
-                  !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                  !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value.trim())) {
                 return 'Enter valid email';
               }
               if (isPhone &&
                   (!RegExp(r'^\d{10}$').hasMatch(value.trim()))) {
                 return 'Must be 10 digits';
               }
-              if (isNumber && int.tryParse(value) == null) {
+              if (isNumber && int.tryParse(value.trim()) == null) {
                 return 'Enter valid number';
               }
               return null;
@@ -905,12 +719,11 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: _schoolType,
-            iconEnabledColor:
-                _isEditable ? Colors.black54 : Colors.grey.shade400,
+            iconEnabledColor: Colors.black54,
             decoration: InputDecoration(
               hintText: "Select School Type",
               filled: true,
-              fillColor: !_isEditable ? Colors.grey.shade100 : kFieldColor,
+              fillColor: kFieldColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: Colors.grey.shade300),
@@ -932,15 +745,154 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
                   ),
                 )
                 .toList(),
-            onChanged:
-                _isEditable ? (val) => setState(() => _schoolType = val) : null,
+            onChanged: (val) => setState(() => _schoolType = val),
             validator: (val) {
-              if (!_isEditable) return null;
               return val == null ? 'Please select a type' : null;
             },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBuildingsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "School Buildings",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: kTextColor,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _buildingNameController,
+                decoration: InputDecoration(
+                  hintText: "Enter building name",
+                  filled: true,
+                  fillColor: kFieldColor,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: kPrimaryColor, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                onFieldSubmitted: (_) => _addBuildingName(),
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: _addBuildingName,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text(
+                "Add",
+                style: TextStyle(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimaryColor,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: _buildingNames.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    "No building names added yet.",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              : Column(
+                  children: List.generate(_buildingNames.length, (index) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFD),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: kPrimaryColor.withOpacity(0.1),
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: kPrimaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _buildingNames[index],
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: "Move Up",
+                            onPressed: () => _moveBuildingUp(index),
+                            icon: const Icon(Icons.keyboard_arrow_up),
+                          ),
+                          IconButton(
+                            tooltip: "Move Down",
+                            onPressed: () => _moveBuildingDown(index),
+                            icon: const Icon(Icons.keyboard_arrow_down),
+                          ),
+                          IconButton(
+                            tooltip: "Delete",
+                            onPressed: () => _removeBuildingName(index),
+                            icon: const Icon(Icons.delete_outline,
+                                color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+        ),
+      ],
     );
   }
 
@@ -960,7 +912,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: !_isEditable ? Colors.grey.shade100 : Colors.white,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey.shade300),
           ),
@@ -1004,14 +956,14 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
     return CheckboxListTile(
       title: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 14,
-          color: !_isEditable ? Colors.grey.shade600 : Colors.black87,
+          color: Colors.black87,
           fontWeight: FontWeight.w500,
         ),
       ),
       value: value,
-      onChanged: _isEditable ? (val) => setState(() => onChanged(val)) : null,
+      onChanged: (val) => setState(() => onChanged(val)),
       activeColor: kPrimaryColor,
       controlAffinity: ListTileControlAffinity.trailing,
       dense: true,

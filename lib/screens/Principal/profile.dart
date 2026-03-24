@@ -30,19 +30,30 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isLoadingData = true;
   String? _profileImageUrl;
 
+  // --- School suggestions data ---
+  List<Map<String, dynamic>> _availableSchools = [];
+  bool _isLoadingSchools = true;
+
+  // --- 6-Month Editing Lock Variables ---
+  bool _isSchoolEditable = true;
+  DateTime? _nextSchoolEditDate;
+  String _originalSchoolName = '';
+
   // Updated Theme Color to Blue Accent
   static const Color _primaryColor = Colors.blueAccent;
 
-  // Controllers
+  // Controllers & FocusNodes
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _schoolNameController;
   late TextEditingController _schoolPhoneController;
+  final FocusNode _schoolNameFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _profileImageUrl = widget.userData['profile_image'];
+    _originalSchoolName = widget.userData['schoolName'] ?? '';
 
     _nameController =
         TextEditingController(text: widget.userData['name'] ?? '');
@@ -50,7 +61,7 @@ class _ProfilePageState extends State<ProfilePage> {
       text: widget.userData['mobilePhone'] ?? widget.userData['phone'] ?? '',
     );
     _schoolNameController =
-        TextEditingController(text: widget.userData['schoolName'] ?? '');
+        TextEditingController(text: _originalSchoolName);
     _schoolPhoneController =
         TextEditingController(text: widget.userData['officePhone'] ?? '');
 
@@ -58,7 +69,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _initializeData() async {
-    await _fetchLatestUserData();
+    await Future.wait([
+      _fetchLatestUserData(),
+      _fetchSchoolsForAutocomplete(),
+    ]);
     if (mounted) {
       setState(() => _isLoadingData = false);
     }
@@ -70,6 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _phoneController.dispose();
     _schoolNameController.dispose();
     _schoolPhoneController.dispose();
+    _schoolNameFocusNode.dispose();
     super.dispose();
   }
 
@@ -90,12 +105,66 @@ class _ProfilePageState extends State<ProfilePage> {
           _nameController.text = userData['name'] ?? '';
           _phoneController.text =
               userData['mobilePhone'] ?? userData['phone'] ?? '';
-          _schoolNameController.text = userData['schoolName'] ?? '';
+          
+          _originalSchoolName = userData['schoolName'] ?? '';
+          _schoolNameController.text = _originalSchoolName;
           _schoolPhoneController.text = userData['officePhone'] ?? '';
+
+          // Check if 6 months have passed since the last edit
+          if (userData.containsKey('schoolNameLastEditedAt') && 
+              userData['schoolNameLastEditedAt'] != null) {
+            
+            final DateTime lastEdited = (userData['schoolNameLastEditedAt'] as Timestamp).toDate();
+            final DateTime now = DateTime.now();
+            final int daysSinceEdit = now.difference(lastEdited).inDays;
+
+            if (daysSinceEdit < 180) {
+              _isSchoolEditable = false;
+              _nextSchoolEditDate = lastEdited.add(const Duration(days: 180));
+            } else {
+              _isSchoolEditable = true;
+              _nextSchoolEditDate = null;
+            }
+          } else {
+            // If it has never been edited, allow it
+            _isSchoolEditable = true;
+            _nextSchoolEditDate = null;
+          }
         });
       }
     } catch (e) {
       debugPrint("Error fetching user data: $e");
+    }
+  }
+
+  // --- Fetch school list for autocomplete ---
+  Future<void> _fetchSchoolsForAutocomplete() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('schools')
+          .orderBy('schoolName')
+          .get();
+
+      final schools = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'schoolName': (data['schoolName'] ?? '').toString().trim(),
+          'educationalZone': (data['educationalZone'] ?? '').toString(),
+        };
+      }).where((school) => (school['schoolName'] as String).isNotEmpty).toList();
+
+      if (mounted) {
+        setState(() {
+          _availableSchools = schools;
+          _isLoadingSchools = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching schools: $e");
+      if (mounted) {
+        setState(() => _isLoadingSchools = false);
+      }
     }
   }
 
@@ -176,9 +245,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // --- PROFILE DATA UPDATE ---
   Future<void> _updateProfileData() async {
-    String lockedSchoolName = _schoolNameController.text.trim();
+    String currentSchoolName = _schoolNameController.text.trim();
 
-    if (_nameController.text.trim().isEmpty || lockedSchoolName.isEmpty) {
+    if (_nameController.text.trim().isEmpty || currentSchoolName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Required fields are empty.")),
       );
@@ -188,17 +257,24 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isUpdatingData = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .set({
+      Map<String, dynamic> updateData = {
         'name': _nameController.text.trim(),
         'mobilePhone': _phoneController.text.trim(),
-        'schoolName': lockedSchoolName,
+        'schoolName': currentSchoolName,
         'officePhone': _schoolPhoneController.text.trim(),
         'profile_image': _profileImageUrl,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+
+      // Only lock the school name if they actually changed it
+      if (_isSchoolEditable && currentSchoolName != _originalSchoolName) {
+        updateData['schoolNameLastEditedAt'] = FieldValue.serverTimestamp();
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .set(updateData, SetOptions(merge: true));
 
       await _fetchLatestUserData();
 
@@ -444,17 +520,169 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildLockedTextField(
-          "School Name",
-          _schoolNameController,
-          Icons.school_outlined,
-        ),
+        
+        // --- 6-Month Warning Banner ---
+        if (!_isSchoolEditable)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              border: Border.all(color: Colors.orange.shade200),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.lock_clock, color: Colors.orange.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "School Name editing is locked for 6 months.\nNext edit: ${_nextSchoolEditDate != null ? DateFormat.yMMMMd().format(_nextSchoolEditDate!) : 'N/A'}",
+                    style: TextStyle(
+                      color: Colors.orange.shade900,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        
+        // Swap between editable Autocomplete and locked text fields dynamically
+        _isSchoolEditable 
+            ? _buildSchoolNameAutocompleteField()
+            : _buildLockedTextField(
+                "School Name",
+                _schoolNameController,
+                Icons.school_outlined,
+              ),
+
         _buildTextField(
           "Office Phone",
           _schoolPhoneController,
           Icons.business_outlined,
         ),
       ],
+    );
+  }
+
+  // --- New Autocomplete Field ---
+  Widget _buildSchoolNameAutocompleteField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: RawAutocomplete<Map<String, dynamic>>(
+        textEditingController: _schoolNameController,
+        focusNode: _schoolNameFocusNode,
+        displayStringForOption: (option) => option['schoolName']?.toString() ?? '',
+        optionsBuilder: (TextEditingValue textEditingValue) {
+          final query = textEditingValue.text.trim().toLowerCase();
+
+          if (query.isEmpty) {
+            return const Iterable<Map<String, dynamic>>.empty();
+          }
+
+          return _availableSchools.where((school) {
+            final name = school['schoolName']?.toString().toLowerCase() ?? '';
+            return name.contains(query);
+          }).take(8);
+        },
+        onSelected: (option) {
+          setState(() {
+            _schoolNameController.text = option['schoolName']?.toString() ?? '';
+          });
+        },
+        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+          return TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              labelText: "School Name",
+              prefixIcon: const Icon(Icons.school_outlined, color: _primaryColor),
+              filled: true,
+              fillColor: Colors.grey[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[200]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[200]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _primaryColor, width: 1.5),
+              ),
+              suffixIcon: _isLoadingSchools
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : controller.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () {
+                            controller.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+            ),
+            onChanged: (_) {
+              setState(() {});
+            },
+          );
+        },
+        optionsViewBuilder: (context, onSelected, options) {
+          return Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: MediaQuery.of(context).size.width - 48,
+                constraints: const BoxConstraints(maxHeight: 250),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  itemCount: options.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: Colors.grey.shade200,
+                  ),
+                  itemBuilder: (context, index) {
+                    final option = options.elementAt(index);
+                    final name = option['schoolName']?.toString() ?? '';
+                    final zone = option['educationalZone']?.toString() ?? '';
+
+                    return ListTile(
+                      leading: const Icon(
+                        Icons.school_outlined,
+                        color: _primaryColor,
+                      ),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: zone.isNotEmpty ? Text(zone) : null,
+                      onTap: () => onSelected(option),
+                    );
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -508,6 +736,10 @@ class _ProfilePageState extends State<ProfilePage> {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: Colors.grey[200]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _primaryColor, width: 1.5),
           ),
         ),
       ),

@@ -68,7 +68,7 @@ class _DistrictEngDashboardState extends State<DistrictEngDashboard> {
     } else if (index == 1) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const ProfilePage()),
+        MaterialPageRoute(builder: (context) => const ProfilePage(userData: {}, userId: '',)),
       );
     } else if (index == 2) {
       Navigator.push(
