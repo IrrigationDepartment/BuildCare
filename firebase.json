@@ -7,6 +7,8 @@
           "appId": "1:633986399795:android:0b23279ab906be00f6ad46",
           "fileOutput": "android/app/google-services.json"
         }
+
+        
       },
       "dart": {
         "lib/firebase_options.dart": {
@@ -37,3 +39,5 @@
     }
   ]
 }
+
+
