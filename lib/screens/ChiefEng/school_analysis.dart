@@ -285,9 +285,9 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
   }
 
   String _getRatioGrade(double ratio) {
-    if (ratio <= 16)
+    if (ratio <= 16) {
       return 'A';
-    else if (ratio <= 30)
+    } else if (ratio <= 30)
       return 'B';
     else if (ratio <= 50)
       return 'C';
@@ -308,9 +308,9 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
     };
 
     scores.forEach((schoolId, score) {
-      if (score >= 80)
+      if (score >= 80) {
         grades['A']!.add(schoolId);
-      else if (score >= 60)
+      } else if (score >= 60)
         grades['B']!.add(schoolId);
       else if (score >= 40)
         grades['C']!.add(schoolId);
@@ -1770,7 +1770,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                                     trailing: const Icon(Icons.chevron_right),
                                   ),
                                 );
-                              }).toList(),
+                              }),
                             ],
                           ),
                         ),
@@ -1877,7 +1877,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                                 trailing: const Icon(Icons.chevron_right),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),

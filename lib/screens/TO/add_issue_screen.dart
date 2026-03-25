@@ -486,7 +486,11 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
   }
 
   Future<void> _handleSubmit() async {
-    if (_isEditMode) await _updateIssue(); else await _addNewIssue();
+    if (_isEditMode) {
+      await _updateIssue();
+    } else {
+      await _addNewIssue();
+    }
   }
 
   Future<void> _addNewIssue() async {
@@ -793,7 +797,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
                   child: Opacity(
                     opacity: _schoolSelected ? 1.0 : 0.5,
                     child: DropdownButtonFormField<String>(
-                      value: _selectedBuilding,
+                      initialValue: _selectedBuilding,
                       icon: const Icon(
                           Icons.keyboard_arrow_down_rounded),
                       items: _schoolBuildingNames
@@ -894,7 +898,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
                     fontWeight: FontWeight.w600, color: _textDark)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: val,
+              initialValue: val,
               icon: const Icon(Icons.keyboard_arrow_down_rounded),
               items: items
                   .map((i) => DropdownMenuItem(
@@ -968,11 +972,12 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
                         future:
                             _selectedImages[newIdx].readAsBytes(),
                         builder: (context, snapshot) {
-                          if (snapshot.hasData)
+                          if (snapshot.hasData) {
                             return Image.memory(snapshot.data!,
                                 width: 100,
                                 height: 100,
                                 fit: BoxFit.cover);
+                          }
                           return const SizedBox(
                               width: 100,
                               child: Center(

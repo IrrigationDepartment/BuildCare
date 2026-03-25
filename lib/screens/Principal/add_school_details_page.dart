@@ -718,7 +718,7 @@ class _AddSchoolDetailsPageState extends State<AddSchoolDetailsPage> {
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _schoolType,
+            initialValue: _schoolType,
             iconEnabledColor: Colors.black54,
             decoration: InputDecoration(
               hintText: "Select School Type",

@@ -16,7 +16,7 @@ const Color _successGreen = Color(0xFF10B981); // Emerald
 class UserProfileDialog extends StatelessWidget {
   final Map<String, dynamic> userData;
   final String currentUserNic;
-  const UserProfileDialog({Key? key, required this.userData, required this.currentUserNic}) : super(key: key);
+  const UserProfileDialog({super.key, required this.userData, required this.currentUserNic});
 
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return 'N/A';
@@ -197,12 +197,12 @@ class SchoolDetailsDialog extends StatelessWidget {
   final VoidCallback onViewAddedByProfile;
   
   const SchoolDetailsDialog({
-    Key? key, 
+    super.key, 
     required this.school, 
     required this.schoolData,
     this.addedByUserData,
     required this.onViewAddedByProfile,
-  }) : super(key: key);
+  });
 
   String _getSchoolDistrict(Map<String, dynamic> data) {
     return data['office'] as String? ?? data['district'] as String? ?? data['schoolDistrict'] as String? ?? 'N/A';
@@ -361,7 +361,7 @@ class SchoolDetailsDialog extends StatelessWidget {
 class ManageSchoolsPage extends StatefulWidget {
   final String? district;
   final String userNic;
-  const ManageSchoolsPage({Key? key, this.district, required this.userNic}) : super(key: key);
+  const ManageSchoolsPage({super.key, this.district, required this.userNic});
 
   @override
   State<ManageSchoolsPage> createState() => _ManageSchoolsPageState();
@@ -372,7 +372,7 @@ class _ManageSchoolsPageState extends State<ManageSchoolsPage> {
   String _searchQuery = '';
   
   List<Map<String, dynamic>> _schoolsData = [];
-  Map<String, Map<String, dynamic>> _addedByUsersCache = {};
+  final Map<String, Map<String, dynamic>> _addedByUsersCache = {};
 
   String _normalizeDistrict(String district) => district.trim().toLowerCase();
 

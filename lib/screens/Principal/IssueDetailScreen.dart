@@ -12,11 +12,11 @@ class IssueDetailScreen extends StatefulWidget {
   final String userNic;
 
   const IssueDetailScreen({
-    Key? key,
+    super.key,
     required this.issueData,
     required this.issueId,
     required this.userNic,
-  }) : super(key: key);
+  });
 
   @override
   _IssueDetailScreenState createState() => _IssueDetailScreenState();
@@ -591,11 +591,11 @@ class ReviewCard extends StatefulWidget {
   final String timestampStr;
 
   const ReviewCard({
-    Key? key,
+    super.key,
     required this.reviewerUid,
     required this.reviewText,
     required this.timestampStr,
-  }) : super(key: key);
+  });
 
   @override
   State<ReviewCard> createState() => _ReviewCardState();

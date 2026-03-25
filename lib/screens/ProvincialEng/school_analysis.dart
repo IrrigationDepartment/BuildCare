@@ -71,11 +71,22 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
 
       String ratioGrade = _getRatioGrade(ratio);
       schoolRatioGrades[schoolId] = ratioGrade;
+      
+      final schoolName = data['schoolName'] as String? ??
+          data['name'] as String? ??
+          'Unknown School';
+
+      // NEW LOGIC: Fetch Building Names directly from School Document
+      final buildingNamesList = data['buildingNames'] as List<dynamic>? ?? [];
+      final List<String> buildingNames = buildingNamesList.map((e) => e.toString()).toList();
+      
+      // Register all buildings to the school map even if they have 0 issues
+      for (var bName in buildingNames) {
+        buildingSchoolMap[bName] = schoolName;
+      }
 
       schoolDetails[schoolId] = {
-        'name': data['schoolName'] as String? ??
-            data['name'] as String? ??
-            'Unknown School',
+        'name': schoolName,
         'district': district,
         'students': students,
         'teachers': teachers,
@@ -86,6 +97,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
         'email': data['schoolEmail'] as String? ?? '',
         'phone': data['schoolPhone'] as String? ?? '',
         'zone': data['educationalZone'] as String? ?? '',
+        'buildingNames': buildingNames, // Added to details map
       };
 
       double infrastructureScore = 0;
@@ -122,6 +134,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
       final reporterNic = data['addedByNic'] as String? ?? 'Unknown';
       final issueId = issue.id;
 
+      // Overwrite/Ensure mapping exists
       buildingSchoolMap[buildingName] = schoolName;
 
       if (!buildingIssuesByType.containsKey(buildingName)) {
@@ -279,15 +292,16 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
       'dangerousBuildings': dangerousBuildings,
       'warningBuildings': warningBuildings,
       'buildingConditions': buildingCondition,
+      'buildingIssuesDetails': buildingIssuesDetails, // Added for building-by-building logic
       'userMap': userMap,
       'reporterIssues': reporterIssues,
     };
   }
 
   String _getRatioGrade(double ratio) {
-    if (ratio <= 16)
+    if (ratio <= 16) {
       return 'A';
-    else if (ratio <= 30)
+    } else if (ratio <= 30)
       return 'B';
     else if (ratio <= 50)
       return 'C';
@@ -308,9 +322,9 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
     };
 
     scores.forEach((schoolId, score) {
-      if (score >= 80)
+      if (score >= 80) {
         grades['A']!.add(schoolId);
-      else if (score >= 60)
+      } else if (score >= 60)
         grades['B']!.add(schoolId);
       else if (score >= 40)
         grades['C']!.add(schoolId);
@@ -1342,6 +1356,11 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
     final schoolWarningBuildings = warningBuildings
         .where((b) => (b['school'] as String) == schoolName)
         .toList();
+        
+    // --- NEW: Building Data variables ---
+    final buildingNames = details['buildingNames'] as List<String>? ?? [];
+    final buildingConditions = allData['buildingConditions'] as Map<String, String>? ?? {};
+    final buildingIssues = allData['buildingIssuesDetails'] as Map<String, List<Map<String, dynamic>>>? ?? {};
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1540,6 +1559,61 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
             ),
           ),
         ),
+        
+        // --- NEW SECTION: Campus Buildings List ---
+        if (buildingNames.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          const Text('Campus Buildings',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 12),
+          ...buildingNames.map((buildingName) {
+            final condition = buildingConditions[buildingName] ?? 'Good';
+            final bIssues = buildingIssues[buildingName] ?? [];
+            final issueCount = bIssues.length;
+
+            return Card(
+              elevation: 0,
+              color: condition == 'Danger'
+                  ? Colors.red.shade50
+                  : condition == 'Warning'
+                      ? Colors.orange.shade50
+                      : Colors.green.shade50,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                      color: condition == 'Danger'
+                          ? Colors.red.shade200
+                          : condition == 'Warning'
+                              ? Colors.orange.shade200
+                              : Colors.green.shade200)),
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: Icon(
+                  condition == 'Danger'
+                      ? Icons.dangerous
+                      : condition == 'Warning'
+                          ? Icons.warning_amber
+                          : Icons.verified,
+                  color: condition == 'Danger'
+                      ? Colors.red
+                      : condition == 'Warning'
+                          ? Colors.orange
+                          : Colors.green,
+                ),
+                title: Text(buildingName,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('Condition: $condition • $issueCount issues logged'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                onTap: () {
+                  _showBuildingDetails(
+                      context, buildingName, schoolName, bIssues, condition);
+                },
+              ),
+            );
+          }),
+        ],
+        // --- END OF NEW SECTION ---
+
         if (issuesForSchool.isNotEmpty) ...[
           const SizedBox(height: 20),
           const Text('Recent Issues',
@@ -1640,22 +1714,30 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                         decoration: BoxDecoration(
                             color: condition == 'Danger'
                                 ? Colors.red.shade50
-                                : Colors.orange.shade50,
+                                : condition == 'Warning'
+                                    ? Colors.orange.shade50
+                                    : Colors.green.shade50,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                                 color: condition == 'Danger'
                                     ? Colors.red
-                                    : Colors.orange,
+                                    : condition == 'Warning'
+                                        ? Colors.orange
+                                        : Colors.green,
                                 width: 1)),
                         child: Row(
                           children: [
                             Icon(
                                 condition == 'Danger'
                                     ? Icons.warning
-                                    : Icons.warning_amber,
+                                    : condition == 'Warning'
+                                        ? Icons.warning_amber
+                                        : Icons.check_circle,
                                 color: condition == 'Danger'
                                     ? Colors.red
-                                    : Colors.orange,
+                                    : condition == 'Warning'
+                                        ? Colors.orange
+                                        : Colors.green,
                                 size: 24),
                             const SizedBox(width: 12),
                             Expanded(
@@ -1665,17 +1747,23 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                                   Text(
                                       condition == 'Danger'
                                           ? 'DANGEROUS BUILDING'
-                                          : 'NEEDS ATTENTION',
+                                          : condition == 'Warning'
+                                              ? 'NEEDS ATTENTION'
+                                              : 'GOOD CONDITION',
                                       style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           color: condition == 'Danger'
                                               ? Colors.red
-                                              : Colors.orange)),
+                                              : condition == 'Warning'
+                                                  ? Colors.orange
+                                                  : Colors.green)),
                                   const SizedBox(height: 4),
                                   Text(
                                       condition == 'Danger'
                                           ? 'Multiple serious issues reported.'
-                                          : 'Several issues reported.',
+                                          : condition == 'Warning'
+                                              ? 'Several issues reported.'
+                                              : 'Building is reported to be in healthy condition.',
                                       style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey.shade700)),
@@ -1716,65 +1804,66 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('All Reported Issues:',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16)),
-                              const SizedBox(height: 8),
-                              ...issues.map((issueDynamic) {
-                                final issue =
-                                    issueDynamic as Map<String, dynamic>;
-                                final timestamp =
-                                    issue['timestamp'] as DateTime?;
-                                final reporterNic =
-                                    issue['reporterNic'] as String?;
-                                return Card(
-                                  elevation: 0,
-                                  color: Colors.grey.shade50,
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      side: BorderSide(
-                                          color: Colors.grey.shade200)),
-                                  child: ListTile(
-                                    onTap: () => _showIssueDetails(
-                                        context, issue, reporterNic),
-                                    leading: Icon(
-                                        _getStatusIcon(
-                                            issue['status'] as String? ??
-                                                'Pending'),
-                                        color: _getStatusColor(
-                                            issue['status'] as String? ??
-                                                'Pending')),
-                                    title: Text(issue['title'] as String? ??
-                                        'Untitled'),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Damage: ${issue['damageType']}'),
-                                        if (timestamp != null)
-                                          Text(
-                                              'Reported: ${DateFormat('MMM dd, yyyy').format(timestamp)}'),
-                                      ],
+                      if (issues.isNotEmpty)
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('All Reported Issues:',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                const SizedBox(height: 8),
+                                ...issues.map((issueDynamic) {
+                                  final issue =
+                                      issueDynamic as Map<String, dynamic>;
+                                  final timestamp =
+                                      issue['timestamp'] as DateTime?;
+                                  final reporterNic =
+                                      issue['reporterNic'] as String?;
+                                  return Card(
+                                    elevation: 0,
+                                    color: Colors.grey.shade50,
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        side: BorderSide(
+                                            color: Colors.grey.shade200)),
+                                    child: ListTile(
+                                      onTap: () => _showIssueDetails(
+                                          context, issue, reporterNic),
+                                      leading: Icon(
+                                          _getStatusIcon(
+                                              issue['status'] as String? ??
+                                                  'Pending'),
+                                          color: _getStatusColor(
+                                              issue['status'] as String? ??
+                                                  'Pending')),
+                                      title: Text(issue['title'] as String? ??
+                                          'Untitled'),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Damage: ${issue['damageType']}'),
+                                          if (timestamp != null)
+                                            Text(
+                                                'Reported: ${DateFormat('MMM dd, yyyy').format(timestamp)}'),
+                                        ],
+                                      ),
+                                      trailing: const Icon(Icons.chevron_right),
                                     ),
-                                    trailing: const Icon(Icons.chevron_right),
-                                  ),
-                                );
-                              }).toList(),
-                            ],
+                                  );
+                                }),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -1877,7 +1966,7 @@ class _SchoolAnalysisPageState extends State<SchoolAnalysisPage> {
                                 trailing: const Icon(Icons.chevron_right),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),

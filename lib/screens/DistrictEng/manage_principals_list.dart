@@ -298,7 +298,7 @@ class _ManagePrincipalsListPageState extends State<ManagePrincipalsListPage> {
                       scale: 0.8,
                       child: Switch(
                         value: isActive,
-                        activeColor: Colors.green,
+                        activeThumbColor: Colors.green,
                         onChanged: (val) => _confirmStatusChange(doc.id, val),
                       ),
                     ),

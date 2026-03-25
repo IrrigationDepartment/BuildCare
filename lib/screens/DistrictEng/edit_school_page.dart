@@ -9,10 +9,10 @@ class EditSchoolPage extends StatefulWidget {
   final String userNic; // <-- MODIFIED: Accept the user's NIC
 
   const EditSchoolPage({
-    Key? key, 
+    super.key, 
     required this.school,
     required this.userNic, // <-- MODIFIED: Add to constructor
-  }) : super(key: key);
+  });
 
   @override
   _EditSchoolPageState createState() => _EditSchoolPageState();
@@ -345,7 +345,7 @@ class _EditSchoolPageState extends State<EditSchoolPage> {
             ),
           ),
           DropdownButtonFormField<String>(
-            value: _schoolTypes.contains(_typeController.text)
+            initialValue: _schoolTypes.contains(_typeController.text)
                 ? _typeController.text
                 : _schoolTypes.first,
             decoration: InputDecoration(

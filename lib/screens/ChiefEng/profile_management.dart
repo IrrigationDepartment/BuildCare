@@ -8,7 +8,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'dashboard.dart' as dashboard;
-import 'app_settings.dart';
 import '../../login.dart';
 
 class ProfileManagementPage extends StatefulWidget {

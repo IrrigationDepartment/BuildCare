@@ -258,7 +258,7 @@ class _EditSchoolScreenState extends State<EditSchoolScreen> {
           const Text('School Type', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: kTextDark)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedSchoolType,
+            initialValue: _selectedSchoolType,
             items: _schoolTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
             onChanged: (v) => setState(() => _selectedSchoolType = v),
             decoration: _fieldDecoration('Select Type').copyWith(suffixIcon: const Icon(Icons.arrow_drop_down, color: kPrimaryIndigo)),

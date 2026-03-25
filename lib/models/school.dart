@@ -78,14 +78,14 @@ class School {
   // Helper to format the addedAt timestamp
   String get formattedAddedAt {
     if (addedAt == null) return 'N/A';
-    return DateFormat('MMM d, yyyy \@ h:mm a').format(addedAt!.toDate());
+    return DateFormat('MMM d, yyyy @ h:mm a').format(addedAt!.toDate());
   }
 
   // Helper to format the lastEditedAt timestamp
   String get formattedLastEditedAt {
     if (lastEditedAt == null) return 'N/A';
-    return DateFormat('MMM d, yyyy \@ h:mm a').format(lastEditedAt!.toDate());
+    return DateFormat('MMM d, yyyy @ h:mm a').format(lastEditedAt!.toDate());
   }
 
-  toJson() {}
+  void toJson() {}
 }

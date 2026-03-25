@@ -188,10 +188,10 @@ class ReviewNotificationTile extends StatefulWidget {
   final String loggedNic;
 
   const ReviewNotificationTile({
-    Key? key,
+    super.key,
     required this.reviewData,
     required this.loggedNic,
-  }) : super(key: key);
+  });
 
   @override
   State<ReviewNotificationTile> createState() => _ReviewNotificationTileState();

@@ -332,7 +332,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       decoration: InputDecoration(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
-      value: selectedValue,
+      initialValue: selectedValue,
       hint: Text(hint, style: TextStyle(color: Colors.grey[600])),
       isExpanded: true,
       items: items.map((String value) {

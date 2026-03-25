@@ -185,7 +185,7 @@ class _ViewIssuesPageState extends State<ViewIssuesPage> {
                             ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           ),
-                          value: currentSchoolVal,
+                          initialValue: currentSchoolVal,
                           isExpanded: true,
                           items: schoolsSet.map((String school) {
                             return DropdownMenuItem<String>(

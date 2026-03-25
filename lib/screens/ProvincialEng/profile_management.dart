@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Import the dashboard to use the CustomBottomNavBar
 import 'dashboard.dart' as dashboard;
-import 'app_settings.dart'; 
 
 // --- THE FIX: Importing your login.dart file based on your folder structure ---
 import '../../login.dart'; 

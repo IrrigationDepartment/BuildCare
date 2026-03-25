@@ -510,7 +510,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
           const Text('School Type', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedSchoolType,
+            initialValue: _selectedSchoolType,
             hint: const Text('Select School Type'),
             style: const TextStyle(color: Colors.black87, fontSize: 16),
             decoration: _inputDecoration(icon: Icons.category_outlined),
@@ -536,7 +536,7 @@ class _PrincipalRegistrationPageState extends State<PrincipalRegistrationPage> {
           const Text('School District', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedDistrict,
+            initialValue: _selectedDistrict,
             hint: const Text('Select School District'),
             style: const TextStyle(color: Colors.black87, fontSize: 16),
             decoration: _inputDecoration(icon: Icons.location_city_outlined),

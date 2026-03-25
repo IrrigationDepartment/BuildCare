@@ -15,11 +15,11 @@ class AddMasterPlanScreen extends StatefulWidget {
   final String? masterPlanId;
 
   const AddMasterPlanScreen({
-    Key? key,
+    super.key,
     required this.schoolName,
     required this.userNic,
     this.masterPlanId, 
-  }) : super(key: key);
+  });
 
   @override
   _AddMasterPlanScreenState createState() => _AddMasterPlanScreenState();

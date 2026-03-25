@@ -634,7 +634,7 @@ class _AddBuildingIssuesPageState extends State<AddBuildingIssuesPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: DropdownButtonFormField<String>(
-        value: safeVal,
+        initialValue: safeVal,
         items: items.map((i) => DropdownMenuItem(value: i, child: Text(i, style: const TextStyle(fontSize: 14)))).toList(),
         onChanged: items.isEmpty ? null : onChanged, 
         decoration: InputDecoration(

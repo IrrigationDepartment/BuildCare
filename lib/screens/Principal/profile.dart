@@ -6,8 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
-import 'settings_page.dart';
-import 'dashboard.dart';
 import '../../login.dart';
 
 class ProfilePage extends StatefulWidget {

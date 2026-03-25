@@ -9,7 +9,7 @@ import 'dashboard.dart';
 import '../../login.dart'; // IMPORTANT: Adjust this path if it shows a red line!
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key, required Map<String, dynamic> userData, required String userId}) : super(key: key);
+  const ProfilePage({super.key, required Map<String, dynamic> userData, required String userId});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();

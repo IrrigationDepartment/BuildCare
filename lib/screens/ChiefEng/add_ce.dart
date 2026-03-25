@@ -617,7 +617,7 @@ class _ChiefEngRegistrationPageState extends State<ChiefEngRegistrationPage> {
           Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 14)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             items: items.map((String office) => DropdownMenuItem<String>(value: office, child: Text(office))).toList(),
             onChanged: onChanged,
             style: const TextStyle(color: Colors.black87, fontSize: 16),

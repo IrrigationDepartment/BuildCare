@@ -159,10 +159,12 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Field required';
-                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
+                      }
+                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                         return 'Enter valid email';
+                      }
                       return null;
                     },
                   ),
@@ -172,8 +174,9 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Field required';
+                      }
                       if (value.length != 10) return 'Must be 10 digits';
                       return null;
                     },
@@ -290,7 +293,7 @@ class _AddSchoolScreenState extends State<AddSchoolScreen> {
                   color: kTextColor)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _selectedSchoolType,
+            initialValue: _selectedSchoolType,
             items: _schoolTypes
                 .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                 .toList(),

@@ -47,8 +47,9 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
     
     // Determine grid columns based on width
     int crossAxisCount = 1;
-    if (screenWidth > 1200) crossAxisCount = 3;
-    else if (screenWidth > 700) crossAxisCount = 2;
+    if (screenWidth > 1200) {
+      crossAxisCount = 3;
+    } else if (screenWidth > 700) crossAxisCount = 2;
 
     return Scaffold(
       backgroundColor: kBackgroundColor,
@@ -72,7 +73,7 @@ class _ManageSchoolsScreenState extends State<ManageSchoolsScreen> {
         backgroundColor: kAccentTeal,
       ),
       body: Center(
-        child: Container(
+        child: SizedBox(
           width: 1400, // Keeps UI from stretching too far on Ultra-wide screens
           child: Column(
             children: [
