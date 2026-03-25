@@ -561,8 +561,8 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                         'School Name', data['schoolName'] ?? 'N/A'),
                     /*pw.Divider(color: PdfColors.grey300),
                     _buildPdfTableRow('School ID', data['schoolId'] ?? 'N/A'),*/
-                    pw.Divider(color: PdfColors.grey300),
-                    _buildPdfTableRow('Issue Type', data['issueType'] ?? data['category'] ?? 'N/A'),
+                    //pw.Divider(color: PdfColors.grey300),
+                    //_buildPdfTableRow('Issue Type', data['issueType'] ?? data['category'] ?? 'N/A'),
                     pw.Divider(color: PdfColors.grey300),
                     _buildPdfTableRow(
                         'Reporter NIC', data['addedByNic'] ?? 'N/A'),
@@ -1007,12 +1007,12 @@ class _IssueDetailPageState extends State<IssueDetailPage> {
                           spacing: 16,
                           runSpacing: 0,
                           children: [
-                            SizedBox(
+                           /* SizedBox(
                                 width: cardWidth,
                                 child: _buildDetailSection(
                                     title: 'Issue Type',
                                     value: issueType,
-                                    icon: Icons.category_outlined)),
+                                    icon: Icons.category_outlined)),*/
                             SizedBox(
                                 width: cardWidth,
                                 child: _buildDetailSection(
