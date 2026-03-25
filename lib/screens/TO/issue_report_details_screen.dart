@@ -297,7 +297,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                                   label: 'Building Area',
                                   value: _issueData!['buildingArea'] ?? 'N/A',
                                 ),*/
-                                const Divider(height: 24, color: Colors.black12),
+                                /*const Divider(height: 24, color: Colors.black12),
                                 _buildDetailRow(
                                   icon: Icons.layers_rounded,
                                   label: 'Total Floors',
@@ -308,7 +308,7 @@ class _IssueReportDetailsScreenState extends State<IssueReportDetailsScreen> {
                                   icon: Icons.chair_alt_rounded,
                                   label: 'Total Classrooms',
                                   value: _issueData!['numClassrooms']?.toString() ?? 'N/A',
-                                ),
+                                ),*/
                               ],
                             ),
                             
