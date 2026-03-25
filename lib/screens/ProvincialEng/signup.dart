@@ -203,7 +203,7 @@ class _ProvincialEngRegistrationPageState
           'mobilePhone': _mobileController.text.trim(),
           'userType': 'Provincial Director',
           'createdAt': Timestamp.now(),
-          'isActive': _initialIsActiveStatus,
+          'isActive': _initialIsActiveStatus, // Sets it to false
           'profile_image': _defaultProfileImageUrl,
         };
 
@@ -217,9 +217,12 @@ class _ProvincialEngRegistrationPageState
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 backgroundColor: Colors.green,
-                content: Text('Registration successful! Please Login.')),
+                content: Text('Registration successful! Please wait for admin approval.')),
           );
           
+          // Force sign out immediately after registration so they can't bypass login
+          await FirebaseAuth.instance.signOut();
+
           // Navigate to Login
           Navigator.pushReplacement(
             context,
@@ -701,6 +704,25 @@ class _ProvincialEngLoginPageState extends State<ProvincialEngLoginPage> {
         if (docSnapshot.exists) {
            final userData = docSnapshot.data()!;
            
+           // --- NEW: Check isActive Status ---
+           if (userData['isActive'] == false) {
+             // Sign out the user because they are not active
+             await FirebaseAuth.instance.signOut();
+             
+             if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(
+                 const SnackBar(
+                   content: Text('Account pending approval. Please contact the administrator.'),
+                   backgroundColor: Colors.orange,
+                   duration: Duration(seconds: 4),
+                 ),
+               );
+             }
+             setState(() => _isLoading = false);
+             return; // Stop the login process here
+           }
+           // --- END OF NEW CHECK ---
+
            if (mounted) {
              ScaffoldMessenger.of(context).showSnackBar(
                SnackBar(

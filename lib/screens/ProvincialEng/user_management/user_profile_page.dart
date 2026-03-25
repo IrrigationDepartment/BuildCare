@@ -623,7 +623,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             widget.userData['officePhone'] ?? '',
                             Icons.phone_outlined,
                           ),
-                          const Divider(height: 1),
+                         /* const Divider(height: 1),
                           _buildInfoItem(
                             'Security Question (Nickname)',
                             widget.userData['securityQuestionNickname'] ?? '',
@@ -634,7 +634,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             'Security Question (Pet)',
                             widget.userData['securityQuestionPet'] ?? '',
                             Icons.pets_outlined,
-                          ),
+                          ),*/
                         ],
                       ),
 
@@ -644,11 +644,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       _buildDetailCard(
                         'Account Information',
                         [
-                          _buildInfoItem(
+                         /* _buildInfoItem(
                             'User ID',
                             '${widget.userId.substring(0, 8)}...',
                             Icons.fingerprint_outlined,
-                          ),
+                          ),*/
                           const Divider(height: 1),
                           if (createdAt != null)
                             _buildInfoItem(
@@ -664,14 +664,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                               Icons.update_outlined,
                             ),
                           ],
-                          const Divider(height: 1),
+                          /*const Divider(height: 1),
                           _buildInfoItem(
                             'Profile Image URL',
                             profileImageUrl.isNotEmpty 
                                 ? '${profileImageUrl.substring(0, 30)}...' 
                                 : 'Not set',
                             Icons.image_outlined,
-                          ),
+                          ),*/
                         ],
                       ),
 

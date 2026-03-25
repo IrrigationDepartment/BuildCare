@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:633986399795:android:c112ffd94a414434f6ad46",
+        "android_client_info": {
+          "package_name": "com.buildcare.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACJIVBfhvuK76yn8CY6u-JaQj_Zlch9g0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:633986399795:android:0b23279ab906be00f6ad46",
         "android_client_info": {
           "package_name": "com.example.buildcare"
