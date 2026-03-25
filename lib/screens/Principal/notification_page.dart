@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'IssueDetailScreen.dart';
 
 class NotificationScreen extends StatefulWidget {
-  final String loggedNic; // REQUIRE THE LOGGED-IN USER'S NIC
+  final String loggedNic;
 
   const NotificationScreen({super.key, required this.loggedNic});
 
@@ -15,55 +15,87 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  // --- Style Constants ---
   static const Color kPrimaryBlue = Color(0xFF42A5F5);
   static const Color kBackgroundColor = Color(0xFFF5F7FA);
   static const Color kTextColor = Color(0xFF333333);
   static const Color kSubTextColor = Color(0xFF757575);
 
-  // This function fetches your issues, then fetches the reviews inside them
   Future<List<Map<String, dynamic>>> _fetchMyReviews() async {
     List<Map<String, dynamic>> allReviews = [];
 
     try {
-      // 1. Find all issues where addedByNic matches the logged in user's NIC
-      var issuesSnapshot = await FirebaseFirestore.instance
+      final issuesSnapshot = await FirebaseFirestore.instance
           .collection('issues')
           .where('addedByNic', isEqualTo: widget.loggedNic)
           .get();
 
-      // 2. Loop through each of your issues to get its 'reviews' subcollection
       for (var issueDoc in issuesSnapshot.docs) {
-        var reviewsSnapshot = await issueDoc.reference.collection('reviews').get();
+        final reviewsSnapshot =
+            await issueDoc.reference.collection('reviews').get();
 
         for (var reviewDoc in reviewsSnapshot.docs) {
-          var reviewData = reviewDoc.data();
-          
-          // Attach parent issue data so we know where this review came from
+          final reviewData = reviewDoc.data();
+
+          final List<dynamic> readBy = reviewData['readBy'] ?? [];
+
           reviewData['reviewId'] = reviewDoc.id;
           reviewData['issueId'] = issueDoc.id;
-          reviewData['issueTitle'] = issueDoc.data()['issueTitle'] ?? 'Unknown Issue';
-          reviewData['parentIssueData'] = issueDoc.data(); // Save for navigation later
+          reviewData['issueTitle'] =
+              issueDoc.data()['issueTitle'] ?? 'Unknown Issue';
+          reviewData['parentIssueData'] = issueDoc.data();
+          reviewData['isRead'] = readBy.contains(widget.loggedNic);
 
           allReviews.add(reviewData);
         }
       }
 
-      // 3. Sort all collected reviews by timestamp (Newest first)
       allReviews.sort((a, b) {
         Timestamp? timeA = a['timestamp'] as Timestamp?;
         Timestamp? timeB = b['timestamp'] as Timestamp?;
         if (timeA == null && timeB == null) return 0;
         if (timeA == null) return 1;
         if (timeB == null) return -1;
-        return timeB.compareTo(timeA); // Descending order
+        return timeB.compareTo(timeA);
       });
-
     } catch (e) {
       debugPrint("Error fetching reviews: $e");
     }
 
     return allReviews;
+  }
+
+  Future<void> _markAllAsRead(List<Map<String, dynamic>> reviews) async {
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+
+      for (final review in reviews) {
+        final List<dynamic> readBy = review['readBy'] ?? [];
+        if (readBy.contains(widget.loggedNic)) continue;
+
+        final String issueId = review['issueId'] ?? '';
+        final String reviewId = review['reviewId'] ?? '';
+
+        if (issueId.isEmpty || reviewId.isEmpty) continue;
+
+        final reviewRef = FirebaseFirestore.instance
+            .collection('issues')
+            .doc(issueId)
+            .collection('reviews')
+            .doc(reviewId);
+
+        batch.set(
+          reviewRef,
+          {
+            'readBy': FieldValue.arrayUnion([widget.loggedNic]),
+          },
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
+    } catch (e) {
+      debugPrint("Error marking notifications as read: $e");
+    }
   }
 
   @override
@@ -79,17 +111,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
         elevation: 1,
         iconTheme: const IconThemeData(color: kTextColor),
       ),
-      // Use FutureBuilder to run the 2-step fetch
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Determine if the screen is wide enough for the centered desktop layout
             bool isWideScreen = constraints.maxWidth > 800;
 
             return Center(
               child: ConstrainedBox(
-                // Max width prevents the list from stretching awkwardly on ultra-wide monitors
-                constraints: BoxConstraints(maxWidth: isWideScreen ? 800 : double.infinity),
+                constraints: BoxConstraints(
+                  maxWidth: isWideScreen ? 800 : double.infinity,
+                ),
                 child: FutureBuilder<List<Map<String, dynamic>>>(
                   future: _fetchMyReviews(),
                   builder: (context, snapshot) {
@@ -101,20 +132,22 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       return _buildEmptyState();
                     }
 
-                    List<Map<String, dynamic>> reviews = snapshot.data!;
+                    final reviews = snapshot.data!;
+
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _markAllAsRead(reviews);
+                    });
 
                     return RefreshIndicator(
                       onRefresh: () async {
-                        setState(() {}); // Pull to refresh the reviews list
+                        setState(() {});
                       },
                       child: ListView.builder(
-                        // Add some padding to the top and bottom of the list for visual breathing room
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         itemCount: reviews.length,
                         itemBuilder: (context, index) {
-                          var data = reviews[index];
-                          
-                          // Use the new optimized tile!
+                          final data = reviews[index];
+
                           return ReviewNotificationTile(
                             reviewData: data,
                             loggedNic: widget.loggedNic,
@@ -137,7 +170,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.notifications_none_outlined, size: 80, color: Colors.grey[300]),
+          Icon(Icons.notifications_none_outlined,
+              size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           const Text(
             'No new notifications',
@@ -149,7 +183,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 }
 
-// --- OPTIMIZED FACEBOOK-STYLE NOTIFICATION TILE ---
 class ReviewNotificationTile extends StatefulWidget {
   final Map<String, dynamic> reviewData;
   final String loggedNic;
@@ -165,9 +198,8 @@ class ReviewNotificationTile extends StatefulWidget {
 }
 
 class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
-  // Global cache to prevent lag when scrolling
   static final Map<String, Map<String, dynamic>> _userCache = {};
-  
+
   String reviewerName = "Someone";
   String? profileImage;
 
@@ -181,15 +213,17 @@ class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
     String reviewerUid = widget.reviewData['reviewerNic'] ?? '';
     if (reviewerUid.isEmpty) return;
 
-    // Load from cache instantly if we already downloaded this user's data
     if (_userCache.containsKey(reviewerUid)) {
       _applyUserData(_userCache[reviewerUid]!);
       return;
     }
 
-    // Otherwise, fetch from Firebase
     try {
-      var doc = await FirebaseFirestore.instance.collection('users').doc(reviewerUid).get();
+      var doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(reviewerUid)
+          .get();
+
       if (doc.exists && doc.data() != null) {
         _userCache[reviewerUid] = doc.data() as Map<String, dynamic>;
         if (mounted) _applyUserData(_userCache[reviewerUid]!);
@@ -207,43 +241,70 @@ class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
   }
 
   String _formatTimestamp(dynamic timestamp) {
-    if (timestamp == null) return 'Just now'; 
+    if (timestamp == null) return 'Just now';
     if (timestamp is Timestamp) {
       DateTime date = timestamp.toDate();
-      // Returns a clean format like "Feb 23, 1:26 PM"
       return DateFormat.yMMMd().add_jm().format(date);
     }
     return '';
+  }
+
+  Future<void> _markThisAsRead() async {
+    try {
+      final String issueId = widget.reviewData['issueId'] ?? '';
+      final String reviewId = widget.reviewData['reviewId'] ?? '';
+
+      if (issueId.isEmpty || reviewId.isEmpty) return;
+
+      await FirebaseFirestore.instance
+          .collection('issues')
+          .doc(issueId)
+          .collection('reviews')
+          .doc(reviewId)
+          .set(
+        {
+          'readBy': FieldValue.arrayUnion([widget.loggedNic]),
+        },
+        SetOptions(merge: true),
+      );
+    } catch (e) {
+      debugPrint("Error marking notification as read: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     String reviewText = widget.reviewData['reviewText'] ?? 'No text provided';
     String issueTitle = widget.reviewData['issueTitle'] ?? 'an issue';
+    bool isRead = widget.reviewData['isRead'] == true;
 
     return Container(
-      // Add margin to make it look like separate cards on desktop, but full width on mobile
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), 
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12), // Rounded corners for a modern feel
+        color: isRead ? Colors.white : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.08),
             spreadRadius: 1,
             blurRadius: 4,
-            offset: const Offset(0, 2), // Subtle shadow
+            offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(
+          color: isRead ? Colors.grey.shade100 : Colors.blue.shade100,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            // Navigate directly to the Issue Details Screen
+          onTap: () async {
+            await _markThisAsRead();
+
+            if (!mounted) return;
+
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -253,80 +314,114 @@ class _ReviewNotificationTileState extends State<ReviewNotificationTile> {
                   userNic: widget.loggedNic,
                 ),
               ),
-            );
+            ).then((_) {
+              if (mounted) {
+                setState(() {
+                  widget.reviewData['isRead'] = true;
+                });
+              }
+            });
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // User Profile Image (or default icon)
-                CircleAvatar(
-                  radius: 26, // Slightly larger for better visibility
-                  backgroundColor: Colors.blue.shade50,
-                  backgroundImage: (profileImage != null && profileImage!.isNotEmpty)
-                      ? NetworkImage(profileImage!)
-                      : null,
-                  child: (profileImage == null || profileImage!.isEmpty)
-                      ? Icon(Icons.person, size: 30, color: Colors.blue.shade400)
-                      : null,
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: Colors.blue.shade50,
+                      backgroundImage:
+                          (profileImage != null && profileImage!.isNotEmpty)
+                              ? NetworkImage(profileImage!)
+                              : null,
+                      child: (profileImage == null || profileImage!.isEmpty)
+                          ? Icon(Icons.person,
+                              size: 30, color: Colors.blue.shade400)
+                          : null,
+                    ),
+                    if (!isRead)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(width: 16),
-                
-                // Notification Content
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Facebook-style RichText (Bold name, normal text, bold issue)
                       RichText(
                         text: TextSpan(
-                          style: const TextStyle(fontSize: 15, color: Color(0xFF2C3E50), height: 1.4),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF2C3E50),
+                            height: 1.4,
+                          ),
                           children: [
                             TextSpan(
                               text: "$reviewerName ",
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
                             const TextSpan(text: "reviewed your issue:\n"),
                             TextSpan(
                               text: issueTitle,
-                              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 8),
-                      
-                      // The actual review preview inside a tinted container
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade200)
+                          border: Border.all(color: Colors.grey.shade200),
                         ),
                         child: Text(
                           '"$reviewText"',
                           style: TextStyle(
-                            fontSize: 14, 
+                            fontSize: 14,
                             color: Colors.grey.shade700,
                             fontStyle: FontStyle.italic,
-                            height: 1.3
+                            height: 1.3,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(height: 10),
-                      
-                      // Timestamp
                       Row(
                         children: [
-                          Icon(Icons.access_time, size: 14, color: Colors.blue.shade300),
+                          Icon(Icons.access_time,
+                              size: 14, color: Colors.blue.shade300),
                           const SizedBox(width: 4),
                           Text(
                             _formatTimestamp(widget.reviewData['timestamp']),
-                            style: TextStyle(fontSize: 12, color: Colors.blue.shade400, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue.shade400,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
