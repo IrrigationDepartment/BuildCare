@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -88,8 +89,23 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
           _floorsController.text = data['numFloors']?.toString() ?? '';
           _classroomsController.text = data['numClassrooms']?.toString() ?? '';
           _descriptionController.text = data['description'] ?? '';
-          _selectedBuilding = data['buildingName'];
-          _selectedDamageType = data['damageType'];
+          
+          // Safety check for Dropdown value: Building
+          String? fetchedBuilding = data['buildingName'];
+          if (fetchedBuilding != null && _buildingTypes.contains(fetchedBuilding)) {
+            _selectedBuilding = fetchedBuilding;
+          } else {
+            _selectedBuilding = null; 
+          }
+
+          // Safety check for Dropdown value: Damage Type
+          String? fetchedDamage = data['damageType'];
+          if (fetchedDamage != null && _damageTypes.contains(fetchedDamage)) {
+            _selectedDamageType = fetchedDamage;
+          } else {
+            _selectedDamageType = null;
+          }
+
           if (data['dateOfOccurance'] != null) {
             _selectedDate = (data['dateOfOccurance'] as Timestamp).toDate();
             _dateController.text = DateFormat('yyyy-MM-dd').format(_selectedDate!);
@@ -257,8 +273,8 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
                   children: [
                     _buildTextField("School Name", "Enter school name", _schoolNameController, isNumber: false),
                     _buildDropdown("Damage Building", "Select building", _buildingTypes, _selectedBuilding, (val) => setState(() => _selectedBuilding = val)),
-                    _buildTextField("Floors", "Number of floors", _floorsController, isNumber: true),
-                    _buildTextField("Classrooms", "Number of rooms", _classroomsController, isNumber: true),
+                    // _buildTextField("Floors", "Number of floors", _floorsController, isNumber: true),
+                    // _buildTextField("Classrooms", "Number of rooms", _classroomsController, isNumber: true),
                     _buildDropdown("Damage Type", "Select type", _damageTypes, _selectedDamageType, (val) => setState(() => _selectedDamageType = val)),
                     _buildDescriptionField("Description", "Describe the issue", _descriptionController),
                     _buildUploadImagesSection(),
@@ -294,7 +310,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
         Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          initialValue: val,
+          value: val, // Changed initialValue to value to handle state updates properly
           items: items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
           onChanged: onChanged,
           decoration: InputDecoration(hintText: hint, filled: true, fillColor: _textFieldBackgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),

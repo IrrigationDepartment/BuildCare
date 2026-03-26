@@ -150,7 +150,7 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
                       ),
 
                       // --- SECTION 4: BUILDING SPECS CARD ---
-                      _buildSectionCard(
+                      /*_buildSectionCard(
                         title: 'Building Specifications',
                         children: [
                           _buildDetailRow(
@@ -171,7 +171,7 @@ class _DamageDetailsDialogState extends State<DamageDetailsDialog> {
                                 'N/A',
                           ),
                         ],
-                      ),
+                      ),*/
 
                       // --- SECTION 5: LOCATION CARD ---
                       _buildSectionCard(

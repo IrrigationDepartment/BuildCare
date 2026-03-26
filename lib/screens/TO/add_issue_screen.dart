@@ -1,17 +1,10 @@
 import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
-
 import 'package:flutter/material.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:image_picker/image_picker.dart';
-
 import 'package:intl/intl.dart';
-
 import 'package:http/http.dart' as http;
-
 import 'package:flutter/services.dart';
 
 class AddIssueScreen extends StatefulWidget {
@@ -100,6 +93,15 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
     super.dispose();
   }
 
+  // --- Helper to convert input to Title Case ---
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   // --- School autocomplete logic ---
   void _onSchoolNameChanged() {
     final query = _schoolNameController.text.trim();
@@ -122,10 +124,13 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
   Future<void> _fetchSchoolSuggestions(String query) async {
     setState(() => _isLoadingSchools = true);
     try {
+      // FIX: Format the query to Title Case so "anula" matches "Anula" in Firestore
+      String formattedQuery = _toTitleCase(query);
+
       final snapshot = await FirebaseFirestore.instance
           .collection('schools')
-          .where('schoolName', isGreaterThanOrEqualTo: query)
-          .where('schoolName', isLessThanOrEqualTo: '$query\uf8ff')
+          .where('schoolName', isGreaterThanOrEqualTo: formattedQuery)
+          .where('schoolName', isLessThanOrEqualTo: '$formattedQuery\uf8ff')
           .limit(7)
           .get();
 
@@ -236,9 +241,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
   }
 
   // --- Add Building Dialog ---
-  // FIX: Controller is created fresh inside the dialog, never stored on the class
   void _showAddBuildingDialog() {
-    // Create controller locally inside this method — avoids lifecycle issues
     final localBuildingController = TextEditingController();
     bool isAdding = false;
     final schoolName = _schoolNameController.text;
@@ -394,7 +397,6 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
         );
       },
     ).then((_) {
-      // Safely dispose the local controller after dialog closes
       localBuildingController.dispose();
     });
   }
@@ -797,7 +799,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
                   child: Opacity(
                     opacity: _schoolSelected ? 1.0 : 0.5,
                     child: DropdownButtonFormField<String>(
-                      initialValue: _selectedBuilding,
+                      value: _selectedBuilding, // Ensure you use 'value', not 'initialValue' here for state updates
                       icon: const Icon(
                           Icons.keyboard_arrow_down_rounded),
                       items: _schoolBuildingNames
@@ -898,7 +900,7 @@ class _AddIssueScreenState extends State<AddIssueScreen> {
                     fontWeight: FontWeight.w600, color: _textDark)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: val,
+              value: val, // Changed initialValue to value
               icon: const Icon(Icons.keyboard_arrow_down_rounded),
               items: items
                   .map((i) => DropdownMenuItem(
