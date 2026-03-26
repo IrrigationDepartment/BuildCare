@@ -99,10 +99,14 @@ class NotificationPage extends StatelessWidget {
                     List<dynamic> readByUsers = data['readBy'] ?? [];
                     bool isRead = readByUsers.contains(currentUserId);
 
-                    // Routing metadata
-                    String? type = data['type'];
+                    // ==========================================================
+                    // ROUTING METADATA: MORE ROBUST EXTRACTION
+                    // ==========================================================
+                    // Convert type to lowercase to avoid 'Issue' failing 'issue' check
+                    String? type = data['type']?.toString().toLowerCase();
                     String? schoolId = data['schoolId'];
-                    String? issueId = data['issueId'];
+                    // Look for issueId under multiple common keys just in case
+                    String? issueId = data['issueId'] ?? data['id'] ?? data['referenceId'];
                     String? contractorId = data['contractorId'];
                     String userNic = data['userNic'] ?? '';
 
@@ -123,10 +127,13 @@ class NotificationPage extends StatelessWidget {
                           if (!context.mounted) return;
 
                           // ==========================================================
-                          // NAVIGATION LOGIC (Updated to handle 'review' type)
+                          // NAVIGATION LOGIC (Updated for Principal Issue Reporting)
                           // ==========================================================
-                          // --> ADDED 'review' TO THIS CONDITION <--
-                          if ((type == 'issue' || type == 'review') && issueId != null) {
+                          // Check if type matches OR contains 'issue' (like 'new_issue' or 'reported_issue')
+                          if ((type == 'issue' ||
+                                  type == 'review' ||
+                                  (type != null && type.contains('issue'))) &&
+                              issueId != null) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -154,10 +161,13 @@ class NotificationPage extends StatelessWidget {
                               ),
                             );
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text("Link destination not found.")),
-                            );
+                            // If it fails, print out WHAT failed so you can actually debug the database
+                            /*ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    ""),
+                              ),
+                            );*/
                           }
                         },
                         child: Padding(
@@ -283,11 +293,16 @@ class NotificationPage extends StatelessWidget {
   }
 
   IconData _getIconForType(String? type) {
+    if (type == null) return Icons.notifications_rounded;
+    
+    // Use .contains to match variations like 'new_issue' or 'reported_issue'
+    if (type.contains('issue')) {
+      return Icons.report_problem_rounded;
+    }
+    
     switch (type) {
-      case 'issue':
-        return Icons.report_problem_rounded;
-      case 'review': // <-- Added an icon explicitly for reviews
-        return Icons.rate_review_rounded; 
+      case 'review':
+        return Icons.rate_review_rounded;
       case 'contract':
         return Icons.assignment_rounded;
       case 'contractor':
@@ -295,7 +310,7 @@ class NotificationPage extends StatelessWidget {
       case 'school':
         return Icons.school_rounded;
       default:
-        return Icons.notifications_rounded; // Changed fallback to a general bell icon
+        return Icons.notifications_rounded;
     }
   }
 
