@@ -123,9 +123,10 @@ class NotificationPage extends StatelessWidget {
                           if (!context.mounted) return;
 
                           // ==========================================================
-                          // NAVIGATION LOGIC (Modified to handle school type)
+                          // NAVIGATION LOGIC (Updated to handle 'review' type)
                           // ==========================================================
-                          if (type == 'issue' && issueId != null) {
+                          // --> ADDED 'review' TO THIS CONDITION <--
+                          if ((type == 'issue' || type == 'review') && issueId != null) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -145,11 +146,9 @@ class NotificationPage extends StatelessWidget {
                               ),
                             );
                           } else if (type == 'school' && schoolId != null) {
-                            // <--- Handling the school notification
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                // NEW: We only pass the schoolId. The details page will fetch its own data.
                                 builder: (context) =>
                                     SchoolDetailPage(schoolId: schoolId),
                               ),
@@ -287,14 +286,16 @@ class NotificationPage extends StatelessWidget {
     switch (type) {
       case 'issue':
         return Icons.report_problem_rounded;
+      case 'review': // <-- Added an icon explicitly for reviews
+        return Icons.rate_review_rounded; 
       case 'contract':
         return Icons.assignment_rounded;
       case 'contractor':
         return Icons.business_center_rounded;
-      case 'school': // <--- Explicitly added for new school notifications
+      case 'school':
         return Icons.school_rounded;
       default:
-        return Icons.school_rounded;
+        return Icons.notifications_rounded; // Changed fallback to a general bell icon
     }
   }
 
